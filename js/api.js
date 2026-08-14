@@ -12,6 +12,24 @@
    HELPERS
 ============================================================ */
 
+/* Active-request cancellation. A new chat request supersedes any
+   in-flight one; the UI's stop button aborts it explicitly. */
+let currentAbortController = null;
+
+function abortCurrentRequest(){
+  if(currentAbortController){
+    currentAbortController.abort();
+    currentAbortController = null;
+  }
+}
+
+function beginRequest(){
+  abortCurrentRequest();   // never run two streams at once
+  const ctrl = new AbortController();
+  currentAbortController = ctrl;
+  return ctrl;
+}
+
 function currentProvider(){
   return (window.Catalog && Catalog.getProvider(State.provider)) || { id: State.provider, name: State.provider, api: "", format: "openai" };
 }
@@ -51,12 +69,22 @@ function parseToolArgs(args){
 }
 
 function dataUrlToBlob(dataUrl){
-  const [meta, b64] = dataUrl.split(",");
-  const mime = meta.match(/data:(.*?);base64/)[1];
-  const bin = atob(b64);
-  const arr = new Uint8Array(bin.length);
-  for(let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
-  return new Blob([arr], { type: mime });
+  if(!dataUrl || typeof dataUrl !== "string"){
+    throw new Error("Invalid data URL");
+  }
+  const parts = dataUrl.split(",");
+  if(parts.length < 2 || !parts[1]) throw new Error("Invalid data URL format");
+  const mimeMatch = parts[0].match(/data:(.*?);base64/);
+  if(!mimeMatch) throw new Error("Invalid data URL mime type");
+  const mime = mimeMatch[1];
+  try{
+    const bin = atob(parts[1]);
+    const arr = new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  }catch(e){
+    throw new Error("Failed to decode data URL");
+  }
 }
 
 function guessAudioFormat(name){
@@ -122,10 +150,12 @@ async function testConnection(providerId, key){
 ============================================================ */
 
 async function streamOpenAI(turn, body){
+  const ctrl = beginRequest();
   const res = await fetch(`${getBaseUrl()}/chat/completions`, {
     method:"POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-    body: JSON.stringify({ ...body, stream:true })
+    body: JSON.stringify({ ...body, stream:true }),
+    signal: ctrl.signal
   });
 
   if(!res.ok) throw new Error(errorMessage(res.status, await safeJson(res)));
@@ -160,7 +190,7 @@ async function streamOpenAI(turn, body){
           if(!firstTokenSeen){ firstTokenSeen = true; Chat.collapsePhase(turn); }
           fullText += delta.content;
           turn.bubble.innerHTML = Markdown.renderMarkdownish(fullText) + '<span class="type-cursor"></span>';
-          Markdown.enhanceCodeBlocks(turn.bubble);
+          Markdown.scheduleHighlight(turn.bubble);
           Chat.scrollIfSticky();
         }
         if(delta.tool_calls){
@@ -231,10 +261,12 @@ async function chatOpenAI(turn, text, image, audio, m){
 ============================================================ */
 
 async function streamAnthropic(turn, body){
+  const ctrl = beginRequest();
   const res = await fetch(`${getBaseUrl()}/messages`, {
     method:"POST",
     headers: { "Content-Type": "application/json", "x-api-key": State.apiKey, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({ ...body, stream:true })
+    body: JSON.stringify({ ...body, stream:true }),
+    signal: ctrl.signal
   });
 
   if(!res.ok) throw new Error(errorMessage(res.status, await safeJson(res)));
@@ -286,7 +318,7 @@ async function streamAnthropic(turn, body){
             if(!firstTokenSeen){ firstTokenSeen = true; Chat.collapsePhase(turn); }
             fullText += delta.text;
             turn.bubble.innerHTML = Markdown.renderMarkdownish(fullText) + '<span class="type-cursor"></span>';
-            Markdown.enhanceCodeBlocks(turn.bubble);
+            Markdown.scheduleHighlight(turn.bubble);
             Chat.scrollIfSticky();
           } else if(delta.type === "input_json_delta" && currentBlock && currentBlock.type === "tool_use" && delta.partial_json){
             currentBlock.args += delta.partial_json;
@@ -374,11 +406,13 @@ function parseGoogleResponse(data){
 }
 
 async function streamGoogle(turn, modelId, body){
+  const ctrl = beginRequest();
   const url = `${getBaseUrl()}/models/${encodeURIComponent(modelId)}:streamGenerateContent?alt=sse`;
   const res = await fetch(url, {
     method:"POST",
     headers: { "Content-Type": "application/json", "x-goog-api-key": State.apiKey },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
+    signal: ctrl.signal
   });
 
   if(!res.ok) throw new Error(errorMessage(res.status, await safeJson(res)));
@@ -424,7 +458,7 @@ async function streamGoogle(turn, modelId, body){
             if(!firstTokenSeen){ firstTokenSeen = true; Chat.collapsePhase(turn); }
             fullText += p.text;
             turn.bubble.innerHTML = Markdown.renderMarkdownish(fullText) + '<span class="type-cursor"></span>';
-            Markdown.enhanceCodeBlocks(turn.bubble);
+            Markdown.scheduleHighlight(turn.bubble);
             Chat.scrollIfSticky();
           }
           if(p.functionCall){
@@ -499,13 +533,14 @@ async function callChatStreaming(turn, text, image, audio, m){
 ============================================================ */
 
 async function callTranscriptionStreaming(turn, dataUrl, modelId){
+  const ctrl = beginRequest();
   Chat.setPhase(turn, "audio", "🎙️ Transcribing audio…");
   const blob = dataUrlToBlob(dataUrl);
   const form = new FormData();
   form.append("file", blob, "audio.wav");
   form.append("model", modelId);
   const res = await fetch(`${getBaseUrl()}/audio/transcriptions`, {
-    method:"POST", headers: getAuthHeaders(), body: form
+    method:"POST", headers: getAuthHeaders(), body: form, signal: ctrl.signal
   });
   if(!res.ok) throw new Error(errorMessage(res.status, await safeJson(res)));
   const data = await res.json();
@@ -516,11 +551,13 @@ async function callTranscriptionStreaming(turn, dataUrl, modelId){
 }
 
 async function callOcrStreaming(turn, dataUrl, modelId){
+  const ctrl = beginRequest();
   Chat.setPhase(turn, "ocr", "📄 Reading document…");
   const res = await fetch(`${getBaseUrl()}/ocr`, {
     method:"POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-    body: JSON.stringify({ model: modelId, document:{ type:"image_url", image_url: dataUrl } })
+    body: JSON.stringify({ model: modelId, document:{ type:"image_url", image_url: dataUrl } }),
+    signal: ctrl.signal
   });
   if(!res.ok) throw new Error(errorMessage(res.status, await safeJson(res)));
   const data = await res.json();
@@ -532,11 +569,13 @@ async function callOcrStreaming(turn, dataUrl, modelId){
 }
 
 async function callTtsStreaming(turn, text, modelId){
+  const ctrl = beginRequest();
   Chat.setPhase(turn, "connect", "🔊 Generating speech…");
   const res = await fetch(`${getBaseUrl()}/audio/speech`, {
     method:"POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-    body: JSON.stringify({ model: modelId, input: text, response_format: "mp3" })
+    body: JSON.stringify({ model: modelId, input: text, response_format: "mp3" }),
+    signal: ctrl.signal
   });
   if(!res.ok) throw new Error(errorMessage(res.status, await safeJson(res)));
   const data = await res.json();
@@ -553,11 +592,13 @@ async function callTtsStreaming(turn, text, modelId){
 }
 
 async function callEmbeddingsStreaming(turn, text, modelId){
+  const ctrl = beginRequest();
   Chat.setPhase(turn, "connect", "📐 Generating embeddings…");
   const res = await fetch(`${getBaseUrl()}/embeddings`, {
     method:"POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-    body: JSON.stringify({ model: modelId, input: text })
+    body: JSON.stringify({ model: modelId, input: text }),
+    signal: ctrl.signal
   });
   if(!res.ok) throw new Error(errorMessage(res.status, await safeJson(res)));
   const data = await res.json();
@@ -571,11 +612,13 @@ async function callEmbeddingsStreaming(turn, text, modelId){
 }
 
 async function callModerationStreaming(turn, text, modelId){
+  const ctrl = beginRequest();
   Chat.setPhase(turn, "connect", "🛡️ Moderating content…");
   const res = await fetch(`${getBaseUrl()}/moderations`, {
     method:"POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-    body: JSON.stringify({ model: modelId, input: text })
+    body: JSON.stringify({ model: modelId, input: text }),
+    signal: ctrl.signal
   });
   if(!res.ok) throw new Error(errorMessage(res.status, await safeJson(res)));
   const data = await res.json();
@@ -603,5 +646,6 @@ window.Api = {
   callOcrStreaming,
   callTtsStreaming,
   callEmbeddingsStreaming,
-  callModerationStreaming
+  callModerationStreaming,
+  abortCurrentRequest
 };

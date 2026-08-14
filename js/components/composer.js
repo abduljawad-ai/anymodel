@@ -1,7 +1,7 @@
 /* ============================================================
-   COMPOSER — prompt input, attach buttons, send button,
-   demo-tools row, and all send flows (chat / transcription /
-   OCR / TTS / embeddings / moderation).
+   COMPOSER — prompt input, attach buttons, send/stop button,
+   and all send flows (chat / transcription / OCR / TTS /
+   embeddings / moderation).
 ============================================================ */
 (function(){
 
@@ -31,8 +31,21 @@ function bytesToBase64(bytes){
    RENDERING
 ============================================================ */
 
+function updateSendButton(){
+  const btn = $id("sendBtn");
+  if(!btn) return;
+  btn.disabled = !currentModel();
+  if(State.sending){
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
+    btn.setAttribute("aria-label", "Stop generating");
+  } else {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>';
+    btn.setAttribute("aria-label", "Send message");
+  }
+}
+
 function render(){
-  $id("sendBtn").disabled = State.sending || !currentModel();
+  updateSendButton();
   const m = currentModel();
   const canImage = !!(m && (m.capabilities?.vision || m.capabilities?.ocr ||
     (window.Catalog && Catalog.pickModel(State.provider, "ocr"))));
@@ -101,7 +114,7 @@ async function handleSend(){
   saveMessages();
   State.sending = true;
   closeMenu();
-  $id("sendBtn").disabled = true;
+  updateSendButton();
 
   const userMsg = { role:"user", content:text, modelUsed:m.id };
   if(State.pendingImage) userMsg.imageDataUrl = State.pendingImage.dataUrl;
@@ -119,6 +132,7 @@ async function handleSend(){
   State.stickToBottom = true;
 
   const turn = Chat.createAssistantTurn();
+  if(Chat.announce) Chat.announce("Assistant is responding");
 
   try{
     let result;
@@ -148,27 +162,21 @@ async function handleSend(){
     State.messages.push({ role:"assistant", content: result.text, modelUsed: m.id, toolUsed: result.toolUsed });
     saveMessages();
   } catch(err){
-    State.messages.push({ role:"system", isError:true, content: "⚠ " + (err.message || "Request failed.") });
-    saveMessages();
-    Chat.render();
+    const isAbort = !!(err && err.name === "AbortError");
+    // Remove the empty assistant bubble so no ghost turn is left behind.
+    if(turn && turn.row && turn.row.parentNode) turn.row.parentNode.removeChild(turn.row);
+    if(isAbort){
+      if(Chat.announce) Chat.announce("Generation stopped");
+    } else {
+      State.messages.push({ role:"system", isError:true, content: "⚠ " + (err.message || "Request failed.") });
+      saveMessages();
+      Chat.render();
+      if(Chat.announce) Chat.announce("Error: " + (err.message || "request failed"));
+    }
   } finally {
     State.sending = false;
-    $id("sendBtn").disabled = false;
     render();
   }
-}
-
-async function handleDemoTool(demoId){
-  const demo = Config.DEMO_TOOLS.find(d => d.id === demoId);
-  if(!demo) return;
-  const result = await Config.runDemoTool(demo, State.model);
-  $id("demoOutput").innerHTML = result;
-  $id("demoOutput").style.display = "block";
-  $id("demoOutput").scrollIntoView({ behavior:"smooth", block:"nearest" });
-  if(State.demoTimeout){ clearTimeout(State.demoTimeout); }
-  State.demoTimeout = setTimeout(() => {
-    $id("demoOutput").style.display = "none";
-  }, 30000);
 }
 
 function handleFileSelected(kind){
@@ -216,7 +224,13 @@ function cancelAttachment(kind){
 ============================================================ */
 
 function initEvents(){
-  $id("sendBtn").addEventListener("click", handleSend);
+  $id("sendBtn").addEventListener("click", () => {
+    if(State.sending){
+      if(window.Api) Api.abortCurrentRequest();
+    } else {
+      handleSend();
+    }
+  });
   $id("plusBtn").addEventListener("click", (e) => { e.stopPropagation(); toggleMenu(); });
 
   $id("menuImage").addEventListener("click", () => { closeMenu(); $id("imageInput").click(); });
@@ -247,10 +261,6 @@ function initEvents(){
   });
   $id("imageInput").addEventListener("change", () => handleFileSelected("image"));
   $id("audioInput").addEventListener("change", () => handleFileSelected("audio"));
-
-  document.querySelectorAll(".demo-btn").forEach(btn => {
-    btn.addEventListener("click", () => handleDemoTool(btn.dataset.demo));
-  });
 
   document.addEventListener("paste", (e) => {
     if(!State.pendingImage && e.clipboardData && e.clipboardData.items){

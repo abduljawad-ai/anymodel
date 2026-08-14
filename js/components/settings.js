@@ -65,10 +65,13 @@ async function saveKey(){
   const providerId = State.provider;
   const key = $("apiKeyInput").value.trim();
   const base = $("customBaseUrl").value.trim();
-  if(base) setCustomBase(providerId, base);
+  if(base && !setCustomBase(providerId, base)){
+    showKeyStatus("err", "Base URL must be https:// (http allowed only for localhost).");
+    return;
+  }
 
   if(providerId === "ollama"){
-    saveKeyFor(providerId, key || "ollama");
+    await saveKeyFor(providerId, key || "ollama");
     Header.render();
     Composer.render();
     showKeyStatus("ok", "Ollama needs no key — connected to your local server.");
@@ -84,21 +87,21 @@ async function saveKey(){
   const ok = await Api.testConnection(providerId, key);
   $("saveKeyBtn").disabled = false;
   if(ok){
-    saveKeyFor(providerId, key);
+    await saveKeyFor(providerId, key);
     State.modelsLoaded = false;
     State.models = [];
     try { await Api.fetchModels(); } catch(e) { }
     Header.render();
     Composer.render();
-    showKeyStatus("ok", "Connected — key saved to this device only.");
+    showKeyStatus("ok", "Connected — key saved encrypted on this device.");
   } else {
     showKeyStatus("err", "Couldn't verify this connection. Check the key/base URL and try again.");
   }
 }
 
-function clearKey(){
+async function clearKey(){
   const providerId = State.provider;
-  saveKeyFor(providerId, "");
+  await saveKeyFor(providerId, "");
   $("apiKeyInput").value = "";
   Header.render();
   showKeyStatus("", "Key removed from this device.");
@@ -133,7 +136,9 @@ function initEvents(){
     clearTimeout(baseTimeout);
     baseTimeout = setTimeout(() => {
       const base = $("customBaseUrl").value.trim();
-      if(base) setCustomBase(State.provider, base);
+      if(base && !setCustomBase(State.provider, base)){
+        showToast("Base URL must be https:// (http allowed only for localhost).");
+      }
     }, 400);
   });
 

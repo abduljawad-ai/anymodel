@@ -97,6 +97,7 @@ function open(){
   if(!sb) return;
   sb.classList.add("show");
   sb.setAttribute("aria-hidden", "false");
+  setMenuButtonExpanded(true);
   if(sc){ sc.hidden = false; sc.classList.add("show"); }
   const first = $("btnSidebarNewChat");
   if(first) first.focus({ preventScroll:true });
@@ -107,7 +108,15 @@ function close(){
   if(!sb) return;
   sb.classList.remove("show");
   sb.setAttribute("aria-hidden", "true");
+  setMenuButtonExpanded(false);
   if(sc){ sc.classList.remove("show"); setTimeout(() => { sc.hidden = true; }, 200); }
+}
+
+function setMenuButtonExpanded(isOpen){
+  ["btnMenuDesktop", "btnMenu"].forEach(id => {
+    const btn = document.getElementById(id);
+    if(btn) btn.setAttribute("aria-expanded", String(isOpen));
+  });
 }
 
 function toggle(){

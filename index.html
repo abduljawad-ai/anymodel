@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; style-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; connect-src https: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="anymodel — bring your own API key. Chat with models from 180+ providers.">
     <meta name="theme-color" content="#FF7000">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='10' fill='%23FF7000'/%3E%3Ctext x='50' y='68' font-family='Arial' font-size='52' font-weight='bold' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
@@ -11,6 +12,7 @@
   <link rel="stylesheet" href="css/markdown.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha384-F/bZzf7p3Joyp5psL90p/p89AZJsndkSoGwRpXcZhleCWhd8SnRuoYo4d0yirjJp" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js" integrity="sha384-+VfUPEb0PdtChMwmBcBmykRMDd+v6D/oFmB3rZM/puCMDYcIvF968OimRh4KQY9a" crossorigin="anonymous"></script>
 </head>
 <body>
   <div class="app">
@@ -40,7 +42,7 @@
     <div class="main-col">
       <!-- DESKTOP HEADER STRIP -->
       <div class="header-desktop" style="display:none;" id="headerDesktop">
-        <button class="header-btn" id="btnMenuDesktop" title="Menu" aria-label="Open menu">
+        <button class="header-btn" id="btnMenuDesktop" title="Menu" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
         </button>
         <div class="model-trigger" id="modelTriggerDesktop" role="button" tabindex="0" aria-haspopup="dialog" style="max-width:260px;">
@@ -57,7 +59,7 @@
 
       <!-- MOBILE HEADER -->
       <div class="header" id="headerMobile">
-        <button class="header-btn" id="btnMenu" title="Menu" aria-label="Open menu">
+        <button class="header-btn" id="btnMenu" title="Menu" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
         </button>
         <div class="model-trigger" id="modelTrigger" role="button" tabindex="0" aria-haspopup="dialog">
@@ -184,8 +186,8 @@
           </div>
           <div id="keyStatus" class="status-box" style="display:none;" role="alert"></div>
           <div class="field-hint">
-            Stored only in this browser's local storage — sent only to your chosen provider.
-            Keys are kept per provider, so you can switch freely.
+            Stored encrypted on this device — unlocked with your passphrase each session.
+            Sent only to your chosen provider. Keys are kept per provider, so you can switch freely.
           </div>
           <button class="btn-primary" id="saveKeyBtn">Save key</button>
           <button class="btn-ghost" id="clearKeyBtn">Remove saved key</button>
@@ -214,6 +216,24 @@
           <button class="btn-ghost" id="clearChatBtn" style="margin-top:0;">Clear conversation</button>
         </div>
 
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN-READER ANNOUNCER -->
+  <div id="aria-announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- KEY-LOCK MODAL (passphrase for encrypted API keys) -->
+  <div class="keylock-overlay" id="keylockOverlay" hidden>
+    <div class="keylock-card" role="dialog" aria-modal="true" aria-labelledby="keylockTitle">
+      <h3 id="keylockTitle">Unlock keys</h3>
+      <p class="keylock-hint" id="keylockHint"></p>
+      <input type="password" id="keylockPass" placeholder="Passphrase" autocomplete="new-password" spellcheck="false">
+      <input type="password" id="keylockConfirm" placeholder="Confirm passphrase" autocomplete="new-password" spellcheck="false" hidden>
+      <div class="keylock-error" id="keylockError" hidden></div>
+      <div class="keylock-actions">
+        <button class="btn-ghost" id="keylockCancel" style="flex:1;">Cancel</button>
+        <button class="btn-primary" id="keylockOk" style="flex:2; margin-top:0;">Unlock</button>
       </div>
     </div>
   </div>

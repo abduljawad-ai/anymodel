@@ -4,6 +4,16 @@
 (function(){
 
 /* ============================================================
+   SCREEN-READER ANNOUNCEMENTS
+============================================================ */
+
+function announce(msg){
+  if (typeof document === 'undefined') return;
+  const announcer = document.getElementById("aria-announcer");
+  if(announcer) announcer.textContent = msg;
+}
+
+/* ============================================================
    SCROLL HANDLING
 ============================================================ */
 
@@ -188,6 +198,7 @@ function finalizeTurn(turn, result, m){
   modelTag.textContent = m.id;
   turn.col.appendChild(modelTag);
   scrollIfSticky();
+  if(window.Chat && Chat.announce) Chat.announce("Assistant response complete");
 }
 
 /* ============================================================
@@ -204,10 +215,11 @@ async function revealText(turn, text){
       out += words[i];
       const last = i === words.length - 1;
       turn.bubble.innerHTML = Markdown.renderMarkdownish(out) + (last ? "" : '<span class="type-cursor"></span>');
-      Markdown.enhanceCodeBlocks(turn.bubble);
+      Markdown.scheduleHighlight(turn.bubble);
       scrollIfSticky();
       if(!last) await new Promise(r => setTimeout(r, 12));
     }
+    Markdown.enhanceCodeBlocks(turn.bubble);   // final pass once, not per word
   } catch(e) {
     console.error("Error in revealText:", e);
     turn.bubble.textContent = out;
@@ -224,7 +236,8 @@ window.Chat = {
   setPhase,
   collapsePhase,
   finalizeTurn,
-  revealText
+  revealText,
+  announce
 };
 
 })();

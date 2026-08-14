@@ -21,7 +21,7 @@ async function init(){
 
   // Hydrate State from localStorage
   State.provider = localStorage.getItem(Config.LS_PROVIDER) || Config.DEFAULT_PROVIDER;
-  State.apiKeys = JSON.parse(localStorage.getItem(Config.LS_KEYS) || "{}");
+  await initKeys();   // loads encrypted key store (unlock prompt) or migrates legacy plaintext
   State.customBases = JSON.parse(localStorage.getItem(Config.LS_BASES) || "{}");
   State.systemPrompt = localStorage.getItem(Config.LS_SYS) || "";
   try{ State.sessions = JSON.parse(localStorage.getItem(Config.LS_SESSIONS) || "[]"); } catch(e){ State.sessions = []; }

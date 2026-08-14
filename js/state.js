@@ -61,9 +61,190 @@ function saveJson(key, value){
   }catch(e){}
 }
 
+/* ============================================================
+   API-KEY ENCRYPTION
+   Keys are encrypted at rest with AES-GCM (PBKDF2-derived key
+   from a user passphrase). The passphrase lives only in memory
+   for the session — never persisted. LS_KEYS stores:
+     { enc:1, iter, salt, iv, data }   (base64 fields)
+   Legacy plaintext {provider: key} objects are kept in memory
+   and migrated to an encrypted blob on the next key save.
+============================================================ */
+
+let keyPassphrase = null;   // session-only, never written to storage
+
+function b64FromBytes(bytes){
+  let bin = "";
+  const chunk = 0x8000;
+  for(let i = 0; i < bytes.length; i += chunk) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  return btoa(bin);
+}
+
+function bytesFromB64(b64){
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for(let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+async function deriveKey(pass, salt){
+  const enc = new TextEncoder();
+  const material = await crypto.subtle.importKey("raw", enc.encode(pass), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations: 150000, hash: "SHA-256" },
+    material,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+async function encryptKeysBlob(keysObj, pass){
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(pass, salt);
+  const enc = new TextEncoder();
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(JSON.stringify(keysObj)));
+  return { enc: 1, iter: 150000, salt: b64FromBytes(salt), iv: b64FromBytes(iv), data: b64FromBytes(new Uint8Array(ct)) };
+}
+
+async function decryptKeysBlob(blob, pass){
+  const key = await deriveKey(pass, bytesFromB64(blob.salt));
+  const pt = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: bytesFromB64(blob.iv) },
+    key,
+    bytesFromB64(blob.data)
+  );
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+/* Raw stored value for LS_KEYS: encrypted blob | legacy object | null. */
+function keysBlob(){
+  try{
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(Config.LS_KEYS) : null;
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  }catch(e){ return null; }
+}
+
+function keysLocked(){
+  const blob = keysBlob();
+  return !!(blob && blob.enc) && !keyPassphrase;
+}
+
+async function unlockKeys(pass){
+  const blob = keysBlob();
+  if(!blob || !blob.enc) return false;
+  try{
+    const keys = await decryptKeysBlob(blob, pass);
+    if(!keys || typeof keys !== "object") return false;
+    State.apiKeys = keys;
+    keyPassphrase = pass;
+    State.apiKey = State.apiKeys[State.provider] || "";
+    if(window.Header) Header.render();
+    if(window.Sidebar) Sidebar.render();
+    return true;
+  }catch(e){ return false; }
+}
+
+/* Load keys at boot: unlock the encrypted store if one exists, else
+   keep any legacy plaintext keys in memory for this session. Never
+   blocks app startup — resolves immediately if there's nothing to do. */
+async function initKeys(){
+  const blob = keysBlob();
+  if(!blob){ State.apiKeys = {}; return; }
+  if(blob.enc){
+    State.apiKeys = {};
+    wireKeylockEvents();
+    const pass = await showKeylock("unlock");
+    if(pass) unlockKeys(pass);
+  } else {
+    State.apiKeys = blob;   // legacy plaintext — migrated on next save
+    State.apiKey = State.apiKeys[State.provider] || "";
+  }
+}
+
+/* ============================================================
+   KEY-LOCK MODAL (passphrase prompt)
+============================================================ */
+
+let keylockMode = "unlock";    // "unlock" | "create"
+let keylockResolver = null;
+let keylockWired = false;
+
+function wireKeylockEvents(){
+  if(keylockWired) return;
+  keylockWired = true;
+  document.getElementById("keylockOk").addEventListener("click", submitKeylock);
+  document.getElementById("keylockCancel").addEventListener("click", () => resolveKeylock(null));
+  document.getElementById("keylockOverlay").addEventListener("click", (e) => {
+    if(e.target === e.currentTarget) resolveKeylock(null);
+  });
+  document.addEventListener("keydown", (e) => {
+    if(e.key === "Escape" && !document.getElementById("keylockOverlay").hidden) resolveKeylock(null);
+  });
+  ["keylockPass", "keylockConfirm"].forEach(id => {
+    document.getElementById(id).addEventListener("keydown", (e) => {
+      if(e.key === "Enter"){ e.preventDefault(); submitKeylock(); }
+    });
+  });
+}
+
+function showKeylock(mode){
+  keylockMode = mode;
+  const ov = document.getElementById("keylockOverlay");
+  const pass = document.getElementById("keylockPass");
+  const confirm = document.getElementById("keylockConfirm");
+  const err = document.getElementById("keylockError");
+  const ok = document.getElementById("keylockOk");
+  ov.hidden = false;
+  err.hidden = true;
+  pass.value = "";
+  confirm.value = "";
+  confirm.hidden = mode !== "create";
+  ok.textContent = mode === "create" ? "Save" : "Unlock";
+  document.getElementById("keylockTitle").textContent =
+    mode === "create" ? "Protect your API keys" : "Unlock your API keys";
+  document.getElementById("keylockHint").textContent =
+    mode === "create"
+      ? "Create a passphrase to encrypt your keys on this device. You'll need it every session — there is no recovery if you forget it."
+      : "Enter your passphrase to decrypt the API keys saved on this device.";
+  pass.focus();
+  return new Promise(resolve => { keylockResolver = resolve; });
+}
+
+function resolveKeylock(value){
+  const ov = document.getElementById("keylockOverlay");
+  if(ov) ov.hidden = true;
+  if(keylockResolver){ const r = keylockResolver; keylockResolver = null; r(value); }
+}
+
+async function submitKeylock(){
+  const pass = document.getElementById("keylockPass").value;
+  const err = document.getElementById("keylockError");
+  if(keylockMode === "create"){
+    const confirm = document.getElementById("keylockConfirm").value;
+    if(pass.length < 8){ err.textContent = "Use at least 8 characters."; err.hidden = false; return; }
+    if(pass !== confirm){ err.textContent = "Passphrases don't match."; err.hidden = false; return; }
+    keyPassphrase = pass;
+    resolveKeylock(pass);
+    return;
+  }
+  const ok = await unlockKeys(pass);
+  if(ok){
+    resolveKeylock(pass);
+  } else {
+    err.textContent = "Wrong passphrase. Try again.";
+    err.hidden = false;
+    document.getElementById("keylockPass").value = "";
+    document.getElementById("keylockPass").focus();
+  }
+}
+
 const State = {
   provider: (typeof localStorage !== 'undefined' ? localStorage.getItem(Config.LS_PROVIDER) : null) || Config.DEFAULT_PROVIDER,
-  apiKeys: loadJson(Config.LS_KEYS, {}),
+  apiKeys: {},   // populated by initKeys()/unlockKeys() — never read from storage directly
   customBases: loadJson(Config.LS_BASES, {}),
   apiKey: "",
   model: "",
@@ -112,7 +293,8 @@ function activeSession(){
 
 function maybeAutoTitle(s){
   if(s.title) return;
-  const first = (s.messages || []).find(m => m.role === "user" && m.content);
+  const msgs = Array.isArray(s.messages) ? s.messages : [];
+  const first = msgs.find(m => m.role === "user" && m.content);
   if(first) s.title = String(first.content).replace(/\s+/g, " ").trim().slice(0, 40);
 }
 
@@ -229,17 +411,63 @@ function setProvider(id){
   if(window.ModelPicker && document.getElementById("modelSheet") && document.getElementById("modelSheet").classList.contains("show")) ModelPicker.open();
 }
 
-function saveKeyFor(providerId, key){
-  if(!key) delete State.apiKeys[providerId];
-  else State.apiKeys[providerId] = key;
-  saveJson(Config.LS_KEYS, State.apiKeys);
-  if(providerId === State.provider) State.apiKey = key || "";
+/* Save a key for a provider. The change is applied to memory immediately
+   (so this session can use it), then persisted as an encrypted blob.
+   - If an encrypted store exists but isn't unlocked, prompts for the passphrase
+     first so the existing blob is never silently clobbered.
+   - If no passphrase exists yet, prompts to create one.
+   - If the user cancels, the key stays in memory for this session only. */
+async function saveKeyFor(providerId, key){
+  const apply = () => {
+    if(!key) delete State.apiKeys[providerId];
+    else State.apiKeys[providerId] = key;
+    if(providerId === State.provider) State.apiKey = key || "";
+  };
+  apply();
+
+  if(!window.crypto || !crypto.subtle){
+    showToast("Encryption isn't available in this browser context — key kept for this session only.");
+    return;
+  }
+
+  if(!keyPassphrase){
+    wireKeylockEvents();
+    const blob = keysBlob();
+    if(blob && blob.enc){
+      const pass = await showKeylock("unlock");
+      if(!pass){ showToast("Key kept for this session only (not saved)."); return; }
+      const ok = await unlockKeys(pass);
+      if(!ok){ showToast("Couldn't unlock saved keys — change not saved."); return; }
+      apply();   // re-apply the change on top of the decrypted store
+    } else {
+      const pass = await showKeylock("create");
+      if(!pass){ showToast("Key kept for this session only (not saved)."); return; }
+      keyPassphrase = pass;
+    }
+  }
+
+  const encBlob = await encryptKeysBlob(State.apiKeys, keyPassphrase);
+  try{
+    if(typeof localStorage !== 'undefined') localStorage.setItem(Config.LS_KEYS, JSON.stringify(encBlob));
+  }catch(e){}
 }
 
+/* Custom base URL override. HTTPS is required; http:// is allowed only for
+   local endpoints (localhost / 127.0.0.1) so self-hosted Ollama still works.
+   Returns true if the value was accepted, false otherwise. */
 function setCustomBase(providerId, url){
-  if(!url) delete State.customBases[providerId];
-  else State.customBases[providerId] = url;
+  if(!url){
+    delete State.customBases[providerId];
+    saveJson(Config.LS_BASES, State.customBases);
+    return true;
+  }
+  const clean = String(url).trim().replace(/\/+$/, "");
+  const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?($|\/)/i.test(clean);
+  const isHttps = /^https:\/\//i.test(clean);
+  if(!isHttps && !isLocal) return false;
+  State.customBases[providerId] = clean;
   saveJson(Config.LS_BASES, State.customBases);
+  return true;
 }
 
 /* Effective base URL: saved override > catalog entry > custom provider field. */
@@ -303,12 +531,15 @@ function showToast(msg){
     t = document.createElement("div");
     t.id = "toast";
     t.className = "toast";
+    t.setAttribute("role", "status");
+    t.setAttribute("aria-live", "polite");
     document.body.appendChild(t);
   }
   t.textContent = msg;
   t.classList.add("show");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 5000);
+  t.onclick = () => t.classList.remove("show");   // manual dismiss
 }
 
 // Expose globally
@@ -329,3 +560,6 @@ window.switchSession = switchSession;
 window.renameSession = renameSession;
 window.deleteSession = deleteSession;
 window.clearActiveSession = clearActiveSession;
+window.initKeys = initKeys;
+window.unlockKeys = unlockKeys;
+window.keysLocked = keysLocked;
