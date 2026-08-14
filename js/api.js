@@ -491,7 +491,20 @@ async function chatAnthropic(turn, text, image, audio, m){
   messages.push({ role:"user", content });
 
   const body = { model: m.id, max_tokens: getMaxOutputTokens(m) || 4096, messages };
-  if(State.systemPrompt) body.system = State.systemPrompt;
+  if(State.systemPrompt){
+    // Anthropic prompt caching (ephemeral):
+    //  - explicit breakpoint on the system prompt keeps it cached even when
+    //    the user switches conversations (system sits at the front of every
+    //    request's prefix);
+    //  - the top-level automatic breakpoint follows the growing conversation,
+    //    moving forward each turn (its 20-block lookback finds the previous
+    //    write, so only the new tail is billed).
+    // Together they use 2 of the 4 allowed breakpoints. Undersized prompts
+    // are silently skipped by the API (no error, no cache), so no threshold
+    // logic is needed here. See docs/token-management-research.md D5.
+    body.system = [{ type: "text", text: State.systemPrompt, cache_control: { type: "ephemeral" } }];
+  }
+  body.cache_control = { type: "ephemeral" };
   if(m.capabilities?.function_calling && State.autoTools){
     body.tools = Config.DEMO_TOOLS.map(t => ({ name: t.function.name, description: t.function.description, input_schema: t.function.parameters }));
   }
@@ -515,7 +528,7 @@ async function chatAnthropic(turn, text, image, audio, m){
     ];
     const toolNames = first.toolCalls.map(t => t.name).join(", ");
     Chat.setPhase(turn, "tool", "🛠️ Using " + toolNames + "…");
-    const second = await streamAnthropic(turn, { model: m.id, max_tokens: body.max_tokens, messages: followUpMessages, system: body.system, tools: body.tools });
+    const second = await streamAnthropic(turn, { model: m.id, max_tokens: body.max_tokens, messages: followUpMessages, system: body.system, tools: body.tools, cache_control: body.cache_control });
     return { text: second.fullText || "(tool call completed)", toolUsed: toolNames };
   }
 
