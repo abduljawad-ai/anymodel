@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="anymodel — bring your own API key. Chat with models from 180+ providers.">
     <meta name="theme-color" content="#FF7000">
+    <meta name="referrer" content="no-referrer">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='10' fill='%23FF7000'/%3E%3Ctext x='50' y='68' font-family='Arial' font-size='52' font-weight='bold' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
   <title>anymodel — bring your own key</title>
   <link rel="stylesheet" href="css/styles.css">
@@ -175,13 +176,13 @@
           <div class="field-label">🏷️ Provider</div>
           <select id="providerSelect" class="provider-select" aria-label="Provider"></select>
           <div id="customUrlRow" style="display:none; margin-top:8px;">
-            <input type="text" id="customBaseUrl" placeholder="https://api.example.com/v1" autocomplete="off" spellcheck="false" aria-label="Base URL">
+            <input type="text" id="customBaseUrl" placeholder="https://api.example.com/v1" autocomplete="off" spellcheck="false" aria-label="Base URL" maxlength="2048">
             <div class="field-hint">OpenAI-compatible base URL. Used for custom providers and providers missing a base URL in the catalog.</div>
           </div>
 
           <div class="field-label" id="providerNameLabel">🔑 API key</div>
           <div class="key-input-row">
-            <input type="password" id="apiKeyInput" placeholder="Paste your API key…" autocomplete="off" spellcheck="false">
+            <input type="password" id="apiKeyInput" placeholder="Paste your API key…" autocomplete="off" spellcheck="false" maxlength="512">
             <button id="toggleKeyVisibility">Show</button>
           </div>
           <div id="keyStatus" class="status-box" style="display:none;" role="alert"></div>

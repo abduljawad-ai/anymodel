@@ -74,6 +74,7 @@ async function saveKey(){
     await saveKeyFor(providerId, key || "ollama");
     Header.render();
     Composer.render();
+    Sidebar.render();
     showKeyStatus("ok", "Ollama needs no key — connected to your local server.");
     return;
   }
@@ -93,6 +94,7 @@ async function saveKey(){
     try { await Api.fetchModels(); } catch(e) { }
     Header.render();
     Composer.render();
+    Sidebar.render();
     showKeyStatus("ok", "Connected — key saved encrypted on this device.");
   } else {
     showKeyStatus("err", "Couldn't verify this connection. Check the key/base URL and try again.");
@@ -104,6 +106,8 @@ async function clearKey(){
   await saveKeyFor(providerId, "");
   $("apiKeyInput").value = "";
   Header.render();
+  Composer.render();
+  Sidebar.render();
   showKeyStatus("", "Key removed from this device.");
 }
 

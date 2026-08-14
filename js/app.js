@@ -7,6 +7,17 @@
 ============================================================ */
 
 let initialized = false;
+
+/* Frame-busting (defense in depth — the app holds API keys in memory).
+   If we are embedded in a cross-origin iframe, break out. */
+(function(){
+  try{
+    if(window.self !== window.top && !window.parent.location.hostname.includes(location.hostname)){
+      window.top.location = window.self.location;
+    }
+  }catch(e){ /* cross-origin parent: forced redirect is the only option */ }
+})();
+
 async function init(){
   if(initialized) return;
   initialized = true;
@@ -22,7 +33,8 @@ async function init(){
   // Hydrate State from localStorage
   State.provider = localStorage.getItem(Config.LS_PROVIDER) || Config.DEFAULT_PROVIDER;
   await initKeys();   // loads encrypted key store (unlock prompt) or migrates legacy plaintext
-  State.customBases = JSON.parse(localStorage.getItem(Config.LS_BASES) || "{}");
+  try{ State.customBases = JSON.parse(localStorage.getItem(Config.LS_BASES) || "{}"); }
+  catch(e){ State.customBases = {}; }   // corrupted storage must never block the app
   State.systemPrompt = localStorage.getItem(Config.LS_SYS) || "";
   try{ State.sessions = JSON.parse(localStorage.getItem(Config.LS_SESSIONS) || "[]"); } catch(e){ State.sessions = []; }
   State.activeSessionId = localStorage.getItem(Config.LS_ACTIVE) || "";

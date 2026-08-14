@@ -94,6 +94,130 @@ function guessAudioFormat(name){
 }
 
 /* ============================================================
+   TOKEN MANAGEMENT — budget-based context windowing.
+   Estimates use the provider-documented "1 token ≈ 4 chars"
+   rule plus a per-message overhead (OpenAI). Media token
+   estimates are computed once at attach time from the
+   downscaled dimensions and stored on the message, so we
+   never re-decode images here. When a conversation fits the
+   model's context budget nothing changes (identical payload);
+   only when it grows past the budget do we drop the oldest
+   messages, and only a single oversized message is truncated
+   (head + tail kept). See docs/token-management-research.md.
+============================================================ */
+
+const TOKEN_CHARS = 4;                // ~1 token per 4 chars
+const MSG_OVERHEAD_TOKENS = 4;        // OpenAI per-message overhead
+const SAFETY_MARGIN_TOKENS = 2000;    // headroom beyond max_tokens
+const MAX_SINGLE_MSG_FRACTION = 0.8;  // single-message cap, as fraction of budget
+
+const REQUEST_TIMEOUT_MS = 120000;    // chat streams
+const MEDIA_TIMEOUT_MS = 300000;      // transcription/ocr/tts/embeddings/moderation
+const MODELS_TIMEOUT_MS = 30000;      // /models listings
+
+function estimateTokens(str){
+  return Math.ceil(String(str || "").length / TOKEN_CHARS);
+}
+
+function estimateImageTokens(width, height){
+  // Anthropic: ~w*h/750. OpenAI (detail=auto, already ≤1024px): 85 + 170*tiles.
+  // Google has no exact public formula; the OpenAI tile model is the closest fit.
+  if(window.Catalog && Catalog.getProvider && Catalog.getProvider(State.provider)){
+    const p = Catalog.getProvider(State.provider);
+    if(p && p.format === "anthropic"){
+      return Math.round((width * height) / 750);
+    }
+  }
+  const tiles = Math.max(1, Math.ceil(width / 512)) * Math.max(1, Math.ceil(height / 512));
+  return 85 + 170 * tiles;
+}
+
+function estimateMessageTokens(mm){
+  let t = MSG_OVERHEAD_TOKENS + estimateTokens(mm.content);
+  if(mm.tokenEstimate) t += mm.tokenEstimate;   // media tokens recorded at attach time
+  return t;
+}
+
+/* Context window from the catalog/runtime model list, if known. */
+function getContextWindow(m){
+  const ctx = m && m.context;
+  return (typeof ctx === "number" && ctx > 0) ? ctx : null;
+}
+
+/* Reserve output headroom. Anthropic requires max_tokens; the
+   derived value is capped at 4096 and floored at 1024. */
+function getMaxOutputTokens(m){
+  const ctx = getContextWindow(m);
+  if(!ctx) return null;
+  return Math.min(4096, Math.max(1024, Math.round(ctx * 0.2)));
+}
+
+/* Last-resort truncation of a single oversized message:
+   keep the head (context) and the tail (the actual ask). */
+function truncateText(text, maxChars){
+  if(text.length <= maxChars) return text;
+  const marker = "\n…[truncated to fit the context window]…\n";
+  const headLen = Math.floor(maxChars * 0.6);
+  const tailLen = maxChars - headLen - marker.length;
+  return text.slice(0, headLen) + marker + text.slice(text.length - tailLen);
+}
+
+/* Select the history messages to send (oldest → newest) within the
+   model's input budget. Walks newest → oldest so the freshest turns
+   survive; the newest history message and the current turn are never
+   dropped. With no context info we keep today's behavior (send all).
+   Returns { messages, singleCapChars } where singleCapChars is the
+   per-message size cap the caller must apply to the current turn. */
+function selectContext(m, currentText, currentMediaTokens){
+  const ctx = getContextWindow(m);
+  const history = State.messages.slice(0, -1);
+
+  if(!ctx){
+    return { messages: history.map(mm => ({ role: mm.role, content: mm.content || "" })), singleCapChars: Infinity };
+  }
+
+  const maxOutput = getMaxOutputTokens(m) || 4096;
+  const budget = ctx - maxOutput - SAFETY_MARGIN_TOKENS;
+  const singleCapChars = Math.max(1024, Math.floor(budget * MAX_SINGLE_MSG_FRACTION * TOKEN_CHARS));
+
+  // Fixed cost: system prompt + current user message (+ its media).
+  let used = estimateTokens(State.systemPrompt)
+           + estimateTokens(currentText)
+           + (currentMediaTokens || 0)
+           + MSG_OVERHEAD_TOKENS * 2;
+
+  const selected = [];
+  for(let i = history.length - 1; i >= 0; i--){
+    const mm = history[i];
+    let content = String(mm.content || "");
+    if(content.length > singleCapChars) content = truncateText(content, singleCapChars);
+    const est = MSG_OVERHEAD_TOKENS + estimateTokens(content) + (mm.tokenEstimate || 0);
+    if(selected.length > 0 && used + est > budget) break;   // drop this and everything older
+    selected.unshift({ role: mm.role, content });
+    used += est;
+  }
+
+  return { messages: selected, singleCapChars };
+}
+
+/* fetch with an abort-triggered timeout. On timeout the underlying
+   request is aborted and a plain Error (NOT AbortError) is thrown so
+   the caller surfaces a real error instead of treating it as a stop. */
+function fetchWithTimeout(url, opts, timeoutMs){
+  const ctrl = opts && opts.ctrl;
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      if(ctrl) ctrl.abort();
+      reject(new Error("Request timed out — the provider did not respond in time."));
+    }, timeoutMs);
+    fetch(url, opts).then(
+      res => { clearTimeout(timer); resolve(res); },
+      err => { clearTimeout(timer); reject(err); }
+    );
+  });
+}
+
+/* ============================================================
    MODELS
 ============================================================ */
 
@@ -108,7 +232,8 @@ async function fetchModels(){
   // Providers without a catalog entry (custom, Ollama, exotic setups):
   // ask the API for its model list at runtime.
   if(!State.models.length && getBaseUrl()){
-    const res = await fetch(`${getBaseUrl()}/models`, { headers: getAuthHeaders() });
+    const ctrl = new AbortController();
+    const res = await fetchWithTimeout(`${getBaseUrl()}/models`, { headers: getAuthHeaders(), signal: ctrl.signal, ctrl }, MODELS_TIMEOUT_MS);
     if(!res.ok) throw new Error(errorMessage(res.status, await safeJson(res)));
     const data = await res.json();
     if(State.provider !== provider) return [];
@@ -140,7 +265,8 @@ async function testConnection(providerId, key){
   else if(p && p.format === "google"){ headers["x-goog-api-key"] = key; }
   else { headers["Authorization"] = `Bearer ${key}`; }
   try{
-    const res = await fetch(base + "/models", { headers });
+    const ctrl = new AbortController();
+    const res = await fetchWithTimeout(base + "/models", { headers, signal: ctrl.signal, ctrl }, MODELS_TIMEOUT_MS);
     return res.ok || res.status === 429 || res.status === 404;
   }catch(e){ return false; }
 }
@@ -151,12 +277,13 @@ async function testConnection(providerId, key){
 
 async function streamOpenAI(turn, body){
   const ctrl = beginRequest();
-  const res = await fetch(`${getBaseUrl()}/chat/completions`, {
+  const res = await fetchWithTimeout(`${getBaseUrl()}/chat/completions`, {
     method:"POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify({ ...body, stream:true }),
-    signal: ctrl.signal
-  });
+    signal: ctrl.signal,
+    ctrl
+  }, REQUEST_TIMEOUT_MS);
 
   if(!res.ok) throw new Error(errorMessage(res.status, await safeJson(res)));
   if(!res.body) throw new Error("Streaming not supported");
@@ -218,6 +345,10 @@ async function streamOpenAI(turn, body){
 }
 
 async function chatOpenAI(turn, text, image, audio, m){
+  const mediaTokens = (image && image.tokenEstimate) || 0;
+  const ctx = selectContext(m, text, mediaTokens);
+  if(text.length > ctx.singleCapChars) text = truncateText(text, ctx.singleCapChars);
+
   const content = [];
   if(text) content.push({ type:"text", text });
   if(image && m.capabilities?.vision) content.push({ type:"image_url", image_url:{ url: image.dataUrl } });
@@ -225,8 +356,8 @@ async function chatOpenAI(turn, text, image, audio, m){
 
   const messages = [];
   if(State.systemPrompt) messages.push({ role:"system", content: State.systemPrompt });
-  State.messages.slice(0, -1).forEach(mm => {
-    if(mm.role === "user" || mm.role === "assistant") messages.push({ role: mm.role, content: mm.content || "" });
+  ctx.messages.forEach(mm => {
+    if(mm.role === "user" || mm.role === "assistant") messages.push({ role: mm.role, content: mm.content });
   });
   messages.push({ role:"user", content: content.length > 1 ? content : (text || "") });
 
@@ -262,12 +393,13 @@ async function chatOpenAI(turn, text, image, audio, m){
 
 async function streamAnthropic(turn, body){
   const ctrl = beginRequest();
-  const res = await fetch(`${getBaseUrl()}/messages`, {
+  const res = await fetchWithTimeout(`${getBaseUrl()}/messages`, {
     method:"POST",
     headers: { "Content-Type": "application/json", "x-api-key": State.apiKey, "anthropic-version": "2023-06-01" },
     body: JSON.stringify({ ...body, stream:true }),
-    signal: ctrl.signal
-  });
+    signal: ctrl.signal,
+    ctrl
+  }, REQUEST_TIMEOUT_MS);
 
   if(!res.ok) throw new Error(errorMessage(res.status, await safeJson(res)));
   if(!res.body) throw new Error("Streaming not supported");
@@ -340,9 +472,13 @@ async function streamAnthropic(turn, body){
 }
 
 async function chatAnthropic(turn, text, image, audio, m){
+  const mediaTokens = (image && image.tokenEstimate) || 0;
+  const ctx = selectContext(m, text, mediaTokens);
+  if(text.length > ctx.singleCapChars) text = truncateText(text, ctx.singleCapChars);
+
   const messages = [];
-  State.messages.slice(0, -1).forEach(mm => {
-    if(mm.role === "user" || mm.role === "assistant") messages.push({ role: mm.role, content: mm.content || "" });
+  ctx.messages.forEach(mm => {
+    if(mm.role === "user" || mm.role === "assistant") messages.push({ role: mm.role, content: mm.content });
   });
 
   const content = [];
@@ -354,7 +490,7 @@ async function chatAnthropic(turn, text, image, audio, m){
   }
   messages.push({ role:"user", content });
 
-  const body = { model: m.id, max_tokens: 4096, messages };
+  const body = { model: m.id, max_tokens: getMaxOutputTokens(m) || 4096, messages };
   if(State.systemPrompt) body.system = State.systemPrompt;
   if(m.capabilities?.function_calling && State.autoTools){
     body.tools = Config.DEMO_TOOLS.map(t => ({ name: t.function.name, description: t.function.description, input_schema: t.function.parameters }));
@@ -379,7 +515,7 @@ async function chatAnthropic(turn, text, image, audio, m){
     ];
     const toolNames = first.toolCalls.map(t => t.name).join(", ");
     Chat.setPhase(turn, "tool", "🛠️ Using " + toolNames + "…");
-    const second = await streamAnthropic(turn, { model: m.id, max_tokens: 4096, messages: followUpMessages, system: body.system, tools: body.tools });
+    const second = await streamAnthropic(turn, { model: m.id, max_tokens: body.max_tokens, messages: followUpMessages, system: body.system, tools: body.tools });
     return { text: second.fullText || "(tool call completed)", toolUsed: toolNames };
   }
 
@@ -408,12 +544,13 @@ function parseGoogleResponse(data){
 async function streamGoogle(turn, modelId, body){
   const ctrl = beginRequest();
   const url = `${getBaseUrl()}/models/${encodeURIComponent(modelId)}:streamGenerateContent?alt=sse`;
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     method:"POST",
     headers: { "Content-Type": "application/json", "x-goog-api-key": State.apiKey },
     body: JSON.stringify(body),
-    signal: ctrl.signal
-  });
+    signal: ctrl.signal,
+    ctrl
+  }, REQUEST_TIMEOUT_MS);
 
   if(!res.ok) throw new Error(errorMessage(res.status, await safeJson(res)));
 
@@ -478,6 +615,10 @@ async function streamGoogle(turn, modelId, body){
 }
 
 async function chatGoogle(turn, text, image, audio, m){
+  const mediaTokens = (image && image.tokenEstimate) || 0;
+  const ctx = selectContext(m, text, mediaTokens);
+  if(text.length > ctx.singleCapChars) text = truncateText(text, ctx.singleCapChars);
+
   const parts = [];
   if(text) parts.push({ text });
   if(image && m.capabilities?.vision){
@@ -487,9 +628,9 @@ async function chatGoogle(turn, text, image, audio, m){
   }
 
   const contents = [];
-  State.messages.slice(0, -1).forEach(mm => {
+  ctx.messages.forEach(mm => {
     if(mm.role === "user" || mm.role === "assistant"){
-      contents.push({ role: mm.role === "assistant" ? "model" : "user", parts: [{ text: mm.content || "" }] });
+      contents.push({ role: mm.role === "assistant" ? "model" : "user", parts: [{ text: mm.content }] });
     }
   });
   contents.push({ role:"user", parts });
@@ -539,9 +680,9 @@ async function callTranscriptionStreaming(turn, dataUrl, modelId){
   const form = new FormData();
   form.append("file", blob, "audio.wav");
   form.append("model", modelId);
-  const res = await fetch(`${getBaseUrl()}/audio/transcriptions`, {
-    method:"POST", headers: getAuthHeaders(), body: form, signal: ctrl.signal
-  });
+  const res = await fetchWithTimeout(`${getBaseUrl()}/audio/transcriptions`, {
+    method:"POST", headers: getAuthHeaders(), body: form, signal: ctrl.signal, ctrl
+  }, MEDIA_TIMEOUT_MS);
   if(!res.ok) throw new Error(errorMessage(res.status, await safeJson(res)));
   const data = await res.json();
   Chat.collapsePhase(turn);
@@ -553,12 +694,13 @@ async function callTranscriptionStreaming(turn, dataUrl, modelId){
 async function callOcrStreaming(turn, dataUrl, modelId){
   const ctrl = beginRequest();
   Chat.setPhase(turn, "ocr", "📄 Reading document…");
-  const res = await fetch(`${getBaseUrl()}/ocr`, {
+  const res = await fetchWithTimeout(`${getBaseUrl()}/ocr`, {
     method:"POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify({ model: modelId, document:{ type:"image_url", image_url: dataUrl } }),
-    signal: ctrl.signal
-  });
+    signal: ctrl.signal,
+    ctrl
+  }, MEDIA_TIMEOUT_MS);
   if(!res.ok) throw new Error(errorMessage(res.status, await safeJson(res)));
   const data = await res.json();
   Chat.collapsePhase(turn);
@@ -571,12 +713,13 @@ async function callOcrStreaming(turn, dataUrl, modelId){
 async function callTtsStreaming(turn, text, modelId){
   const ctrl = beginRequest();
   Chat.setPhase(turn, "connect", "🔊 Generating speech…");
-  const res = await fetch(`${getBaseUrl()}/audio/speech`, {
+  const res = await fetchWithTimeout(`${getBaseUrl()}/audio/speech`, {
     method:"POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify({ model: modelId, input: text, response_format: "mp3" }),
-    signal: ctrl.signal
-  });
+    signal: ctrl.signal,
+    ctrl
+  }, MEDIA_TIMEOUT_MS);
   if(!res.ok) throw new Error(errorMessage(res.status, await safeJson(res)));
   const data = await res.json();
   Chat.collapsePhase(turn);
@@ -594,12 +737,13 @@ async function callTtsStreaming(turn, text, modelId){
 async function callEmbeddingsStreaming(turn, text, modelId){
   const ctrl = beginRequest();
   Chat.setPhase(turn, "connect", "📐 Generating embeddings…");
-  const res = await fetch(`${getBaseUrl()}/embeddings`, {
+  const res = await fetchWithTimeout(`${getBaseUrl()}/embeddings`, {
     method:"POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify({ model: modelId, input: text }),
-    signal: ctrl.signal
-  });
+    signal: ctrl.signal,
+    ctrl
+  }, MEDIA_TIMEOUT_MS);
   if(!res.ok) throw new Error(errorMessage(res.status, await safeJson(res)));
   const data = await res.json();
   Chat.collapsePhase(turn);
@@ -614,12 +758,13 @@ async function callEmbeddingsStreaming(turn, text, modelId){
 async function callModerationStreaming(turn, text, modelId){
   const ctrl = beginRequest();
   Chat.setPhase(turn, "connect", "🛡️ Moderating content…");
-  const res = await fetch(`${getBaseUrl()}/moderations`, {
+  const res = await fetchWithTimeout(`${getBaseUrl()}/moderations`, {
     method:"POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify({ model: modelId, input: text }),
-    signal: ctrl.signal
-  });
+    signal: ctrl.signal,
+    ctrl
+  }, MEDIA_TIMEOUT_MS);
   if(!res.ok) throw new Error(errorMessage(res.status, await safeJson(res)));
   const data = await res.json();
   Chat.collapsePhase(turn);
@@ -647,5 +792,11 @@ window.Api = {
   callTtsStreaming,
   callEmbeddingsStreaming,
   callModerationStreaming,
-  abortCurrentRequest
+  abortCurrentRequest,
+  estimateTokens,
+  estimateImageTokens,
+  selectContext,
+  getMaxOutputTokens,
+  getContextWindow,
+  truncateText
 };

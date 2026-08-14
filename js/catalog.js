@@ -6,6 +6,8 @@
 ============================================================ */
 
 const CATALOG_URL = "models-catalog.json";
+const CATALOG_LS_KEY = "anymodel_catalog_v1";
+const CATALOG_TTL_MS = 24 * 60 * 60 * 1000;   // 24h
 
 let catalogData = null;
 let catalogPromise = null;
@@ -14,9 +16,23 @@ async function ensureCatalogLoaded(){
   if(catalogData) return catalogData;
   if(catalogPromise) return catalogPromise;
   catalogPromise = (async () => {
+    // Serve from a 24h localStorage cache when fresh — avoids re-downloading
+    // the ~2MB catalog on every load. The cache is optional: any failure
+    // falls through to the network fetch.
+    try{
+      const cached = JSON.parse(localStorage.getItem(CATALOG_LS_KEY) || "null");
+      if(cached && cached.ts && Date.now() - cached.ts < CATALOG_TTL_MS && cached.data){
+        catalogData = cached.data;
+        return catalogData;
+      }
+    }catch(e){ /* corrupted cache — refetch */ }
+
     const res = await fetch(CATALOG_URL);
     if(!res.ok) throw new Error("Could not load the model catalog.");
     catalogData = await res.json();
+    try{
+      localStorage.setItem(CATALOG_LS_KEY, JSON.stringify({ ts: Date.now(), data: catalogData }));
+    }catch(e){ /* storage full/disabled — cache is optional */ }
     return catalogData;
   })();
   return catalogPromise;

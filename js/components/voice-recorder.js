@@ -58,6 +58,8 @@
     } catch(err){
       console.error("Error accessing microphone:", err);
       $("voiceOverlay").style.display = "flex";
+      // Clear any leftover error chips from previous attempts first.
+      $("voiceOverlay").querySelectorAll(".voice-error").forEach(el => el.remove());
       const errorElement = document.createElement("div");
       errorElement.className = "voice-error";
       errorElement.style.cssText = "padding:12px;color:#fff;background:rgba(200,0,0,.35);border-radius:8px;margin:12px;text-align:center;";

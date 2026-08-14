@@ -34,7 +34,8 @@ function bytesToBase64(bytes){
 function updateSendButton(){
   const btn = $id("sendBtn");
   if(!btn) return;
-  btn.disabled = !currentModel();
+  // While streaming, the button must always be active so it can stop the request.
+  btn.disabled = !currentModel() && !State.sending;
   if(State.sending){
     btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
     btn.setAttribute("aria-label", "Stop generating");
@@ -118,6 +119,7 @@ async function handleSend(){
 
   const userMsg = { role:"user", content:text, modelUsed:m.id };
   if(State.pendingImage) userMsg.imageDataUrl = State.pendingImage.dataUrl;
+  if(State.pendingImage && State.pendingImage.tokenEstimate) userMsg.tokenEstimate = State.pendingImage.tokenEstimate;
   if(State.pendingAudio) userMsg.audioDataUrl = State.pendingAudio.dataUrl;
   State.messages.push(userMsg);
   saveMessages();
@@ -202,7 +204,8 @@ function handleFileSelected(kind){
         canvas.height = height;
         canvas.getContext("2d").drawImage(img, 0, 0, width, height);
         const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-        State.pendingImage = { dataUrl, name: file.name };
+        const tokenEstimate = (window.Api && Api.estimateImageTokens) ? Api.estimateImageTokens(width, height) : 0;
+        State.pendingImage = { dataUrl, name: file.name, tokenEstimate };
       };
       img.src = "data:" + file.type + ";base64," + base64;
     } else {
@@ -285,7 +288,8 @@ function initEvents(){
               canvas.width = width;
               canvas.height = height;
               canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-              State.pendingImage = { dataUrl: canvas.toDataURL("image/jpeg", 0.85), name: "pasted-image.png" };
+              const tokenEstimate = (window.Api && Api.estimateImageTokens) ? Api.estimateImageTokens(width, height) : 0;
+              State.pendingImage = { dataUrl: canvas.toDataURL("image/jpeg", 0.85), name: "pasted-image.png", tokenEstimate };
               Chat.render();
             };
             img.src = "data:" + item.type + ";base64," + base64;

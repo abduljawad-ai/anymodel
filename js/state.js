@@ -58,7 +58,11 @@ function loadJson(key, fallback){
 function saveJson(key, value){
   try{
     if(typeof localStorage !== 'undefined') localStorage.setItem(key, JSON.stringify(value));
-  }catch(e){}
+  }catch(e){
+    // Storage full or blocked: surface it once instead of silently
+    // swallowing the failure. Values stay in memory for this session.
+    try{ State.notice = "⚠️ Storage is full — recent changes may not be saved."; }catch(e2){}
+  }
 }
 
 /* ============================================================
@@ -408,6 +412,7 @@ function setProvider(id){
   if(window.Api) Api.fetchModels().catch(() => {});
   if(window.Header) Header.render();
   if(window.Composer) Composer.render();
+  if(window.Sidebar) Sidebar.render();
   if(window.ModelPicker && document.getElementById("modelSheet") && document.getElementById("modelSheet").classList.contains("show")) ModelPicker.open();
 }
 
