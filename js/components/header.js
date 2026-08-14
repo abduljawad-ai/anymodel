@@ -11,12 +11,10 @@ function render(){
   const m = currentModel();
   if(!m) return;
 
-  // Update model trigger
-  [{sw:"swatch",nm:"modelName"},{sw:"swatchDesktop",nm:"modelNameDesktop"}].forEach(pair=>{
-    const sw = $(pair.sw), nm = $(pair.nm);
-    if(sw){ sw.style.background = Config.getModelColor(m); }
-    if(nm){ nm.textContent = Config.getModelLabel(m); }
-  });
+  // Update composer model pill
+  const sw = $("modelPillSwatch"), nm = $("modelPillName");
+  if(sw){ sw.style.background = Config.getModelColor(m); }
+  if(nm){ nm.textContent = Config.getModelLabel(m); }
 
   // Update capability strip
   const capsOn = Object.keys(m.capabilities || {}).filter(k => m.capabilities[k]);
@@ -49,16 +47,6 @@ function render(){
 ============================================================ */
 
 function initEvents(){
-  // Model trigger click
-  $("modelTrigger").addEventListener("click", () => {
-    ModelPicker.open();
-  });
-  if($("modelTriggerDesktop")) {
-    $("modelTriggerDesktop").addEventListener("click", () => {
-      ModelPicker.open();
-    });
-  }
-
   // Sidebar toggle
   const menu = $("btnMenu");
   if(menu) menu.addEventListener("click", () => Sidebar.toggle());
