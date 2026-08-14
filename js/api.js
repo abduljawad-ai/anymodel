@@ -726,23 +726,38 @@ async function callOcrStreaming(turn, dataUrl, modelId){
 async function callTtsStreaming(turn, text, modelId){
   const ctrl = beginRequest();
   Chat.setPhase(turn, "connect", "🔊 Generating speech…");
+  const body = { model: modelId, input: text, response_format: "mp3" };
+  // Some TTS models (e.g. Orpheus on Groq) require a voice — it's
+  // user-configurable in Settings and sent only when set.
+  const voice = (State.ttsVoice || "").trim();
+  if(voice) body.voice = voice;
   const res = await fetchWithTimeout(`${getBaseUrl()}/audio/speech`, {
     method:"POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-    body: JSON.stringify({ model: modelId, input: text, response_format: "mp3" }),
+    body: JSON.stringify(body),
     signal: ctrl.signal,
     ctrl
   }, MEDIA_TIMEOUT_MS);
   if(!res.ok) throw new Error(errorMessage(res.status, await safeJson(res)));
-  const data = await res.json();
   Chat.collapsePhase(turn);
-  const audioB64 = data.audio_data;
-  if(!audioB64) throw new Error("No audio returned.");
+
+  const ctype = res.headers.get("content-type") || "";
+  let src, raw;
+  if(ctype.indexOf("json") !== -1){
+    // Nonstandard providers return base64 JSON: { audio_data: "..." }
+    const data = await res.json();
+    const audioB64 = data.audio_data;
+    if(!audioB64) throw new Error("No audio returned.");
+    src = "data:audio/mp3;base64," + audioB64;
+  } else {
+    // OpenAI/Groq standard: raw audio bytes
+    const blob = await res.blob();
+    src = URL.createObjectURL(blob);
+    raw = blob;   // waveform decoding needs bytes — fetch(blob:…) is CSP-blocked
+  }
+
   turn.bubble.innerHTML = "";
-  const audio = document.createElement("audio");
-  audio.controls = true;
-  audio.src = "data:audio/mp3;base64," + audioB64;
-  turn.bubble.appendChild(audio);
+  if(window.VoiceCapsule) VoiceCapsule.build(turn.bubble, { src, raw });
   Chat.scrollIfSticky();
   return { text: "🔊 [Audio response — " + text.slice(0,60) + (text.length > 60 ? "…" : "") + "]" };
 }

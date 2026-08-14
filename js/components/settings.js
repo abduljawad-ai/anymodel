@@ -37,6 +37,7 @@ function render(){
     : "API key for " + ((pInfo && pInfo.name) || providerId);
   $("apiKeyInput").value = State.apiKeys[providerId] || "";
   $("systemPromptInput").value = State.systemPrompt;
+  $("ttsVoiceInput").value = State.ttsVoice || "";
   $("autoToolSwitch").classList.toggle("on", State.autoTools);
   $("keyStatus").style.display = "none";
 }
@@ -181,6 +182,16 @@ function initEvents(){
     systemPromptTimeout = setTimeout(() => {
       State.systemPrompt = $("systemPromptInput").value;
       localStorage.setItem(Config.LS_SYS, State.systemPrompt);
+    }, 300);
+  });
+
+  // TTS voice
+  let ttsVoiceTimeout;
+  $("ttsVoiceInput").addEventListener("input", () => {
+    clearTimeout(ttsVoiceTimeout);
+    ttsVoiceTimeout = setTimeout(() => {
+      State.ttsVoice = $("ttsVoiceInput").value.trim();
+      localStorage.setItem(Config.LS_TTS_VOICE, State.ttsVoice);
     }, 300);
   });
 

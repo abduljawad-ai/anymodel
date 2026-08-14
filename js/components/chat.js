@@ -98,7 +98,11 @@ function render(){
       b.className = "bubble";
       b.innerHTML = Markdown.renderMarkdownish(m.content || "");
       if(m.imageDataUrl){ const img=document.createElement("img"); img.src=m.imageDataUrl; b.appendChild(img); }
-      if(m.audioDataUrl){ const audio=document.createElement("audio"); audio.controls=true; audio.src=m.audioDataUrl; b.appendChild(audio); }
+      if(m.audioDataUrl){
+        // Voice message → WhatsApp-style capsule (waveform + duration),
+        // not a bare native <audio> element.
+        if(window.VoiceCapsule) VoiceCapsule.build(b, { src: m.audioDataUrl, durationMs: m.audioDurationMs || 0 });
+      }
       col.appendChild(b);
 
       if(m.modelUsed){

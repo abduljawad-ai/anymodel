@@ -103,7 +103,7 @@ function normalizeModel(mid, m, providerId){
   if(m.reasoning) caps.reasoning = true;
   if(/whisper|transcri|asr|speech-to-text/.test(lowId) || input.includes("audio")) caps.audio_transcription = true;
   if(caps.audio_transcription || input.includes("audio")) caps.audio = true;
-  if(/tts|speech/.test(lowId) || output.includes("audio")) caps.tts = true;
+  if(/tts|speech|voice|orpheus/.test(lowId) || output.includes("audio")) caps.tts = true;
   if(/embed/.test(lowId)) caps.embeddings = true;
   if(/moderat|guard/.test(lowId)) caps.moderation = true;
   if(/ocr/.test(lowId)) caps.ocr = true;
@@ -146,7 +146,7 @@ function pickModel(providerId, kind){
   if(!entries.length) return null;
   const rx = {
     transcription: /whisper|transcri|asr|speech-to-text/i,
-    tts: /tts|speech|voice|audio-speech/i,
+    tts: /tts|speech|voice|audio-speech|orpheus/i,
     ocr: /ocr/i,
     embeddings: /embed/i,
     moderation: /moderat|guard/i

@@ -11,6 +11,7 @@
   let audioChunks = [];
   let startTime = null;
   let timerInterval = null;
+  let recordedMs = 0;
 
   /* ============================================================
      RENDERING
@@ -45,7 +46,7 @@
         const audioBlob = new Blob(audioChunks, { type: recordMimeType });
         const reader = new FileReader();
         reader.onload = () => {
-          State.pendingAudio = { name: `Recording ${new Date().toLocaleString()}${recordExtension}`, dataUrl: reader.result };
+          State.pendingAudio = { name: `Recording ${new Date().toLocaleString()}${recordExtension}`, dataUrl: reader.result, durationMs: recordedMs || 0 };
           Composer.render();
         };
         reader.readAsDataURL(audioBlob);
@@ -74,6 +75,7 @@
   function stopRecording(){
     if(!mediaRecorder) return;
 
+    recordedMs = Date.now() - startTime;
     mediaRecorder.stop();
     mediaRecorder.stream.getTracks().forEach(track => track.stop());
     mediaRecorder = null;

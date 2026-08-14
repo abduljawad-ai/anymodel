@@ -12,6 +12,7 @@ const LS_SYS = "anymodel_sysprompt_v1";
 const LS_MESSAGES = "anymodel_messages_v1";
 const LS_SESSIONS = "anymodel_sessions_v1";
 const LS_ACTIVE = "anymodel_active_session_v1";
+const LS_TTS_VOICE = "anymodel_tts_voice_v1";
 
 const DEFAULT_PROVIDER = "openai";
 
@@ -173,7 +174,7 @@ window.trapFocus = trapFocus;
 
 // Expose globally
 window.Config = {
-  LS_PROVIDER, LS_KEYS, LS_BASES, LS_MODEL_PREFIX, LS_SYS, LS_MESSAGES, LS_SESSIONS, LS_ACTIVE,
+  LS_PROVIDER, LS_KEYS, LS_BASES, LS_MODEL_PREFIX, LS_SYS, LS_MESSAGES, LS_SESSIONS, LS_ACTIVE, LS_TTS_VOICE,
   DEFAULT_PROVIDER,
   CAP_META, PROVIDER_COLORS,
   getEndpointType, getModelColor, getModelLabel,

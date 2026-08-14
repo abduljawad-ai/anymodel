@@ -256,6 +256,7 @@ const State = {
   apiKey: "",
   model: "",
   systemPrompt: (typeof localStorage !== 'undefined' ? localStorage.getItem(Config.LS_SYS) : null) || "",
+  ttsVoice: (typeof localStorage !== 'undefined' ? localStorage.getItem(Config.LS_TTS_VOICE) : null) || "",
   autoTools: true,
   messages: loadJson(Config.LS_MESSAGES, []),
   notice: null,

@@ -53,10 +53,13 @@ async function init(){
   try{
     $("loadingState").style.display = "block";
     if(window.Catalog) await Catalog.ensureLoaded();
+    await Api.fetchModels();
+    // Models are loaded now — only fall back to a chat pick when the saved
+    // model is missing (e.g. provider switch). Checking before fetchModels()
+    // would discard TTS/vision/ocr selections on every reload.
     if(!State.model || !State.models.some(m => m.id === State.model)){
       State.model = Catalog.pickModel(State.provider, "chat");
     }
-    await Api.fetchModels();
     Header.render();
     Composer.render();
     Chat.render();

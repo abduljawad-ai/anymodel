@@ -320,6 +320,60 @@ input,textarea{font-family:inherit;}
 .msg.system.err .bubble{ background:var(--danger-wash); color:var(--danger); }
 .bubble img{ max-width:100%; border-radius:8px; display:block; margin-top:6px; }
 .bubble audio{ width:100%; max-width:240px; margin-top:6px; }
+
+/* WhatsApp-style voice capsule (user voice messages + assistant TTS) */
+.voice-capsule{
+  display:inline-flex;
+  align-items:center;
+  gap:9px;
+  min-width:190px;
+  max-width:250px;
+  padding:7px 10px;
+  border-radius:18px;
+  background:var(--panel);
+  border:1px solid var(--border);
+  margin-top:6px;
+  user-select:none;
+}
+.msg.user .voice-capsule{
+  background:rgba(255,255,255,0.13);
+  border-color:transparent;
+}
+.voice-play{
+  width:34px;height:34px;border-radius:50%;
+  border:none;cursor:pointer;
+  background:var(--accent);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  flex:none;
+  padding:0;
+}
+.voice-play svg{ width:16px;height:16px; }
+.voice-wave{
+  display:flex;align-items:center;gap:2px;
+  height:26px;flex:1;min-width:0;
+}
+.voice-bar{
+  width:3px;
+  background:currentColor;
+  opacity:0.75;
+  border-radius:2px;
+  flex:none;
+  transition:height .15s ease;
+}
+.voice-capsule.playing .voice-bar{ animation:voicePulse .9s ease-in-out infinite; }
+@keyframes voicePulse{
+  0%,100%{ transform:scaleY(0.6); }
+  50%{ transform:scaleY(1.15); }
+}
+.voice-dur{
+  font-size:12px;
+  font-variant-numeric:tabular-nums;
+  color:var(--ink-faint);
+  flex:none;
+}
+.msg.user .voice-dur{ color:rgba(255,255,255,0.85); }
+
 .bubble code{
   background:rgba(0,0,0,0.06);
   padding:1px 5px;

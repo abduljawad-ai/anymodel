@@ -119,7 +119,10 @@ async function handleSend(){
   const userMsg = { role:"user", content:text, modelUsed:m.id };
   if(State.pendingImage) userMsg.imageDataUrl = State.pendingImage.dataUrl;
   if(State.pendingImage && State.pendingImage.tokenEstimate) userMsg.tokenEstimate = State.pendingImage.tokenEstimate;
-  if(State.pendingAudio) userMsg.audioDataUrl = State.pendingAudio.dataUrl;
+  if(State.pendingAudio){
+    userMsg.audioDataUrl = State.pendingAudio.dataUrl;
+    if(State.pendingAudio.durationMs) userMsg.audioDurationMs = State.pendingAudio.durationMs;
+  }
   State.messages.push(userMsg);
   saveMessages();
 
@@ -146,7 +149,10 @@ async function handleSend(){
       const mid = (window.Catalog && Catalog.pickModel(State.provider, "ocr")) || m.id;
       result = { text: await Api.callOcrStreaming(turn, pendingImage.dataUrl, mid) };
     } else if(endpoint === "tts"){
-      const mid = (window.Catalog && Catalog.pickModel(State.provider, "tts")) || m.id;
+      // Use the user's selected TTS model; fall back to an auto-pick only
+      // when the selection lacks tts capabilities (custom/unknown models).
+      const mid = (m.capabilities && m.capabilities.tts) ? m.id
+        : ((window.Catalog && Catalog.pickModel(State.provider, "tts")) || m.id);
       result = await Api.callTtsStreaming(turn, text, mid);
     } else if(endpoint === "embeddings"){
       const mid = (window.Catalog && Catalog.pickModel(State.provider, "embeddings")) || m.id;
