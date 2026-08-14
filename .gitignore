@@ -1,0 +1,16 @@
+# ============================================================
+# anymodel — gitignore
+# Only the app itself is tracked. Everything else stays local.
+# ============================================================
+
+# Browser test artifacts (Playwright MCP snapshots / console logs)
+.playwright-mcp/
+
+# Local development
+node_modules/
+*.log
+.DS_Store
+
+# Working notes & docs — not part of the deployed app
+docs/
+ISSUES.md

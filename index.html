@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="anymodel — bring your own API key. Chat with models from 180+ providers.">
+    <meta name="theme-color" content="#FF7000">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='10' fill='%23FF7000'/%3E%3Ctext x='50' y='68' font-family='Arial' font-size='52' font-weight='bold' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
+  <title>anymodel — bring your own key</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/markdown.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha384-F/bZzf7p3Joyp5psL90p/p89AZJsndkSoGwRpXcZhleCWhd8SnRuoYo4d0yirjJp" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div class="app">
+    <!-- SIDEBAR (drawer on mobile, panel on desktop) -->
+    <div class="sidebar-scrim" id="sidebarScrim" hidden></div>
+    <aside class="sidebar" id="sidebar" aria-label="Chat history" aria-hidden="true">
+      <div class="sidebar-head">
+        <div class="sidebar-brand"><span class="brand-glyph">A</span><span class="sidebar-brand-name">anymodel</span></div>
+        <button class="icon-btn" id="sidebarClose" aria-label="Close menu">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <button class="sidebar-newchat" id="btnSidebarNewChat" aria-label="New chat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        <span>New chat</span>
+      </button>
+      <div class="sidebar-list" id="sidebarList"></div>
+      <div class="sidebar-foot">
+        <button class="sidebar-settings" id="btnSidebarSettings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Settings</span>
+        </button>
+        <span class="sidebar-key-dot" id="sidebarKeyDot" title="No API key saved for this provider"></span>
+      </div>
+    </aside>
+
+    <div class="main-col">
+      <!-- DESKTOP HEADER STRIP -->
+      <div class="header-desktop" style="display:none;" id="headerDesktop">
+        <button class="header-btn" id="btnMenuDesktop" title="Menu" aria-label="Open menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </button>
+        <div class="model-trigger" id="modelTriggerDesktop" role="button" tabindex="0" aria-haspopup="dialog" style="max-width:260px;">
+          <span class="swatch" id="swatchDesktop"></span>
+          <span class="name" id="modelNameDesktop"></span>
+          <span class="chev"></span>
+        </div>
+        <div class="cap-strip" id="capStripDesktop" style="border:none; padding:0; flex:1;"></div>
+        <button class="key-dot-btn" id="keyBtnDesktop">
+          <span class="dot" id="keyDotDesktop"></span>
+          <span class="key-label" id="keyLabelDesktop">No key</span>
+        </button>
+      </div>
+
+      <!-- MOBILE HEADER -->
+      <div class="header" id="headerMobile">
+        <button class="header-btn" id="btnMenu" title="Menu" aria-label="Open menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </button>
+        <div class="model-trigger" id="modelTrigger" role="button" tabindex="0" aria-haspopup="dialog">
+          <span class="swatch" id="swatch"></span>
+          <span class="name" id="modelName"></span>
+          <span class="chev"></span>
+        </div>
+        <div class="cap-strip" id="capStrip"></div>
+      </div>
+
+      <!-- CHAT -->
+      <div class="chat-scroll" id="chatScroll">
+        <div class="chat-inner" id="chatInner">
+          <div class="loading-state" id="loadingState" style="display:none;">Loading models…</div>
+        <div class="empty-state" id="emptyState" role="status">
+            <div class="glyph">A</div>
+            <h1>What are we building?</h1>
+            <p>Bring your own API key. Pick any provider from 180+ — OpenAI, Anthropic, Google, Mistral, Groq, OpenRouter… — add your key, choose a model, and chat. The right tools switch on automatically for what your model supports.</p>
+            <div class="suggestion-grid">
+              <div class="suggestion" data-fill="Explain function calling and show a JSON tool schema example.">
+                <b>💬 Ask a question</b>
+                <span>Any provider's model</span>
+              </div>
+              <div class="suggestion" data-fill="__IMAGE__">
+                <b>🖼️ Analyze an image</b>
+                <span>Vision models</span>
+              </div>
+              <div class="suggestion" data-fill="Write a Python function that reverses a linked list, with tests.">
+                <b>👨‍💻 Generate code</b>
+                <span>Code models</span>
+              </div>
+              <div class="suggestion" data-fill="__AUDIO__">
+                <b>🎙️ Transcribe audio</b>
+                <span>Audio models</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COMPOSER -->
+      <div class="composer-wrap">
+        <div class="attach-row" id="attachRow" style="display:none;"></div>
+        <div class="composer">
+          <div class="composer-row">
+            <input type="file" id="imageInput" accept="image/*" hidden>
+            <input type="file" id="audioInput" accept="audio/*" hidden>
+            <div class="composer-left">
+              <button class="icon-btn plus" id="plusBtn" title="More options" aria-label="More options" aria-haspopup="menu" aria-expanded="false">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+              <div class="composer-menu" id="composerMenu" hidden role="menu">
+                <button class="menu-row" id="menuImage" role="menuitem">🖼️ <span>Attach image</span></button>
+                <button class="menu-row" id="menuAudio" role="menuitem">🎙️ <span>Attach audio</span></button>
+                <button class="menu-row" id="menuVoice" role="menuitem">🎤 <span>Record voice</span></button>
+                <button class="menu-row" id="menuTools" role="menuitem">🛠️ <span>Tools</span><span class="menu-check" id="menuToolsCheck"></span></button>
+              </div>
+            </div>
+            <textarea id="promptInput" rows="1" placeholder="Message"></textarea>
+            <button class="send-btn" id="sendBtn" aria-label="Send message">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="composer-hint" id="composerHint">Enter to send · Shift+Enter for new line</div>
+      </div>
+
+      <!-- VOICE RECORDER OVERLAY -->
+      <div class="voice-overlay" id="voiceOverlay" style="display:none;">
+        <div class="voice-card">
+          <div class="rec-dot">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+          </div>
+          <div class="rec-time" id="recTime">00:00</div>
+          <div class="rec-actions">
+            <button class="cancel" id="cancelRecording">Cancel</button>
+            <button class="stop" id="stopRecording">Stop & Send</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODEL PICKER SHEET -->
+  <div class="sheet-scrim" id="modelScrim"></div>
+    <noscript>anymodel requires JavaScript to run.</noscript>
+  <div class="sheet" id="modelSheet" role="dialog" aria-modal="true" aria-labelledby="modelSheetTitle">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head">
+      <h2 id="modelSheetTitle">Choose a model</h2>
+      <button class="sheet-close" id="modelSheetClose" aria-label="Close model picker">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <input class="picker-filter" id="modelFilter" type="text" placeholder="Filter models…" autocomplete="off" spellcheck="false" aria-label="Filter models">
+    <div class="sheet-body" id="modelListBody"></div>
+  </div>
+
+  <!-- SETTINGS SHEET -->
+  <div class="sheet-scrim" id="settingsScrim"></div>
+  <div class="sheet" id="settingsSheet" role="dialog" aria-modal="true" aria-labelledby="settingsSheetTitle">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head">
+      <h2 id="settingsSheetTitle">Settings</h2>
+      <button class="sheet-close" id="settingsSheetClose" aria-label="Close settings">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="sheet-body">
+      <div class="settings-body">
+
+        <div>
+          <div class="field-label">🏷️ Provider</div>
+          <select id="providerSelect" class="provider-select" aria-label="Provider"></select>
+          <div id="customUrlRow" style="display:none; margin-top:8px;">
+            <input type="text" id="customBaseUrl" placeholder="https://api.example.com/v1" autocomplete="off" spellcheck="false" aria-label="Base URL">
+            <div class="field-hint">OpenAI-compatible base URL. Used for custom providers and providers missing a base URL in the catalog.</div>
+          </div>
+
+          <div class="field-label" id="providerNameLabel">🔑 API key</div>
+          <div class="key-input-row">
+            <input type="password" id="apiKeyInput" placeholder="Paste your API key…" autocomplete="off" spellcheck="false">
+            <button id="toggleKeyVisibility">Show</button>
+          </div>
+          <div id="keyStatus" class="status-box" style="display:none;" role="alert"></div>
+          <div class="field-hint">
+            Stored only in this browser's local storage — sent only to your chosen provider.
+            Keys are kept per provider, so you can switch freely.
+          </div>
+          <button class="btn-primary" id="saveKeyBtn">Save key</button>
+          <button class="btn-ghost" id="clearKeyBtn">Remove saved key</button>
+        </div>
+
+        <div>
+          <div class="section-title">Behavior</div>
+          <div class="toggle-row">
+            <div>
+              <div class="lbl">Auto tool selection</div>
+              <div class="sub">Only show tools the model supports</div>
+            </div>
+            <div class="switch on" id="autoToolSwitch"></div>
+          </div>
+          <div class="toggle-row">
+            <div>
+              <div class="lbl">System prompt</div>
+              <div class="sub">Sent with every message</div>
+            </div>
+          </div>
+          <textarea id="systemPromptInput" class="sys-textarea" rows="3" placeholder="You are a helpful assistant."></textarea>
+        </div>
+
+        <div>
+          <div class="section-title">Data</div>
+          <button class="btn-ghost" id="clearChatBtn" style="margin-top:0;">Clear conversation</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="js/config.js"></script>
+  <script src="js/catalog.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/markdown.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/components/settings.js"></script>
+  <script src="js/components/model-picker.js"></script>
+  <script src="js/components/header.js"></script>
+  <script src="js/components/composer.js"></script>
+  <script src="js/components/chat.js"></script>
+  <script src="js/components/sidebar.js"></script>
+  <script src="js/components/voice-recorder.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
