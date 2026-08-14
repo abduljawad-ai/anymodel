@@ -136,6 +136,41 @@ function runDemoTool(name, argsJson){
 const $ = id => document.getElementById(id);
 window.$ = $;
 
+/* Shared focus helpers for modal dialogs/sheets (role="dialog" aria-modal="true"
+   must keep keyboard focus inside while open — WCAG 2.4.3). Same shared-global
+   pattern as `$` above. */
+const FOCUSABLE = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function focusFirst(root){
+  const el = root.querySelector(FOCUSABLE);
+  if(el) el.focus({ preventScroll:true });
+  return !!el;
+}
+
+function trapFocus(root){
+  return function(e){
+    if(e.key !== "Tab") return;
+    const els = Array.prototype.filter.call(
+      root.querySelectorAll(FOCUSABLE),
+      el => el.offsetParent !== null || el === document.activeElement
+    );
+    if(!els.length) return;
+    const first = els[0];
+    const last = els[els.length - 1];
+    const inside = root.contains(document.activeElement);
+    if(e.shiftKey && (!inside || document.activeElement === first)){
+      e.preventDefault();
+      last.focus({ preventScroll:true });
+    } else if(!e.shiftKey && (!inside || document.activeElement === last)){
+      e.preventDefault();
+      first.focus({ preventScroll:true });
+    }
+  };
+}
+
+window.focusFirst = focusFirst;
+window.trapFocus = trapFocus;
+
 // Expose globally
 window.Config = {
   LS_PROVIDER, LS_KEYS, LS_BASES, LS_MODEL_PREFIX, LS_SYS, LS_MESSAGES, LS_SESSIONS, LS_ACTIVE,

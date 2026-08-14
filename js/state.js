@@ -186,7 +186,10 @@ function wireKeylockEvents(){
     if(e.target === e.currentTarget) resolveKeylock(null);
   });
   document.addEventListener("keydown", (e) => {
-    if(e.key === "Escape" && !document.getElementById("keylockOverlay").hidden) resolveKeylock(null);
+    if(document.getElementById("keylockOverlay").hidden) return;
+    if(e.key === "Escape"){ resolveKeylock(null); return; }
+    const card = document.querySelector(".keylock-card");
+    if(card) trapFocus(card)(e);
   });
   ["keylockPass", "keylockConfirm"].forEach(id => {
     document.getElementById(id).addEventListener("keydown", (e) => {

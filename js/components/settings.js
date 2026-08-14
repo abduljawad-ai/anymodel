@@ -3,6 +3,8 @@
 ============================================================ */
 (function(){
 
+let prevFocus = null;   // element focused before the sheet opened (restored on close)
+
 /* ============================================================
    HELPERS
 ============================================================ */
@@ -44,9 +46,12 @@ function render(){
 ============================================================ */
 
 function open(){
+  prevFocus = (document.activeElement && document.activeElement !== document.body)
+    ? document.activeElement : null;
   render();
   $("settingsScrim").classList.add("show");
   $("settingsSheet").classList.add("show");
+  focusFirst($("settingsSheet"));
   if(window.Catalog) Catalog.ensureLoaded().then(() => {
     if($("settingsSheet").classList.contains("show")) render();
   });
@@ -55,6 +60,8 @@ function open(){
 function close(){
   $("settingsScrim").classList.remove("show");
   $("settingsSheet").classList.remove("show");
+  if(prevFocus && prevFocus.focus){ try{ prevFocus.focus({ preventScroll:true }); }catch(e){} }
+  prevFocus = null;
 }
 
 /* ============================================================
@@ -207,11 +214,11 @@ function initEvents(){
   $("settingsSheet").querySelector(".sheet-grip").addEventListener("click", close);
   $("settingsSheet").querySelector(".sheet-head").addEventListener("click", close);
 
-  // Sheet close on Escape
+  // Sheet close on Escape; keep focus trapped inside while open (WCAG 2.4.3)
   document.addEventListener("keydown", (e) => {
-    if(e.key === "Escape" && $("settingsSheet").classList.contains("show")){
-      close();
-    }
+    if(!$("settingsSheet").classList.contains("show")) return;
+    if(e.key === "Escape"){ close(); return; }
+    trapFocus($("settingsSheet"))(e);
   });
 }
 

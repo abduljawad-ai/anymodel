@@ -115,6 +115,7 @@ function handleKeydown(e){
   if (typeof document === 'undefined') return;
   if(!$("modelSheet").classList.contains("show")) return;
   if(e.key === "Escape"){ close(); return; }
+  if(e.key === "Tab"){ trapFocus($("modelSheet"))(e); return; }
   if(e.key === "ArrowDown" || e.key === "ArrowUp"){
     e.preventDefault();
     if(!visibleRows.length) return;
