@@ -1,7 +1,7 @@
 /* ============================================================
-   MODEL PICKER — centered OpenCode-style model selector.
-   Lists the selected provider's models; type-to-filter,
-   arrow keys + Enter, Escape to close.
+   MODEL PICKER — Gemini-style dropdown anchored to the composer
+   model pill. Provider chip strip + type-to-filter model list;
+   Arrow keys + Enter, Escape to close, click-away closes.
 ============================================================ */
 (function(){
 
@@ -23,6 +23,8 @@ function providerName(){
 let filterValue = "";
 let highlightedIndex = -1;
 let visibleRows = [];   // flat list of { id } for keyboard navigation
+let anchorEl = null;
+let isOpen = false;
 
 /* ============================================================
    RENDERING
@@ -39,6 +41,20 @@ function applyHighlight(){
   rows.forEach(row => row.classList.toggle("picker-row-active", Number(row.dataset.idx) === highlightedIndex));
   const active = $("modelListBody").querySelector(".picker-row-active");
   if(active && active.scrollIntoView) active.scrollIntoView({ block:"nearest" });
+}
+
+function providerChipsHtml(){
+  const providers = window.Catalog ? Catalog.providerList() : [];
+  return providers.map(p =>
+    `<button class="model-provider-chip${p.id === State.provider ? " active" : ""}" data-provider="${esc(p.id)}">${esc(p.name)}</button>`
+  ).join("");
+}
+
+function wireProviderChips(){
+  $("modelPopProviders").querySelectorAll(".model-provider-chip").forEach(chip => {
+    chip.addEventListener("click", () => setProvider(chip.dataset.provider));
+    // setProvider() calls ModelPicker.refresh() via its own hook (state.js)
+  });
 }
 
 function buildModelSheet(){
@@ -84,38 +100,86 @@ function buildModelSheet(){
   });
 }
 
-/* ============================================================
-   OPEN/CLOSE
-============================================================ */
+function renderAll(){
+  $("modelPopProviders").innerHTML = providerChipsHtml();
+  wireProviderChips();
+  buildModelSheet();
+}
 
-function open(){
+function position(){
+  const pop = $("modelPop"), pill = anchorEl;
+  if(!pop || !pill) return;
+  const r = pill.getBoundingClientRect();
+  const w = pop.offsetWidth || Math.min(360, window.innerWidth - 16);
+  const left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));
+  pop.style.left = left + "px";
+  pop.style.bottom = (window.innerHeight - r.top + 8) + "px";   // panel above pill
+  pop.style.top = "auto";
+  pop.style.maxHeight = "min(420px, " + Math.max(120, r.top - 24) + "px)";
+  if(r.top - 8 - pop.offsetHeight < 8){                         // not enough room above → below pill
+    pop.style.bottom = "auto";
+    pop.style.top = (r.bottom + 8) + "px";
+    pop.style.maxHeight = "min(420px, " + Math.max(120, window.innerHeight - r.bottom - 24) + "px)";
+  }
+}
+
+/* ============================================================
+   OPEN/CLOSE/TOGGLE/REFRESH
+=========================================================== */
+
+function open(anchor){
   if (typeof document === 'undefined') return;
+  anchorEl = anchor || $("modelPill");
   filterValue = "";
   highlightedIndex = 0;
-  buildModelSheet();
-  $("modelScrim").classList.add("show");
-  $("modelSheet").classList.add("show");
+  const pop = $("modelPop");
+  if(!pop) return;
+  pop.hidden = false;
+  renderAll();
+  position();
+  const pill = $("modelPill");
+  if(pill){ pill.classList.add("active"); pill.setAttribute("aria-expanded", "true"); }
+  isOpen = true;
   const f = $("modelFilter");
   if(f){ f.value = ""; f.focus({ preventScroll:true }); }
 }
 
 function close(){
   if (typeof document === 'undefined') return;
-  $("modelScrim").classList.remove("show");
-  $("modelSheet").classList.remove("show");
-  const t = $("modelTriggerDesktop") && $("modelTriggerDesktop").offsetParent ? $("modelTriggerDesktop") : $("modelTrigger");
-  if(t) t.focus({ preventScroll:true });
+  const pop = $("modelPop");
+  if(pop) pop.hidden = true;
+  const pill = $("modelPill");
+  if(pill){ pill.classList.remove("active"); pill.setAttribute("aria-expanded", "false"); }
+  isOpen = false;
+}
+
+function toggle(anchor){
+  if(isOpen) close();
+  else open(anchor);
+}
+
+/* Re-render the open panel after a provider change (setProvider hook). */
+function refresh(){
+  if (typeof document === 'undefined' || !isOpen) return;
+  $("modelListBody").innerHTML = '<div class="picker-empty">Loading models…</div>';
+  $("modelPopProviders").innerHTML = providerChipsHtml();
+  wireProviderChips();
+  Api.fetchModels()
+    .then(() => { if(isOpen) renderAll(); })
+    .catch(err => {
+      if(isOpen) $("modelListBody").innerHTML =
+        '<div class="picker-empty">Couldn\'t load models: ' + esc(err && err.message ? err.message : "network error") + '</div>';
+    });
 }
 
 /* ============================================================
    EVENTS
-============================================================ */
+=========================================================== */
 
 function handleKeydown(e){
-  if (typeof document === 'undefined') return;
-  if(!$("modelSheet").classList.contains("show")) return;
+  if (typeof document === 'undefined' || !isOpen) return;
   if(e.key === "Escape"){ close(); return; }
-  if(e.key === "Tab"){ trapFocus($("modelSheet"))(e); return; }
+  if(e.key === "Tab"){ trapFocus($("modelPop"))(e); return; }
   if(e.key === "ArrowDown" || e.key === "ArrowUp"){
     e.preventDefault();
     if(!visibleRows.length) return;
@@ -137,9 +201,8 @@ function handleKeydown(e){
 function initEvents(){
   if (typeof document === 'undefined') return;
 
-  $("modelSheetClose").addEventListener("click", close);
-  $("modelScrim").addEventListener("click", close);
-  $("modelSheet").querySelector(".sheet-head").addEventListener("click", close);
+  const pill = $("modelPill");
+  if(pill) pill.addEventListener("click", () => toggle(pill));
 
   const f = $("modelFilter");
   if(f) f.addEventListener("input", (e) => {
@@ -148,21 +211,24 @@ function initEvents(){
     buildModelSheet();
   });
 
-  [ "modelTriggerDesktop", "modelTrigger" ].forEach(id => {
-    const el = $(id);
-    if(!el) return;
-    el.addEventListener("keydown", (e) => {
-      if(e.key === "Enter" || e.key === " "){ e.preventDefault(); open(); }
-    });
-  });
-
   document.addEventListener("keydown", handleKeydown);
+  document.addEventListener("mousedown", (e) => {
+    if(!isOpen) return;
+    const pop = $("modelPop"), p = $("modelPill");
+    if(pop && pop.contains(e.target)) return;
+    if(p && p.contains(e.target)) return;   // pill click handled by its own listener
+    close();
+  });
+  window.addEventListener("resize", close);
+  window.addEventListener("scroll", close, true);
 }
 
 // Expose globally
 window.ModelPicker = {
   open,
   close,
+  toggle,
+  refresh,
   initEvents
 };
 
