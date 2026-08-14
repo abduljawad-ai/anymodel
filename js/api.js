@@ -221,38 +221,49 @@ function fetchWithTimeout(url, opts, timeoutMs){
    MODELS
 ============================================================ */
 
+let modelsFetchPromise = null;   // memoize in-flight fetch so concurrent callers await the same request
+
 async function fetchModels(){
   if(State.modelsLoaded) return State.models;
   const provider = State.provider;   // capture; bail if provider changes mid-flight
+  if(modelsFetchPromise) return modelsFetchPromise;
 
-  await Catalog.ensureLoaded();
-  if(State.provider !== provider) return [];
-  State.models = Catalog.listModels(State.provider);
-
-  // Providers without a catalog entry (custom, Ollama, exotic setups):
-  // ask the API for its model list at runtime.
-  if(!State.models.length && getBaseUrl()){
-    const ctrl = new AbortController();
-    const res = await fetchWithTimeout(`${getBaseUrl()}/models`, { headers: getAuthHeaders(), signal: ctrl.signal, ctrl }, MODELS_TIMEOUT_MS);
-    if(!res.ok) throw new Error(errorMessage(res.status, await safeJson(res)));
-    const data = await res.json();
+  modelsFetchPromise = (async () => {
+    await Catalog.ensureLoaded();
     if(State.provider !== provider) return [];
-    State.models = (data.data || []).map(md => ({
-      id: md.id,
-      name: md.id,
-      description: md.description || "",
-      context: md.context_length || null,
-      provider: State.provider,
-      capabilities: {}
-    }));
-  }
+    State.models = Catalog.listModels(State.provider);
 
-  State.modelsLoaded = true;
-  if(!State.model && State.models.length){
-    const smart = (window.Catalog && Catalog.pickModel) ? Catalog.pickModel(State.provider, "chat") : null;
-    setModel(smart || State.models[0].id);
+    // Providers without a catalog entry (custom, Ollama, exotic setups):
+    // ask the API for its model list at runtime.
+    if(!State.models.length && getBaseUrl()){
+      const ctrl = new AbortController();
+      const res = await fetchWithTimeout(`${getBaseUrl()}/models`, { headers: getAuthHeaders(), signal: ctrl.signal, ctrl }, MODELS_TIMEOUT_MS);
+      if(!res.ok) throw new Error(errorMessage(res.status, await safeJson(res)));
+      const data = await res.json();
+      if(State.provider !== provider) return [];
+      State.models = (data.data || []).map(md => ({
+        id: md.id,
+        name: md.id,
+        description: md.description || "",
+        context: md.context_length || null,
+        provider: State.provider,
+        capabilities: {}
+      }));
+    }
+
+    State.modelsLoaded = true;
+    if(!State.model && State.models.length){
+      const smart = (window.Catalog && Catalog.pickModel) ? Catalog.pickModel(State.provider, "chat") : null;
+      setModel(smart || State.models[0].id);
+    }
+    return State.models;
+  })();
+
+  try{
+    return await modelsFetchPromise;
+  } finally {
+    modelsFetchPromise = null;   // clear memo so the next provider switch fetches fresh
   }
-  return State.models;
 }
 
 /* Verify a provider connection from Settings (key + base URL). */
