@@ -425,7 +425,7 @@ function setProvider(id){
   if(window.Header) Header.render();
   if(window.Composer) Composer.render();
   if(window.Sidebar) Sidebar.render();
-  if(window.ModelPicker && document.getElementById("modelSheet") && document.getElementById("modelSheet").classList.contains("show")) ModelPicker.open();
+  if(window.ModelPicker) ModelPicker.refresh();   // keep the dropdown in sync if open
 }
 
 /* Save a key for a provider. The change is applied to memory immediately
