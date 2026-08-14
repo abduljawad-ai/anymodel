@@ -217,18 +217,25 @@ function finalizeTurn(turn, result, m){
 async function revealText(turn, text){
   if (typeof document === 'undefined') return;
 
+  // Chunked reveal: render a few words per tick instead of one at a time.
+  // One-word-at-a-time is O(N²) total render work (cumulative re-render of the
+  // whole string per word) plus a 12ms delay floor per word — a 10k-word
+  // OCR/transcription output would freeze for minutes. Chunking keeps the
+  // typewriter pacing for normal replies (~1 word/tick) but bounds long
+  // outputs to ~400 ticks (~5s) with ~1 render per chunk.
   let out = "";
   try{
     const words = text.split(/(\s+)/);
-    for(let i=0;i<words.length;i++){
-      out += words[i];
-      const last = i === words.length - 1;
+    const perTick = Math.min(64, Math.max(1, Math.round(words.length / 400)));
+    for(let i=0;i<words.length;i+=perTick){
+      out += words.slice(i, i + perTick).join("");
+      const last = i + perTick >= words.length;
       turn.bubble.innerHTML = Markdown.renderMarkdownish(out) + (last ? "" : '<span class="type-cursor"></span>');
       Markdown.scheduleHighlight(turn.bubble);
       scrollIfSticky();
       if(!last) await new Promise(r => setTimeout(r, 12));
     }
-    Markdown.enhanceCodeBlocks(turn.bubble);   // final pass once, not per word
+    Markdown.enhanceCodeBlocks(turn.bubble);   // final pass once, not per chunk
   } catch(e) {
     console.error("Error in revealText:", e);
     turn.bubble.textContent = out;
