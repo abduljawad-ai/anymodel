@@ -112,7 +112,6 @@ async function handleSend(){
 
   if(!text && !State.pendingImage && !State.pendingAudio) return;
 
-  saveMessages();
   State.sending = true;
   closeMenu();
   updateSendButton();

@@ -16,7 +16,12 @@ let deletingId = null;
 function render(){
   const list = $("sidebarList");
   if(!list) return;
-  const sorted = [...State.sessions].sort((a,b) => b.updatedAt - a.updatedAt);
+  // Only finished chats appear in history. A fresh new chat (no messages
+  // yet) is not a session until the first message is sent, so it stays out
+  // of the list just like ChatGPT/Gemini/Claude do.
+  const sorted = [...State.sessions]
+    .filter(s => (s.messages || []).length > 0)
+    .sort((a,b) => b.updatedAt - a.updatedAt);
   list.innerHTML = sorted.map(s => {
     const active = s.id === State.activeSessionId ? " active" : "";
     const title = esc(s.title || "New chat");

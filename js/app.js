@@ -41,6 +41,11 @@ async function init(){
   if(!State.sessions.some(s => s.id === State.activeSessionId)){
     State.activeSessionId = State.sessions[0] ? State.sessions[0].id : "";
   }
+  // Clean up empty "New chat" ghosts from before sessions needed a first
+  // message. Keep the active one so the current empty chat survives a reload.
+  const before = State.sessions.length;
+  State.sessions = State.sessions.filter(s => (s.messages || []).length > 0 || s.id === State.activeSessionId);
+  if(State.sessions.length !== before) localStorage.setItem(Config.LS_SESSIONS, JSON.stringify(State.sessions));
   State.messages = (State.sessions.find(s => s.id === State.activeSessionId) || {}).messages || [];
   State.model = localStorage.getItem(Config.LS_MODEL_PREFIX + State.provider);
 

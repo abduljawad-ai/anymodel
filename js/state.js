@@ -298,8 +298,13 @@ function activeSession(){
 function maybeAutoTitle(s){
   if(s.title) return;
   const msgs = Array.isArray(s.messages) ? s.messages : [];
-  const first = msgs.find(m => m.role === "user" && m.content);
-  if(first) s.title = String(first.content).replace(/\s+/g, " ").trim().slice(0, 40);
+  const first = msgs.find(m => m.role === "user");
+  if(!first) return;
+  let t = String(first.content || "").replace(/\s+/g, " ").trim();
+  if(!t && first.imageDataUrl) t = "📷 Image";
+  t = t.replace(/[….,:;]+$/g, "").trim();
+  if(t.length > 40) t = t.slice(0, 40).replace(/\s+\S*$/, "").trim();
+  if(t) s.title = t;
 }
 
 function persistSessions(){
@@ -327,6 +332,9 @@ function newSession(){
   if(State.sending) return null;
   const cur = activeSession();
   if(cur){ cur.messages = State.messages; cur.updatedAt = Date.now(); }
+  // A chat with no messages isn't a session yet — drop abandoned empty ones
+  // so they never pile up in storage or show up in the sidebar.
+  State.sessions = State.sessions.filter(s => (s.messages || []).length > 0);
   const s = freshSession();
   State.sessions.push(s);
   State.activeSessionId = s.id;
@@ -519,10 +527,14 @@ function currentEndpointType(){
 function saveMessages(){
   const s = activeSession();
   if(!s) return;
+  const wasEmpty = !(s.messages && s.messages.length);
   s.messages = State.messages;
   s.updatedAt = Date.now();
   maybeAutoTitle(s);
   persistSessions();
+  // First message makes this a real session — pop it into the sidebar right
+  // away (with its auto title) even if the panel is already open.
+  if(wasEmpty && s.messages.length && window.Sidebar) Sidebar.render();
 }
 
 /* ============================================================
