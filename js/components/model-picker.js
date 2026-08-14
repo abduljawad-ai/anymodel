@@ -95,7 +95,7 @@ function buildModelSheet(){
     row.addEventListener("click", () => {
       const m = State.models.find(x => x.id === row.dataset.model);
       if(m) setModel(m.id);
-      close();
+      close(true);
     });
   });
 }
@@ -144,12 +144,13 @@ function open(anchor){
   if(f){ f.value = ""; f.focus({ preventScroll:true }); }
 }
 
-function close(){
+function close(restoreFocus){
   if (typeof document === 'undefined') return;
   const pop = $("modelPop");
   if(pop) pop.hidden = true;
   const pill = $("modelPill");
   if(pill){ pill.classList.remove("active"); pill.setAttribute("aria-expanded", "false"); }
+  if(restoreFocus && pill) pill.focus({ preventScroll:true });
   isOpen = false;
 }
 
@@ -178,7 +179,7 @@ function refresh(){
 
 function handleKeydown(e){
   if (typeof document === 'undefined' || !isOpen) return;
-  if(e.key === "Escape"){ close(); return; }
+  if(e.key === "Escape"){ close(true); return; }
   if(e.key === "Tab"){ trapFocus($("modelPop"))(e); return; }
   if(e.key === "ArrowDown" || e.key === "ArrowUp"){
     e.preventDefault();
@@ -193,7 +194,7 @@ function handleKeydown(e){
       e.preventDefault();
       const m = State.models.find(x => x.id === row.id);
       if(m) setModel(m.id);
-      close();
+      close(true);
     }
   }
 }
@@ -220,7 +221,12 @@ function initEvents(){
     close();
   });
   window.addEventListener("resize", close);
-  window.addEventListener("scroll", close, true);
+  window.addEventListener("scroll", (e) => {
+    if(!isOpen) return;
+    const pop = $("modelPop");
+    if(pop && pop.contains(e.target)) return;   // scrolling the panel's own list
+    close();
+  }, true);
 }
 
 // Expose globally

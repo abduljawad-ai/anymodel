@@ -255,7 +255,15 @@ async function fetchModels(){
     if(!State.model && State.models.length){
       const smart = (window.Catalog && Catalog.pickModel) ? Catalog.pickModel(State.provider, "chat") : null;
       setModel(smart || State.models[0].id);
+    } else if(State.model && State.models.length && !State.models.some(m => m.id === State.model)){
+      // Saved model doesn't exist on this provider — fall back to the first one
+      // (e.g. after switching providers with a model list that changed).
+      setModel(State.models[0].id);
     }
+    // Always re-render so the composer pill / header never show a stale model
+    // after a provider switch.
+    if(window.Header) Header.render();
+    if(window.Composer) Composer.render();
     return State.models;
   })();
 
