@@ -37,6 +37,15 @@ function scrollIfSticky(){
 
 let renderedCount = 0;
 
+/* The streamed assistant turn is already in the DOM (created by
+   createAssistantTurn), so the message just pushed to State.messages
+   must NOT be re-rendered by the next Chat.render() — advance the
+   incremental-render cursor past it. Without this, every later send
+   re-rendered the previous reply as a second, duplicate bubble. */
+function markMessagesRendered(){
+  renderedCount = State.messages.length;
+}
+
 function render(){
   if (typeof document === 'undefined') return;
 
@@ -232,6 +241,7 @@ window.Chat = {
   initScrollHandling,
   scrollIfSticky,
   render,
+  markMessagesRendered,
   createAssistantTurn,
   setPhase,
   collapsePhase,

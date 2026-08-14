@@ -163,6 +163,7 @@ async function handleSend(){
     Chat.finalizeTurn(turn, result, m);
     State.messages.push({ role:"assistant", content: result.text, modelUsed: m.id, toolUsed: result.toolUsed });
     saveMessages();
+    Chat.markMessagesRendered();   // turn row already in DOM — don't re-render it
   } catch(err){
     const isAbort = !!(err && err.name === "AbortError");
     // Remove the empty assistant bubble so no ghost turn is left behind.
