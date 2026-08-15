@@ -578,6 +578,12 @@ input,textarea{font-family:inherit;}
   overflow:hidden;
   display:flex;
   flex-direction:column;
+  /* Fixed card height so the panel looks the same whether the provider
+     has 1 model or 500 — the list scrolls inside instead of the card
+     collapsing to a sliver. JS overrides it only when the screen is
+     too short (keyboard open). */
+  height:min(420px, 62dvh);
+  min-height:180px;
 }
 .model-pop[hidden]{ display:none; }
 .model-pop-providers{
@@ -603,13 +609,16 @@ input,textarea{font-family:inherit;}
 }
 .model-provider-chip:hover{ border-color:var(--accent); color:var(--accent); }
 .model-provider-chip.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
-.model-pop-filter{ margin:10px; }
+.model-pop-filter{ margin:10px; flex-shrink:0; }
 .model-pop-list{
+  flex:1 1 auto;
+  min-height:0;
   overflow-y:auto;
-  max-height:min(340px, 50dvh);
   -webkit-overflow-scrolling:touch;
+  display:flex;
+  flex-direction:column;
 }
-.model-pop .picker-row{ margin:0 6px; }
+.model-pop .picker-row{ margin:0 6px; flex-shrink:0; }
 
 /* ===== Voice recorder overlay ===== */
 .voice-overlay{
@@ -1060,6 +1069,10 @@ input,textarea{font-family:inherit;}
 }
 .picker-row .picker-provider-badge{ margin-left:8px; }
 .picker-empty{
+  flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
   padding:26px 14px;
   text-align:center;
   color:var(--ink-faint);

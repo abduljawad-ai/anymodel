@@ -217,18 +217,45 @@ function renderAll(){
 function position(){
   const pop = $("modelPop"), pill = anchorEl;
   if(!pop || !pill) return;
+  // Work in visual-viewport coordinates so the panel never hides behind
+  // the on-screen keyboard (iOS keeps the layout viewport untouched and
+  // pans the visual viewport instead; Android shrinks it).
+  const vv = window.visualViewport;
+  const vw = vv ? vv.width : window.innerWidth;
+  const vh = vv ? vv.height : window.innerHeight;
+  const vTop = vv ? vv.offsetTop : 0;
+  const vLeft = vv ? vv.offsetLeft : 0;
   const r = pill.getBoundingClientRect();
-  const w = pop.offsetWidth || Math.min(360, window.innerWidth - 16);
-  const left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));
+  const pTop = r.top - vTop;       // pill top within the visible area
+  const pBottom = r.bottom - vTop;
+  const pLeft = r.left - vLeft;
+  const w = pop.offsetWidth || Math.min(360, vw - 16);
+  const left = Math.max(8, Math.min(pLeft, vw - w - 8));
   pop.style.left = left + "px";
-  pop.style.bottom = (window.innerHeight - r.top + 8) + "px";   // panel above pill
-  pop.style.top = "auto";
-  pop.style.maxHeight = "min(420px, " + Math.max(120, r.top - 24) + "px)";
-  if(r.top - 8 - pop.offsetHeight < 8){                         // not enough room above → below pill
+
+  const above = pTop - 8;                       // visible room above the pill
+  const below = vh - pBottom - 8;               // visible room below the pill
+  const fitsAbove = above >= 180 && pTop <= vh; // pill itself must be on-screen
+  const fitsBelow = below >= 180 && pBottom >= 0;
+  let maxH;
+  if(fitsAbove){
+    // Panel above pill: its bottom edge sits 8px above the pill's top.
+    pop.style.top = "auto";
+    pop.style.bottom = (window.innerHeight - (pTop - 8 + vTop)) + "px";
+    maxH = Math.max(180, Math.min(420, above));
+  } else if(fitsBelow){
+    // Panel below pill: its top edge sits 8px under the pill's bottom.
     pop.style.bottom = "auto";
-    pop.style.top = (r.bottom + 8) + "px";
-    pop.style.maxHeight = "min(420px, " + Math.max(120, window.innerHeight - r.bottom - 24) + "px)";
+    pop.style.top = (pBottom + 8 + vTop) + "px";
+    maxH = Math.max(180, Math.min(420, below));
+  } else {
+    // Not enough room either side (keyboard open on a small screen):
+    // pin the panel to the top of the visible area so it stays reachable.
+    pop.style.bottom = "auto";
+    pop.style.top = (vTop + 8) + "px";
+    maxH = Math.max(120, vh - 16);
   }
+  pop.style.maxHeight = maxH + "px";
 }
 
 /* ============================================================
@@ -249,7 +276,14 @@ function open(anchor){
   if(pill){ pill.classList.add("active"); pill.setAttribute("aria-expanded", "true"); }
   isOpen = true;
   const f = $("modelFilter");
-  if(f){ f.value = ""; f.focus({ preventScroll:true }); }
+  if(f){
+    f.value = "";
+    // Don't auto-focus on touch devices: focusing the filter pops the
+    // on-screen keyboard over the panel and blocks the model list. The
+    // user taps the search box themselves when they want to filter.
+    const coarse = window.matchMedia && window.matchMedia("(any-pointer: coarse)").matches;
+    if(!coarse) f.focus({ preventScroll:true });
+  }
 }
 
 function close(restoreFocus){
@@ -334,11 +368,33 @@ function initEvents(){
     if(p && p.contains(e.target)) return;   // pill click handled by its own listener
     close();
   });
-  window.addEventListener("resize", close);
+
+  // Reposition instead of closing on viewport changes: opening the
+  // on-screen keyboard resizes the layout/visual viewport, and closing
+  // there would yank the picker away mid-selection on mobile.
+  let viewportTimer = null;
+  const repositionSoon = () => {
+    clearTimeout(viewportTimer);
+    viewportTimer = setTimeout(() => { if(isOpen) position(); }, 60);
+  };
+  window.addEventListener("resize", repositionSoon);
+  if(window.visualViewport){
+    window.visualViewport.addEventListener("resize", repositionSoon);
+    window.visualViewport.addEventListener("scroll", repositionSoon);
+  }
   window.addEventListener("scroll", (e) => {
     if(!isOpen) return;
     const pop = $("modelPop");
-    if(pop && pop.contains(e.target)) return;   // scrolling the panel's own list
+    // Some browsers can emit scroll with a non-Node target (e.g. window);
+    // guard so `contains()` never throws.
+    if(pop && e.target instanceof Node && pop.contains(e.target)) return;   // scrolling the panel's own list
+    // Keyboard-induced page scroll (iOS pans the visual viewport while
+    // typing in the filter): keep the panel open and just re-anchor it.
+    if(window.visualViewport &&
+       window.visualViewport.height < window.innerHeight - 40){
+      repositionSoon();
+      return;
+    }
     close();
   }, true);
 }

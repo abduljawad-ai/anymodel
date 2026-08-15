@@ -742,10 +742,19 @@ async function callOcrStreaming(turn, dataUrl, modelId){
   return text;
 }
 
+/* Response format accepted by a provider's TTS endpoint. OpenAI-style
+   providers default to mp3, but some (e.g. Groq) only accept wav. */
+const TTS_RESPONSE_FORMATS = { groq: "wav" };
+
+function ttsResponseFormat(){
+  return TTS_RESPONSE_FORMATS[State.provider] || "mp3";
+}
+
 async function callTtsStreaming(turn, text, modelId){
   const ctrl = beginRequest();
   Chat.setPhase(turn, "connect", "🔊 Generating speech…");
-  const body = { model: modelId, input: text, response_format: "mp3" };
+  const fmt = ttsResponseFormat();
+  const body = { model: modelId, input: text, response_format: fmt };
   // Some TTS models (e.g. Orpheus on Groq) require a voice — it's
   // user-configurable in Settings and sent only when set.
   const voice = (State.ttsVoice || "").trim();
@@ -767,7 +776,7 @@ async function callTtsStreaming(turn, text, modelId){
     const data = await res.json();
     const audioB64 = data.audio_data;
     if(!audioB64) throw new Error("No audio returned.");
-    src = "data:audio/mp3;base64," + audioB64;
+    src = "data:audio/" + fmt + ";base64," + audioB64;
   } else {
     // OpenAI/Groq standard: raw audio bytes
     const blob = await res.blob();
