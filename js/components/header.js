@@ -11,9 +11,8 @@ function render(){
   const m = currentModel();
   if(!m) return;
 
-  // Update composer model pill
-  const sw = $("modelPillSwatch"), nm = $("modelPillName");
-  if(sw){ sw.style.background = Config.getModelColor(m); }
+  // Update composer model pill (name only, no swatch)
+  const nm = $("modelPillName");
   if(nm){ nm.textContent = Config.getModelLabel(m); }
 
   // Update capability strip
