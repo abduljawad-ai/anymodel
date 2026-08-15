@@ -1352,7 +1352,31 @@ input,textarea{font-family:inherit;}
   color:var(--ink-soft); font-size:14px;
 }
 .session-row:hover{ background:var(--bg-hover); }
-.session-row.active{ background:var(--bg-hover); color:var(--ink); }
+.sidebar-theme-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0;
+}
+.sidebar-theme-btn:hover {
+  background: var(--bg-hover);
+  color: var(--ink);
+}
+
+.session-row.active{
+  background: var(--bg-hover);
+  color: var(--ink);
+  border-left: 2px solid var(--accent);
+  padding-left: 10px;
+}
 .session-row.active .session-title{ color:var(--ink); font-weight:600; }
 .session-title{
   flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;

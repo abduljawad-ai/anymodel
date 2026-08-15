@@ -14,6 +14,8 @@ const LS_SESSIONS = "anymodel_sessions_v1";
 const LS_ACTIVE = "anymodel_active_session_v1";
 const LS_TTS_VOICE = "anymodel_tts_voice_v1";
 
+const LS_THEME = "anymodel_theme_v1";
+
 const DEFAULT_PROVIDER = "openai";
 
 /* Map normalized capability flags to human-readable metadata. */
