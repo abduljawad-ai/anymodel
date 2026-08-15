@@ -31,6 +31,8 @@ SELF_TESTS = [
     ("explain physics",        "chat",          0.80),
     ("genrate audo",           "tts",           0.65),  # typo tolerance via subwords
     ("transcribe this audio",  "transcription", 0.65),
+    ("generate speech of this text", "tts",     0.65),  # low-threshold phrasing
+    ("summarize this text",    "chat",          0.65),  # must NOT drift to image
 ]
 
 

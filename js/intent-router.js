@@ -18,14 +18,17 @@
    Confidence threshold: an unknown label (or a model that isn't
    loaded) falls back to "chat" with isConfident: false, while a
    known label below the threshold keeps its detected intent with
-   isConfident: false — so callers can offer a recovery path
-   ("sounded like TTS, but I wasn't sure").
+   isConfident: false and its raw confidence — the composer uses
+   autoSwitchFloor (0.45) to decide whether to auto-switch models,
+   so detections that are merely "not confident" still route
+   automatically instead of falling back to chat.
 ============================================================ */
 
 import { FastText, addOnPostRun } from "../fasttext.js";
 
 const MODEL_URL = "intent_model.ftz";
-const THRESHOLD = 0.65;
+const THRESHOLD = 0.65;          // "confident" marker (self-tests, isConfident)
+const AUTO_SWITCH_FLOOR = 0.45;  // minimum confidence to auto-switch models
 const LABELS = new Set(["chat", "tts", "image", "transcription"]);
 
 const DEFAULT_HINT = "Enter to send · Shift+Enter for new line";
@@ -40,6 +43,8 @@ const SELF_TESTS = [
   { text: "explain physics",       expect: "chat",          min: 0.80 },
   { text: "genrate audo",          expect: "tts",           min: 0.65 },  // typo tolerance
   { text: "transcribe this audio", expect: "transcription", min: 0.65 },
+  { text: "generate speech of this text", expect: "tts",    min: 0.65 },  // low-threshold phrasing
+  { text: "summarize this text",   expect: "chat",          min: 0.65 },  // must NOT drift to image
 ];
 
 /* Show the loading state in the composer hint line on first visit.
@@ -59,6 +64,7 @@ function setLoadingHint(on){
 class IntentRouter {
   constructor(){
     this.threshold = THRESHOLD;
+    this.autoSwitchFloor = AUTO_SWITCH_FLOOR;   // caller gate for auto-switching
     this.labels = LABELS;
     this.model = null;
     this.ready = false;
@@ -101,9 +107,9 @@ class IntentRouter {
   /* Classify a message. Returns { intent, confidence, isConfident }.
      Unknown labels (and a model that isn't loaded yet) fall back to
      "chat" with isConfident: false. A known label below the threshold
-     keeps its detected intent but reports isConfident: false, so the
-     caller can show a low-confidence recovery hint instead of silently
-     treating it as chat. Never throws. */
+     keeps its detected intent and confidence with isConfident: false,
+     so the caller can still auto-switch on it (see autoSwitchFloor)
+     instead of silently treating it as chat. Never throws. */
   classify(text){
     if(!this.model || !text || !text.trim()){
       return { intent: "chat", confidence: 0, isConfident: false };

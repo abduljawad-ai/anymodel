@@ -60,7 +60,6 @@ function render(){
   if(menuVoice) menuVoice.disabled = false;
   if(menuTools) menuTools.disabled = !(m && m.capabilities?.function_calling);
   if(toolsCheck) toolsCheck.textContent = (m && m.capabilities?.function_calling && State.autoTools) ? "✓ on" : "";
-  renderIntentChip();
 }
 
 function menuOpen(){ const menu = $id("composerMenu"); return menu && !menu.hidden; }
@@ -77,68 +76,11 @@ function toggleMenu(force){
 function closeMenu(){ toggleMenu(false); }
 
 /* ============================================================
-   INTENT SUGGESTION CHIP
-
-   When the intent classifier hears "tts" or "image" but lands below
-   the confidence threshold, the message goes out as chat anyway —
-   unless we surface a one-tap "use a capable model instead" hint so
-   the fallback isn't silent. Shown for the current turn only: cleared
-   on the next send, on dismissal, on a manual model change (the chip
-   re-validates in render()), or when the target model disappears.
-============================================================ */
-
-let intentChip = null;   // { intent: "tts"|"image", pickId }
-
-function intentChipModelName(pickId){
-  const mm = State.models.find(x => x.id === pickId);
-  return (mm && mm.name) ? mm.name : pickId;
-}
-
-function showIntentChip(intent, pickId){
-  intentChip = { intent, pickId };
-  renderIntentChip();
-}
-
-function hideIntentChip(){
-  intentChip = null;
-  const row = $id("intentChipRow");
-  if(row) row.hidden = true;
-}
-
-function renderIntentChip(){
-  const row = $id("intentChipRow");
-  if(!row) return;
-  if(!intentChip){
-    row.hidden = true;
-    return;
-  }
-  // Re-validate: if the user already switched to a capable model (e.g.
-  // via the model pill) or the offered model no longer exists, the hint
-  // is moot — hide it instead of offering a no-op button.
-  const m = currentModel();
-  const wantCap = intentChip.intent === "tts" ? "tts" : "vision";
-  const hasCap = wantCap === "vision"
-    ? !!(m && (m.capabilities?.vision || m.capabilities?.ocr))
-    : !!(m && m.capabilities && m.capabilities[wantCap]);
-  if(hasCap || !State.models.find(x => x.id === intentChip.pickId)){
-    row.hidden = true;
-    return;
-  }
-  const text = $id("intentChipText"), act = $id("intentChipAction");
-  if(text) text.textContent = intentChip.intent === "tts"
-    ? "Sounded like speech — send as TTS?"
-    : "Sounded like an image request — use a vision model?";
-  if(act) act.textContent = "Use " + intentChipModelName(intentChip.pickId);
-  row.hidden = false;
-}
-
-/* ============================================================
    SEND FLOWS
 ============================================================ */
 
 async function handleSend(){
   if(State.sending) return;
-  hideIntentChip();   // the previous suggestion expires on the next message
   const text = $id("promptInput").value.trim();
   let m = currentModel();   // snapshot for this whole turn
 
@@ -160,30 +102,19 @@ async function handleSend(){
   }
 
   // Client-side intent routing (fastText WASM — zero API calls). When the
-  // message clearly asks for speech ("make this talk") or image analysis
-  // and the selected model can't do it, temporarily switch to a capable
-  // model for this turn only; the previous selection is restored when the
-  // turn ends. Explicit attachments always win over the classifier, and a
+  // message asks for speech ("make this talk") or image analysis and the
+  // selected model can't do it, automatically switch to a capable model
+  // for this turn only; the previous selection is restored when the turn
+  // ends. Routing is fully automatic: any detected tts/image intent above
+  // the auto-switch floor (0.45) triggers the switch — no popup or manual
+  // step. Explicit attachments always win over the classifier, and a
   // still-loading classifier or a provider without a capable model is a
   // silent no-op (the message is sent to the current model as chat).
-  // A below-threshold tts/image reading instead surfaces a one-tap
-  // suggestion chip (see INTENT SUGGESTION CHIP) so the fallback to
-  // chat isn't silent — set after the no-key check so an early return
-  // can't leave a stale hint behind.
-  // Best capable model for an intent, or null when the provider has none.
-  function pickCapableModel(wantCap){
-    if(wantCap === "vision"){
-      const vm = State.models.find(x => x.capabilities?.vision || x.capabilities?.ocr);
-      return vm ? vm.id : null;
-    }
-    return (window.Catalog && Catalog.pickModel(State.provider, "tts")) || null;
-  }
-
   let revertModel = null;
-  let chipOffer = null;
-  if(text && !State.pendingImage && !State.pendingAudio && window.IntentRouter && window.IntentRouter.ready){    const intent = window.IntentRouter.route(text);
+  if(text && !State.pendingImage && !State.pendingAudio && window.IntentRouter && window.IntentRouter.ready){
+    const intent = window.IntentRouter.route(text);
     const wantCap = intent.intent === "tts" ? "tts" : (intent.intent === "image" ? "vision" : null);
-    if(intent.isConfident && wantCap){
+    if(wantCap && intent.confidence >= window.IntentRouter.autoSwitchFloor){
       const hasCap = wantCap === "vision"
         ? !!(m && (m.capabilities?.vision || m.capabilities?.ocr))
         : !!(m && m.capabilities && m.capabilities[wantCap]);
@@ -194,18 +125,6 @@ async function handleSend(){
           setModel(pick);
           m = currentModel();
         }
-      }
-    } else if(!intent.isConfident && wantCap){
-      // Heard "tts"/"image" below the threshold — the message will be
-      // sent as chat, but offer a one-tap recovery instead of a silent
-      // fallback. The chip also re-validates in render(), so a manual
-      // model change or dismiss clears it.
-      const hasCap = wantCap === "vision"
-        ? !!(m && (m.capabilities?.vision || m.capabilities?.ocr))
-        : !!(m && m.capabilities && m.capabilities[wantCap]);
-      if(!hasCap){
-        const pick = pickCapableModel(wantCap);
-        if(pick && pick !== m.id) chipOffer = { intent: intent.intent, pickId: pick };
       }
     }
   }
@@ -229,8 +148,6 @@ async function handleSend(){
   }
 
   if(!text && !State.pendingImage && !State.pendingAudio) return;
-
-  if(chipOffer) showIntentChip(chipOffer.intent, chipOffer.pickId);
 
   State.sending = true;
   closeMenu();
@@ -391,14 +308,6 @@ function initEvents(){
   });
   $id("imageInput").addEventListener("change", () => handleFileSelected("image"));
   $id("audioInput").addEventListener("change", () => handleFileSelected("audio"));
-
-  const chipAction = $id("intentChipAction"), chipDismiss = $id("intentChipDismiss");
-  if(chipAction) chipAction.addEventListener("click", () => {
-    const c = intentChip;
-    if(c && State.models.find(x => x.id === c.pickId)) setModel(c.pickId);
-    hideIntentChip();
-  });
-  if(chipDismiss) chipDismiss.addEventListener("click", hideIntentChip);
 
   document.addEventListener("paste", (e) => {
     if(!State.pendingImage && e.clipboardData && e.clipboardData.items){

@@ -78,6 +78,16 @@ __label__chat give me a list of productivity apps
 __label__chat how do i change my password
 __label__chat what is the best phone under 500 dollars
 __label__chat explain the difference between rgb and cmyk
+__label__chat summarize this text
+__label__chat summarize this paragraph
+__label__chat summarize this message
+__label__chat translate this text to spanish
+__label__chat translate this text to english
+__label__chat translate this paragraph to french
+__label__chat rewrite this text in a friendly tone
+__label__chat correct the grammar in this text
+__label__chat proofread this text
+__label__chat explain this text to me
 
 __label__tts make this talk
 __label__tts read this out loud
@@ -111,6 +121,27 @@ __label__tts audio version of my message please
 __label__tts genrate audo
 __label__tts genrate audio
 __label__tts make this talk out loud
+__label__tts generate speech of this text
+__label__tts generate a speech of this text
+__label__tts generate the speech of this text
+__label__tts generate speech for this text
+__label__tts generate audio from this text
+__label__tts generate audio for this text
+__label__tts generate the audio of this text
+__label__tts create audio for this text
+__label__tts create audio from this text
+__label__tts make a voice message from this text
+__label__tts create a voice message of this text
+__label__tts give me a voice message of this text
+__label__tts i want a voice message of this text
+__label__tts turn this text into speech
+__label__tts make this text into speech
+__label__tts speak this message
+__label__tts say this message out loud
+__label__tts read this message to me
+__label__tts can you read this aloud
+__label__tts let me hear this message
+__label__tts voice message of this text please
 __label__tts converte este texto a voz
 __label__tts léeme este texto
 __label__tts di esto en voz alta
