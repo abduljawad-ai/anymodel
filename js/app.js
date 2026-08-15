@@ -18,7 +18,7 @@ function updateThemeToggle(){
   const btn = document.getElementById('themeToggle');
   if(!btn) return;
   const dark = (document.documentElement.getAttribute('data-theme') || 'light') === 'dark';
-  btn.textContent = dark ? '☀️' : '🌙';
+  btn.innerHTML = icon(dark ? 'sun_lightmode' : 'moon_darkmode');
   btn.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
   btn.setAttribute('aria-label', btn.title);
 }

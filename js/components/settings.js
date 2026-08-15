@@ -32,9 +32,9 @@ function render(){
   $("customUrlRow").style.display = needBase ? "block" : "none";
   $("customBaseUrl").value = State.customBases[providerId] || "";
 
-  $("providerNameLabel").textContent = providerId === "custom"
+  $("providerNameLabel").innerHTML = icon('lock_security') + " " + (providerId === "custom"
     ? "API key (optional)"
-    : "API key for " + ((pInfo && pInfo.name) || providerId);
+    : "API key for " + esc((pInfo && pInfo.name) || providerId));
   $("apiKeyInput").value = State.apiKeys[providerId] || "";
   $("systemPromptInput").value = State.systemPrompt;
   $("ttsVoiceInput").value = State.ttsVoice || "";
@@ -131,6 +131,8 @@ function showKeyStatus(kind, msg){
 
 function initEvents(){
   // Sheet controls
+  const sheetClose = $("settingsSheetClose");
+  if(sheetClose){ const s = sheetClose.querySelector("svg"); if(s) s.outerHTML = icon('close_x'); }
   $("settingsSheetClose").addEventListener("click", close);
   $("settingsScrim").addEventListener("click", close);
 

@@ -3,6 +3,8 @@
 ============================================================ */
 (function(){
 
+function esc(str){ return String(str ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\"/g,"&quot;").replace(/'/g,"&#39;"); }
+
 /* ============================================================
    SCREEN-READER ANNOUNCEMENTS
 ============================================================ */
@@ -96,7 +98,8 @@ function render(){
 
     const avatar = document.createElement("div");
     avatar.className = "avatar";
-    avatar.textContent = m.role === "user" ? "U" : (m.role === "system" ? "!" : "🤖");
+    avatar.innerHTML = m.role === "user" ? icon('user_silhouette')
+      : (m.role === "system" ? icon('info_circle') : icon('bot_robot_face'));
     row.appendChild(avatar);
 
     const col = document.createElement("div");
@@ -111,7 +114,7 @@ function render(){
       if(m.role === "assistant" && m.toolUsed){
         const tag = document.createElement("span");
         tag.className = "tool-tag";
-        tag.textContent = "🛠️ " + m.toolUsed;
+        tag.innerHTML = icon('wrench_tools') + " " + esc(m.toolUsed);
         col.appendChild(tag);
       }
       const b = document.createElement("div");
@@ -154,7 +157,7 @@ function createAssistantTurn(){
 
   const avatar = document.createElement("div");
   avatar.className = "avatar";
-  avatar.textContent = "🤖";
+  avatar.innerHTML = icon('bot_robot_face');
   row.appendChild(avatar);
 
   const col = document.createElement("div");
@@ -222,7 +225,7 @@ function finalizeTurn(turn, result, m){
   if(result.toolUsed){
     const tag = document.createElement("span");
     tag.className = "tool-tag";
-    tag.textContent = "🛠️ " + result.toolUsed;
+    tag.innerHTML = icon("wrench_tools") + " " + esc(result.toolUsed);
     turn.col.insertBefore(tag, turn.bubble);
   }
   const modelTag = document.createElement("span");
@@ -281,4 +284,11 @@ window.Chat = {
   announce
 };
 
+})();
+
+/* The empty-state glyph is static HTML; hydrate it synchronously at load
+   (icons.js is already loaded above, so icon() is available immediately). */
+(function(){
+  const g = document.getElementById("emptyGlyph");
+  if(g) g.innerHTML = icon("bot_robot_face");
 })();

@@ -161,7 +161,7 @@ async function buildModelSheet(){
     if(m.id === State.model && pid === State.provider) cls.push("picker-row-selected");
     const caps = Object.keys(m.capabilities || {}).filter(k => m.capabilities[k]);
     const capHtml = caps.length
-      ? `<span class="picker-caps">${caps.slice(0,3).map(k => `<span class="picker-cap" title="${esc(Config.CAP_META[k] ? Config.CAP_META[k].label : k)}">${Config.CAP_META[k] ? Config.CAP_META[k].icon : "•"}</span>`).join("")}</span>`
+      ? `<span class="picker-caps">${caps.slice(0,3).map(k => `<span class="picker-cap" title="${esc(Config.CAP_META[k] ? Config.CAP_META[k].label : k)}">${Config.capIcon(k)}</span>`).join("")}</span>`
       : "";
     const providerBadge = isCrossProvider
       ? `<span class="picker-provider-badge">${esc(m.providerName)}</span>`

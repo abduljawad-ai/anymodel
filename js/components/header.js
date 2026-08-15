@@ -18,8 +18,8 @@ function render(){
   // Update capability strip
   const capsOn = Object.keys(m.capabilities || {}).filter(k => m.capabilities[k]);
   const stripHtml = capsOn.length
-    ? capsOn.map(k => `<span class="cap-chip-live on" title="${Config.CAP_META[k].label}">${Config.CAP_META[k].icon}</span>`).join("")
-    : `<span class="cap-chip-live" title="Text only">✏️</span>`;
+    ? capsOn.map(k => `<span class="cap-chip-live on" title="${Config.CAP_META[k].label}">${Config.capIcon(k)}</span>`).join("")
+    : `<span class="cap-chip-live" title="Text only">${icon('pencil_edit')}</span>`;
   $("capStrip").innerHTML = stripHtml;
   if($("capStripDesktop")) $("capStripDesktop").innerHTML = stripHtml;
 

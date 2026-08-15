@@ -18,22 +18,24 @@ const LS_THEME = "anymodel_theme_v1";
 
 const DEFAULT_PROVIDER = "openai";
 
-/* Map normalized capability flags to human-readable metadata. */
+/* Map normalized capability flags to human-readable metadata.
+   `icon` is the legacy text token; `svgIcon` names the code-drawn SVG
+   from js/icons.js used by capability chips (header strip + model picker). */
 const CAP_META = {
-  vision:                 { label:"Image",           icon:"Image",           short:"vision" },
-  function_calling:       { label:"Tools",           icon:"Tools",           short:"tools" },
-  reasoning:              { label:"Reasoning",       icon:"Reasoning",       short:"reasoning" },
-  audio:                  { label:"Audio",           icon:"Audio",           short:"audio" },
-  audio_transcription:    { label:"STT",             icon:"STT",             short:"transcription" },
-  tts:                    { label:"TTS",             icon:"TTS",             short:"tts" },
-  ocr:                    { label:"OCR",             icon:"OCR",             short:"ocr" },
-  embeddings:             { label:"Embeddings",      icon:"Embeddings",      short:"embeddings" },
-  moderation:             { label:"Moderation",      icon:"Moderation",      short:"moderation" },
-  web_search:             { label:"Search",          icon:"Search",          short:"search" },
-  parallel_tool_calling:  { label:"PTC",             icon:"PTC",             short:"ptc" },
-  image_generation:       { label:"Image Gen",       icon:"Image Gen",       short:"image_gen" },
-  code_interpreter:       { label:"Code",            icon:"Code",            short:"code" },
-  thinking:               { label:"Thinking",        icon:"Thinking",        short:"thinking" },
+  vision:                 { label:"Image",           icon:"Image",           svgIcon:"eye_vision",                 short:"vision" },
+  function_calling:       { label:"Tools",           icon:"Tools",           svgIcon:"wrench_tools",               short:"tools" },
+  reasoning:              { label:"Reasoning",       icon:"Reasoning",       svgIcon:"brain_reasoning",             short:"reasoning" },
+  audio:                  { label:"Audio",           icon:"Audio",           svgIcon:"microphone",                  short:"audio" },
+  audio_transcription:    { label:"STT",             icon:"STT",             svgIcon:"mic_soundwaves_stt",           short:"transcription" },
+  tts:                    { label:"TTS",             icon:"TTS",             svgIcon:"speaker_sound_tts",            short:"tts" },
+  ocr:                    { label:"OCR",             icon:"OCR",             svgIcon:"scan_ocr",                    short:"ocr" },
+  embeddings:             { label:"Embeddings",      icon:"Embeddings",      svgIcon:"database_embeddings",          short:"embeddings" },
+  moderation:             { label:"Moderation",      icon:"Moderation",      svgIcon:"shield_moderation",            short:"moderation" },
+  web_search:             { label:"Search",          icon:"Search",          svgIcon:"globe_websearch",              short:"search" },
+  parallel_tool_calling:  { label:"PTC",             icon:"PTC",             svgIcon:"layers_parallel_tools",        short:"ptc" },
+  image_generation:       { label:"Image Gen",       icon:"Image Gen",       svgIcon:"palette_imagegen",             short:"image_gen" },
+  code_interpreter:       { label:"Code",            icon:"Code",            svgIcon:"terminal_code",                short:"code" },
+  thinking:               { label:"Thinking",        icon:"Thinking",        svgIcon:"lightbulb_thinking",           short:"thinking" },
   image_editing:          { label:"Image Edit",      icon:"Image Edit",      short:"image_edit" },
   image_understanding:    { label:"Image Under",     icon:"Image Under",     short:"image_under" },
   image_variation:        { label:"Image Var",       icon:"Image Var",       short:"image_var" },
@@ -74,6 +76,14 @@ const CAP_META = {
   image_3d_zoom_to:       { label:"Image 3D Zoom To",icon:"Image 3D Zoom To",short:"image_3d_zoom_to" },
   image_3d_zoom_to_fit:   { label:"Image 3D Zoom Fit",icon:"Image 3D Zoom Fit",short:"image_3d_zoom_to_fit" },
 };
+
+/* Render a capability badge: the matching code-drawn SVG when one exists,
+   otherwise the legacy text token. Synchronous — `icon` is loaded first. */
+function capIcon(k){
+  const meta = CAP_META[k];
+  if(meta && meta.svgIcon && typeof icon === "function") return icon(meta.svgIcon);
+  return meta ? meta.icon : "•";
+}
 
 /* Accent colors per provider (header swatch). */
 const PROVIDER_COLORS = {
@@ -224,5 +234,6 @@ window.Config = {
   DEFAULT_PROVIDER,
   CAP_META, PROVIDER_COLORS,
   getEndpointType, getModelColor, getModelLabel,
+  capIcon,
   DEMO_TOOLS, runDemoTool
 };

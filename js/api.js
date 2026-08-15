@@ -358,7 +358,7 @@ async function streamOpenAI(turn, body){
             if(tc.function?.arguments) toolCalls[idx].arguments += tc.function.arguments;
           });
           const names = toolCalls.filter(Boolean).map(t=>t.name).filter(Boolean).join(", ");
-          if(names) Chat.setPhase(turn, "tool", "🛠️ Using " + names + "…");
+          if(names) Chat.setPhase(turn, "tool", "Using " + names + "…");
         }
       }
     }
@@ -393,7 +393,7 @@ async function chatOpenAI(turn, text, image, audio, m){
   const body = { model: m.id, messages };
   if(m.capabilities?.function_calling && State.autoTools){ body.tools = Config.DEMO_TOOLS; body.tool_choice = "auto"; }
 
-  Chat.setPhase(turn, m.capabilities?.reasoning ? "thinking" : "connect", m.capabilities?.reasoning ? "🧠 Thinking…" : "💭 Thinking…");
+  Chat.setPhase(turn, m.capabilities?.reasoning ? "thinking" : "connect", "Thinking…");
 
   const first = await streamOpenAI(turn, body);
 
@@ -408,7 +408,7 @@ async function chatOpenAI(turn, text, image, audio, m){
       ...toolResults
     ];
     const toolNames = first.toolCalls.map(t => t.name).join(", ");
-    Chat.setPhase(turn, "tool", "🛠️ Using " + toolNames + "…");
+    Chat.setPhase(turn, "tool", "Using " + toolNames + "…");
     const second = await streamOpenAI(turn, { model: m.id, messages: followUpMessages });
     return { text: second.fullText || "(tool call completed)", toolUsed: toolNames };
   }
@@ -469,7 +469,7 @@ async function streamAnthropic(turn, body){
           const block = json.content_block || {};
           if(block.type === "tool_use"){
             currentBlock = { type:"tool_use", id: block.id || "", name: block.name || "", args: "" };
-            Chat.setPhase(turn, "tool", "🛠️ Using " + block.name + "…");
+            Chat.setPhase(turn, "tool", "Using " + block.name + "…");
           } else {
             currentBlock = { type:"text" };
           }
@@ -538,7 +538,7 @@ async function chatAnthropic(turn, text, image, audio, m){
     body.tools = Config.DEMO_TOOLS.map(t => ({ name: t.function.name, description: t.function.description, input_schema: t.function.parameters }));
   }
 
-  Chat.setPhase(turn, m.capabilities?.reasoning ? "thinking" : "connect", m.capabilities?.reasoning ? "🧠 Thinking…" : "💭 Thinking…");
+  Chat.setPhase(turn, m.capabilities?.reasoning ? "thinking" : "connect", "Thinking…");
 
   const first = await streamAnthropic(turn, body);
 
@@ -556,7 +556,7 @@ async function chatAnthropic(turn, text, image, audio, m){
       ...toolResults
     ];
     const toolNames = first.toolCalls.map(t => t.name).join(", ");
-    Chat.setPhase(turn, "tool", "🛠️ Using " + toolNames + "…");
+    Chat.setPhase(turn, "tool", "Using " + toolNames + "…");
     const second = await streamAnthropic(turn, { model: m.id, max_tokens: body.max_tokens, messages: followUpMessages, system: body.system, tools: body.tools, cache_control: body.cache_control });
     return { text: second.fullText || "(tool call completed)", toolUsed: toolNames };
   }
@@ -685,7 +685,7 @@ async function chatGoogle(turn, text, image, audio, m){
     }];
   }
 
-  Chat.setPhase(turn, m.capabilities?.reasoning ? "thinking" : "connect", m.capabilities?.reasoning ? "🧠 Thinking…" : "💭 Thinking…");
+  Chat.setPhase(turn, m.capabilities?.reasoning ? "thinking" : "connect", "Thinking…");
 
   const first = await streamGoogle(turn, m.id, body);
 
@@ -696,7 +696,7 @@ async function chatGoogle(turn, text, image, audio, m){
       { role:"user", parts: first.toolCalls.map(tc => ({ functionResponse: { name: tc.name, response: { result: Config.runDemoTool(tc.name, tc.arguments) } } })) }
     ];
     const toolNames = first.toolCalls.map(t => t.name).join(", ");
-    Chat.setPhase(turn, "tool", "🛠️ Using " + toolNames + "…");
+    Chat.setPhase(turn, "tool", "Using " + toolNames + "…");
     const second = await streamGoogle(turn, m.id, { ...body, contents: followUpContents });
     return { text: second.fullText || "(tool call completed)", toolUsed: toolNames };
   }
@@ -717,7 +717,7 @@ async function callChatStreaming(turn, text, image, audio, m){
 
 async function callTranscriptionStreaming(turn, dataUrl, modelId){
   const ctrl = beginRequest();
-  Chat.setPhase(turn, "audio", "🎙️ Transcribing audio…");
+  Chat.setPhase(turn, "audio", "Transcribing audio…");
   const blob = dataUrlToBlob(dataUrl);
   const form = new FormData();
   form.append("file", blob, "audio.wav");
@@ -735,7 +735,7 @@ async function callTranscriptionStreaming(turn, dataUrl, modelId){
 
 async function callOcrStreaming(turn, dataUrl, modelId){
   const ctrl = beginRequest();
-  Chat.setPhase(turn, "ocr", "📄 Reading document…");
+  Chat.setPhase(turn, "ocr", "Reading document…");
   const res = await fetchWithTimeout(`${getBaseUrl()}/ocr`, {
     method:"POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
@@ -762,7 +762,7 @@ function ttsResponseFormat(){
 
 async function callTtsStreaming(turn, text, modelId){
   const ctrl = beginRequest();
-  Chat.setPhase(turn, "connect", "🔊 Generating speech…");
+  Chat.setPhase(turn, "connect", "Generating speech…");
   const fmt = ttsResponseFormat();
   const body = { model: modelId, input: text, response_format: fmt };
   // Some TTS models (e.g. Orpheus on Groq) require a voice — it's
@@ -797,12 +797,12 @@ async function callTtsStreaming(turn, text, modelId){
   turn.bubble.innerHTML = "";
   if(window.VoiceCapsule) VoiceCapsule.build(turn.bubble, { src, raw });
   Chat.scrollIfSticky();
-  return { text: "🔊 [Audio response — " + text.slice(0,60) + (text.length > 60 ? "…" : "") + "]" };
+  return { text: "[Audio response — " + text.slice(0,60) + (text.length > 60 ? "…" : "") + "]" };
 }
 
 async function callEmbeddingsStreaming(turn, text, modelId){
   const ctrl = beginRequest();
-  Chat.setPhase(turn, "connect", "📐 Generating embeddings…");
+  Chat.setPhase(turn, "connect", "Generating embeddings…");
   const res = await fetchWithTimeout(`${getBaseUrl()}/embeddings`, {
     method:"POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
@@ -823,7 +823,7 @@ async function callEmbeddingsStreaming(turn, text, modelId){
 
 async function callModerationStreaming(turn, text, modelId){
   const ctrl = beginRequest();
-  Chat.setPhase(turn, "connect", "🛡️ Moderating content…");
+  Chat.setPhase(turn, "connect", "Moderating content…");
   const res = await fetchWithTimeout(`${getBaseUrl()}/moderations`, {
     method:"POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
@@ -839,10 +839,10 @@ async function callModerationStreaming(turn, text, modelId){
   const cats = result.categories || {};
   const scores = result.category_scores || {};
   const flagged = Object.entries(cats).filter(([_,v]) => v).map(([k]) => k);
-  let mdText = `**Moderation Results**\n\n- **Model:** ${data.model || modelId}\n- **Flagged categories:** ${flagged.length ? flagged.join(", ") : "None ✓"}\n\n| Category | Flagged | Score |\n|----------|---------|-------|\n`;
+  let mdText = `**Moderation Results**\n\n- **Model:** ${data.model || modelId}\n- **Flagged categories:** ${flagged.length ? flagged.join(", ") : "None"}\n\n| Category | Flagged | Score |\n|----------|---------|-------|\n`;
   for(const [cat, flag] of Object.entries(cats)){
     const score = scores[cat] !== undefined ? scores[cat].toFixed(6) : "N/A";
-    mdText += `| ${cat} | ${flag ? "⚠️ Yes" : "✓ No"} | ${score} |\n`;
+    mdText += `| ${cat} | ${flag ? "Yes" : "No"} | ${score} |\n`;
   }
   await Chat.revealText(turn, mdText);
   return mdText;

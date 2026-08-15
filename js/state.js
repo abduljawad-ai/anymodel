@@ -61,7 +61,7 @@ function saveJson(key, value){
   }catch(e){
     // Storage full or blocked: surface it once instead of silently
     // swallowing the failure. Values stay in memory for this session.
-    try{ State.notice = "⚠️ Storage is full — recent changes may not be saved."; }catch(e2){}
+    try{ State.notice = "Storage is full — recent changes may not be saved."; }catch(e2){}
   }
 }
 
@@ -305,7 +305,7 @@ function maybeAutoTitle(s){
   const first = msgs.find(m => m.role === "user");
   if(!first) return;
   let t = String(first.content || "").replace(/\s+/g, " ").trim();
-  if(!t && first.imageDataUrl) t = "📷 Image";
+  if(!t && first.imageDataUrl) t = "Image attachment";
   t = t.replace(/[….,:;]+$/g, "").trim();
   if(t.length > 40) t = t.slice(0, 40).replace(/\s+\S*$/, "").trim();
   if(t) s.title = t;

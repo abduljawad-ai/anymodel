@@ -29,10 +29,10 @@ function render(){
     return `<div class="session-row${active}" data-id="${esc(s.id)}">
       <div class="session-title">${title}</div>
       <div class="session-actions">
-        <button class="session-act" data-act="rename" title="Rename" aria-label="Rename session">✏️</button>
-        <button class="session-act" data-act="delete" title="Delete" aria-label="Delete session">🗑️</button>
+        <button class="session-act" data-act="rename" title="Rename" aria-label="Rename session">${icon('pencil_edit')}</button>
+        <button class="session-act" data-act="delete" title="Delete" aria-label="Delete session">${icon('trash_delete')}</button>
       </div>
-      ${renaming ? `<div class="session-rename"><input type="text" class="session-rename-input" maxlength="80" value="${title}" aria-label="Session title"><button class="session-act session-rename-ok">✓</button></div>` : ""}
+      ${renaming ? `<div class="session-rename"><input type="text" class="session-rename-input" maxlength="80" value="${title}" aria-label="Session title"><button class="session-act session-rename-ok">${icon('check_confirm')}</button></div>` : ""}
     </div>`;
   }).join("");
 
@@ -159,5 +159,11 @@ window.Sidebar = {
   toggle,
   initEvents
 };
+
+// Hydrate the brand glyph (static HTML placeholder) synchronously.
+(function(){
+  const bg = $("brandGlyph");
+  if(bg) bg.innerHTML = icon("bot_robot_face");
+})();
 
 })();

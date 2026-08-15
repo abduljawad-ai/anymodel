@@ -59,7 +59,7 @@ function render(){
   if(menuAudio) menuAudio.disabled = !canAudio;
   if(menuVoice) menuVoice.disabled = false;
   if(menuTools) menuTools.disabled = !(m && m.capabilities?.function_calling);
-  if(toolsCheck) toolsCheck.textContent = (m && m.capabilities?.function_calling && State.autoTools) ? "✓ on" : "";
+  if(toolsCheck) toolsCheck.innerHTML = (m && m.capabilities?.function_calling && State.autoTools) ? icon('check_confirm') + " on" : "";
 }
 
 function menuOpen(){ const menu = $id("composerMenu"); return menu && !menu.hidden; }
@@ -213,7 +213,7 @@ async function handleSend(){
     if(isAbort){
       if(Chat.announce) Chat.announce("Generation stopped");
     } else {
-      State.messages.push({ role:"system", isError:true, content: "⚠ " + (err.message || "Request failed.") });
+      State.messages.push({ role:"system", isError:true, content: (err.message || "Request failed.") });
       saveMessages();
       Chat.render();
       if(Chat.announce) Chat.announce("Error: " + (err.message || "request failed"));
