@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; style-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; connect-src https: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com 'wasm-unsafe-eval'; style-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; connect-src https: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="anymodel — bring your own API key. Chat with models from 180+ providers.">
     <meta name="theme-color" content="#FF7000">
@@ -243,6 +243,7 @@
   <script src="js/components/sidebar.js"></script>
   <script src="js/components/voice-recorder.js"></script>
   <script src="js/components/voice-capsule.js"></script>
+  <script type="module" src="js/intent-router.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

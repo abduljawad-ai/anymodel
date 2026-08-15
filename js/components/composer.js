@@ -101,6 +101,38 @@ async function handleSend(){
     if(vm){ setModel(vm.id); m = currentModel(); }
   }
 
+  // Client-side intent routing (fastText WASM — zero API calls). When the
+  // message clearly asks for speech ("make this talk") or image analysis
+  // and the selected model can't do it, temporarily switch to a capable
+  // model for this turn only; the previous selection is restored when the
+  // turn ends. Explicit attachments always win over the classifier, and a
+  // still-loading classifier or a provider without a capable model is a
+  // silent no-op (the message is sent to the current model as chat).
+  let revertModel = null;
+  if(text && !State.pendingImage && !State.pendingAudio && window.IntentRouter && window.IntentRouter.ready){
+    const intent = window.IntentRouter.route(text);
+    const wantCap = intent.intent === "tts" ? "tts" : (intent.intent === "image" ? "vision" : null);
+    if(intent.isConfident && wantCap){
+      const hasCap = wantCap === "vision"
+        ? !!(m && (m.capabilities?.vision || m.capabilities?.ocr))
+        : !!(m && m.capabilities && m.capabilities[wantCap]);
+      if(!hasCap){
+        let pick = null;
+        if(wantCap === "vision"){
+          const vm = State.models.find(x => x.capabilities?.vision || x.capabilities?.ocr);
+          pick = vm ? vm.id : null;
+        } else {
+          pick = (window.Catalog && Catalog.pickModel(State.provider, "tts")) || null;
+        }
+        if(pick && pick !== m.id){
+          revertModel = State.model;
+          setModel(pick);
+          m = currentModel();
+        }
+      }
+    }
+  }
+
   // No-key check (ollama and keyless custom with base URL are exempt)
   const hasKey = !!State.apiKey || State.provider === "ollama" ||
     (State.provider === "custom" && effectiveBase(State.provider));
@@ -182,6 +214,7 @@ async function handleSend(){
       if(Chat.announce) Chat.announce("Error: " + (err.message || "request failed"));
     }
   } finally {
+    if(revertModel && State.model !== revertModel){ setModel(revertModel); }
     State.sending = false;
     render();
   }
