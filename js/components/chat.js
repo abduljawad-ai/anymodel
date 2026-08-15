@@ -37,6 +37,26 @@ function scrollIfSticky(){
 
 let renderedCount = 0;
 
+/* Plain-text append that turns http(s) URLs into clickable links.
+   Used for system/error bubbles, which otherwise stay text-only
+   (no HTML) so a provider error like the Groq terms-acceptance
+   message can carry an actionable link. */
+function appendWithLinks(el, text){
+  const urlRe = /https?:\/\/[^\s<>"']+/g;
+  let last = 0, m;
+  while((m = urlRe.exec(text))){
+    if(m.index > last) el.appendChild(document.createTextNode(text.slice(last, m.index)));
+    const a = document.createElement("a");
+    a.href = m[0];
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.textContent = m[0];
+    el.appendChild(a);
+    last = m.index + m[0].length;
+  }
+  if(last < text.length) el.appendChild(document.createTextNode(text.slice(last)));
+}
+
 /* The streamed assistant turn is already in the DOM (created by
    createAssistantTurn), so the message just pushed to State.messages
    must NOT be re-rendered by the next Chat.render() — advance the
@@ -85,7 +105,7 @@ function render(){
     if(m.role === "system"){
       const b = document.createElement("div");
       b.className = "bubble";
-      b.textContent = m.content;
+      appendWithLinks(b, m.content);
       col.appendChild(b);
     } else {
       if(m.role === "assistant" && m.toolUsed){

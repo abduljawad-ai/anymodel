@@ -54,6 +54,16 @@ function errorMessage(status, body){
   const apiMsg = body?.message || body?.error?.message || (body?.error && typeof body.error === "string" ? body.error : null);
   if(status === 401) return "Invalid API key. Check it in Settings.";
   if(status === 429) return "Rate limit hit — wait a moment and try again.";
+  if(apiMsg && /requires terms|terms acceptance|accept the terms|terms of use/i.test(apiMsg)){
+    // Providers like Groq gate certain models (e.g. Orpheus) behind a
+    // one-time per-account terms acceptance. It's enforced server-side —
+    // the client can't bypass it, so point the user at the accept page
+    // instead of showing a confusing raw error on every restart.
+    const url = (apiMsg.match(/https?:\/\/\S+/i) || [])[0];
+    const name = (apiMsg.match(/`([^`]+)`/) || [])[1] || body?.model || "this model";
+    const link = (url || "https://console.groq.com/playground").replace(/[.,;)]+$/, "");
+    return `"${name}" needs its terms accepted first — it's a one-time thing, per provider account. Open this and accept: ${link} — if you're on a shared or free key, the account owner has to accept for you.`;
+  }
   if(apiMsg) return apiMsg;
   return `Request failed (${status}).`;
 }
