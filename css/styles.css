@@ -463,6 +463,46 @@ input,textarea{font-family:inherit;}
 .attach-chip img{ width:20px;height:20px;border-radius:4px;object-fit:cover; }
 .attach-chip .rm{ cursor:pointer; opacity:.6; font-weight:700; padding:0 2px;}
 
+/* .attach-row is display:flex, which overrides the UA hidden rule */
+.attach-row[hidden]{ display:none; }
+
+/* Low-confidence intent suggestion ("sounded like TTS, unsure") */
+.intent-chip{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  background:var(--accent-wash);
+  color:var(--accent);
+  border-radius:8px;
+  padding:5px 6px 5px 10px;
+  font-size:11.5px;
+  font-weight:600;
+}
+.intent-chip .act{
+  border:none;
+  background:var(--accent);
+  color:#fff;
+  border-radius:6px;
+  padding:3px 9px;
+  font-size:11px;
+  font-weight:700;
+  cursor:pointer;
+  flex-shrink:0;
+}
+.intent-chip .act:hover{ filter:brightness(1.08); }
+.intent-chip .x{
+  border:none;
+  background:none;
+  color:inherit;
+  opacity:.6;
+  cursor:pointer;
+  font-size:11px;
+  font-weight:700;
+  padding:2px 4px;
+  flex-shrink:0;
+}
+.intent-chip .x:hover{ opacity:1; }
+
 .composer{
   max-width:760px;
   margin:0 auto;

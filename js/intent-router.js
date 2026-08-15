@@ -15,8 +15,11 @@
      - route(text)    -> classify + { originalMessage, content }
      - selfTests      -> results of the on-load self-tests
 
-   Confidence threshold: below it, or for an unknown label, the
-   router falls back to "chat" with isConfident: false.
+   Confidence threshold: an unknown label (or a model that isn't
+   loaded) falls back to "chat" with isConfident: false, while a
+   known label below the threshold keeps its detected intent with
+   isConfident: false — so callers can offer a recovery path
+   ("sounded like TTS, but I wasn't sure").
 ============================================================ */
 
 import { FastText, addOnPostRun } from "../fasttext.js";
@@ -96,9 +99,11 @@ class IntentRouter {
   }
 
   /* Classify a message. Returns { intent, confidence, isConfident }.
-     Falls back to "chat" (isConfident: false) when the model isn't
-     loaded yet, the text is empty, the label is unknown, or the
-     confidence is below the threshold. Never throws. */
+     Unknown labels (and a model that isn't loaded yet) fall back to
+     "chat" with isConfident: false. A known label below the threshold
+     keeps its detected intent but reports isConfident: false, so the
+     caller can show a low-confidence recovery hint instead of silently
+     treating it as chat. Never throws. */
   classify(text){
     if(!this.model || !text || !text.trim()){
       return { intent: "chat", confidence: 0, isConfident: false };
@@ -116,8 +121,11 @@ class IntentRouter {
       const confidence = (typeof rawProb === "number" && isFinite(rawProb)) ? rawProb : 0;
       const intent = String(rawLabel || "").replace(/^__label__/, "");
 
-      if(!this.labels.has(intent) || confidence < this.threshold){
+      if(!this.labels.has(intent)){
         return { intent: "chat", confidence, isConfident: false };
+      }
+      if(confidence < this.threshold){
+        return { intent, confidence, isConfident: false };
       }
       return { intent, confidence, isConfident: true };
     }catch(err){
