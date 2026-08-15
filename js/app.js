@@ -3,6 +3,36 @@
 ============================================================ */
 
 /* ============================================================
+    THEME — light/dark via data-theme on <html>.
+    Preference: localStorage('theme') → system prefers-color-scheme.
+============================================================ */
+(function initTheme(){
+  const html = document.documentElement;
+  const saved = localStorage.getItem('theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  html.setAttribute('data-theme', saved || (prefersDark ? 'dark' : 'light'));
+  updateThemeToggle();
+})();
+
+function updateThemeToggle(){
+  const btn = document.getElementById('themeToggle');
+  if(!btn) return;
+  const dark = (document.documentElement.getAttribute('data-theme') || 'light') === 'dark';
+  btn.textContent = dark ? '☀️' : '🌙';
+  btn.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
+  btn.setAttribute('aria-label', btn.title);
+}
+
+function themeToggle(){
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme') || 'light';
+  const next = current === 'light' ? 'dark' : 'light';
+  html.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+  updateThemeToggle();
+}
+
+/* ============================================================
     INITIALIZATION
 ============================================================ */
 
@@ -29,6 +59,11 @@ async function init(){
   Chat.initScrollHandling();
   VoiceRecorder.initEvents();
   Sidebar.initEvents();
+
+  // Theme toggle button (sidebar footer)
+  const themeBtn = document.getElementById("themeToggle");
+  if(themeBtn) themeBtn.addEventListener("click", themeToggle);
+  updateThemeToggle();
 
   // Hydrate State from localStorage
   State.provider = localStorage.getItem(Config.LS_PROVIDER) || Config.DEFAULT_PROVIDER;
