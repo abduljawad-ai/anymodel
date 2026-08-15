@@ -1014,6 +1014,7 @@ input,textarea{font-family:inherit;}
   outline:none;
 }
 .picker-filter:focus{ border-color:var(--border); box-shadow:none; }
+.picker-filter:focus-visible{ outline:none; }   /* global :focus-visible outline is orange — kill it on the search box */
 .picker-filter::placeholder{ color:var(--ink-faint); }
 
 .picker-group-label{
@@ -1045,6 +1046,19 @@ input,textarea{font-family:inherit;}
   overflow:hidden;
   text-overflow:ellipsis;
 }
+.picker-provider-badge{
+  flex-shrink:0;
+  margin-left:auto;
+  padding:1px 8px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  font-size:10.5px;
+  font-weight:600;
+  color:var(--ink-faint);
+  background:var(--bg);
+  white-space:nowrap;
+}
+.picker-row .picker-provider-badge{ margin-left:8px; }
 .picker-empty{
   padding:26px 14px;
   text-align:center;

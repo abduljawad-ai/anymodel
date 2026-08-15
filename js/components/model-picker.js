@@ -22,7 +22,8 @@ function providerName(){
 
 let filterValue = "";
 let highlightedIndex = -1;
-let visibleRows = [];   // flat list of { id } for keyboard navigation
+let visibleRows = [];   // flat list of { id, providerId } for keyboard navigation
+let allModelsCache = null; // cached cross-provider model list
 let anchorEl = null;
 let isOpen = false;
 
@@ -30,10 +31,83 @@ let isOpen = false;
    RENDERING
 ============================================================ */
 
+/* Capability → search keywords. Every active capability contributes its
+   synonyms to the search space, so queries like "tts", "stt", "vision",
+   "tools", "search", "reasoning" find models by type. */
+const CAP_KEYWORDS = {
+  tts:                   ["tts", "text-to-speech", "speech", "voice"],
+  audio_transcription:   ["stt", "transcri", "asr", "speech-to-text", "transcription"],
+  vision:                ["vision", "image", "photo", "visual"],
+  function_calling:      ["tool", "tools", "function", "functions", "function calling"],
+  reasoning:             ["reason", "reasoning"],
+  thinking:              ["think", "thinking"],
+  web_search:            ["search", "web search", "web"],
+  ocr:                   ["ocr", "text extraction"],
+  embeddings:            ["embed", "embedding", "embeddings"],
+  audio:                 ["audio"],
+  moderation:            ["moderat", "guard"],
+  code_interpreter:      ["code", "interpreter"],
+  image_generation:      ["image gen", "image generation"],
+  parallel_tool_calling: ["ptc", "parallel tool"]
+};
+
+/* Collect the search keywords a model matches via its capabilities. */
+function modelKeywords(m){
+  const caps = m.capabilities || {};
+  const kws = new Set();
+  for(const [k, active] of Object.entries(caps)){
+    if(!active) continue;
+    (CAP_KEYWORDS[k] || []).forEach(w => kws.add(w));
+    const meta = Config.CAP_META[k];
+    if(meta){
+      kws.add(String(meta.label || "").toLowerCase());
+      if(meta.short) kws.add(String(meta.short).toLowerCase());
+    }
+  }
+  return kws;
+}
+
+/* Token-based match: every whitespace-separated token in the query must
+   hit the model id/label/description, its provider name/id, or one of its
+   capability keywords. So "groq tts" lists TTS models from Groq and
+   "google reasoning" lists reasoning models from Google. */
 function modelMatches(m){
   const q = filterValue.trim().toLowerCase();
   if(!q) return true;
-  return (m.id + " " + (Config.getModelLabel(m) || "")).toLowerCase().includes(q);
+  const tokens = q.split(/\s+/).filter(Boolean);
+  const id = (m.id || "").toLowerCase();
+  const label = (Config.getModelLabel(m) || "").toLowerCase();
+  const desc = (m.description || "").toLowerCase();
+  const pName = (m.providerName || "").toLowerCase();
+  const pId = (m.providerId || m.provider || "").toLowerCase();
+  const haystack = [id, label, desc, pName, pId].join(" ");
+  const kws = [...modelKeywords(m)];
+
+  return tokens.every(tok => {
+    if(haystack.includes(tok)) return true;
+    return kws.some(kw => kw && (tok.includes(kw) || kw.includes(tok)));
+  });
+}
+
+/* Build a flat list of all models across all providers (cached). */
+async function getAllModels(){
+  if(allModelsCache) return allModelsCache;
+  await Catalog.ensureLoaded();
+  const providers = Catalog.providerList();
+  const all = [];
+  for(const p of providers){
+    if(p.id === "custom" || p.id === "ollama") continue;
+    const models = Catalog.listModels(p.id);
+    for(const m of models){
+      all.push({ ...m, providerId: p.id, providerName: p.name });
+    }
+  }
+  allModelsCache = all;
+  return all;
+}
+
+function clearAllModelsCache(){
+  allModelsCache = null;
 }
 
 function applyHighlight(){
@@ -57,31 +131,56 @@ function wireProviderChips(){
   });
 }
 
-function buildModelSheet(){
-  const filtered = State.models.filter(modelMatches);
+async function buildModelSheet(){
+  const q = filterValue.trim().toLowerCase();
+  let modelsToShow;
+  let isCrossProvider = q.length > 0;
+
+  if(isCrossProvider){
+    const all = await getAllModels();
+    modelsToShow = all.filter(modelMatches);
+  }else{
+    modelsToShow = State.models.filter(modelMatches);
+  }
 
   let html = "";
   visibleRows = [];
-  html += `<div class="picker-group-label">${esc(providerName())}</div>`;
-  filtered.forEach(m => {
+  
+  if(isCrossProvider){
+    html += `<div class="picker-group-label">All providers (${modelsToShow.length} results)</div>`;
+  }else{
+    html += `<div class="picker-group-label">${esc(providerName())}</div>`;
+  }
+
+  modelsToShow.forEach(m => {
     const idx = visibleRows.length;
-    visibleRows.push({ id: m.id });
+    // normalizeModel() sets `provider`; getAllModels() spreads providerId on top.
+    const pid = m.providerId || m.provider || State.provider;
+    visibleRows.push({ id: m.id, providerId: pid });
     const cls = ["picker-row"];
-    if(m.id === State.model) cls.push("picker-row-selected");
+    if(m.id === State.model && pid === State.provider) cls.push("picker-row-selected");
     const caps = Object.keys(m.capabilities || {}).filter(k => m.capabilities[k]);
     const capHtml = caps.length
       ? `<span class="picker-caps">${caps.slice(0,3).map(k => `<span class="picker-cap" title="${esc(Config.CAP_META[k] ? Config.CAP_META[k].label : k)}">${Config.CAP_META[k] ? Config.CAP_META[k].icon : "•"}</span>`).join("")}</span>`
       : "";
-    html += `<div class="${cls.join(" ")}" data-model="${esc(m.id)}" data-idx="${idx}">
+    const providerBadge = isCrossProvider
+      ? `<span class="picker-provider-badge">${esc(m.providerName)}</span>`
+      : "";
+    html += `<div class="${cls.join(" ")}" data-model="${esc(m.id)}" data-idx="${idx}" data-provider="${esc(pid)}">
       <span class="picker-row-name">${esc(Config.getModelLabel(m))}</span>
       ${capHtml}
+      ${providerBadge}
     </div>`;
   });
 
-  if(!filtered.length){
-    html = State.models.length
-      ? `<div class="picker-empty">No results for '${esc(filterValue)}'</div>`
-      : `<div class="picker-empty">No models available for this provider. Check Settings.</div>`;
+  if(!modelsToShow.length){
+    if(isCrossProvider){
+      html = `<div class="picker-empty">No models match '${esc(filterValue)}' across all providers</div>`;
+    }else{
+      html = State.models.length
+        ? `<div class="picker-empty">No results for '${esc(filterValue)}'</div>`
+        : `<div class="picker-empty">No models available for this provider. Check Settings.</div>`;
+    }
     visibleRows = [];
   }
 
@@ -92,9 +191,18 @@ function buildModelSheet(){
   applyHighlight();
 
   $("modelListBody").querySelectorAll(".picker-row").forEach(row => {
-    row.addEventListener("click", () => {
-      const m = State.models.find(x => x.id === row.dataset.model);
-      if(m) setModel(m.id);
+    row.addEventListener("click", async () => {
+      const modelId = row.dataset.model;
+      const providerId = row.dataset.provider;
+      const m = isCrossProvider
+        ? (await getAllModels()).find(x => x.id === modelId && x.providerId === providerId)
+        : State.models.find(x => x.id === modelId);
+      if(m){
+        if(providerId !== State.provider){
+          await setProvider(providerId);
+        }
+        setModel(m.id);
+      }
       close(true);
     });
   });
@@ -192,9 +300,15 @@ function handleKeydown(e){
     const row = visibleRows[highlightedIndex];
     if(row){
       e.preventDefault();
-      const m = State.models.find(x => x.id === row.id);
-      if(m) setModel(m.id);
-      close(true);
+      (async () => {
+        const providerId = row.providerId || State.provider;
+        if(providerId !== State.provider){
+          await setProvider(providerId);
+        }
+        const m = State.models.find(x => x.id === row.id) || (await getAllModels()).find(x => x.id === row.id && x.providerId === providerId);
+        if(m) setModel(m.id);
+        close(true);
+      })();
     }
   }
 }
