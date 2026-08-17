@@ -95,19 +95,3 @@ tools/
 *.backup
 EOF
 
-
-
-src/state/appState.js
-src/services/intent/fastText.js
-src/services/intent/router.js
-src/services/intent/router.js
-src/components/RobotAvatar.js
-src/components/VoiceCapsule.js
-src/components/VoiceCapsule.js
-Wrote src/components/VoiceRecorder.js
-Wrote src/components/Header.js
-src/components/Sidebar.js
-src/components/Chat.js
-src/components/Composer.js
-src/components/Settings.js
-src/components/ModelPicker.js
