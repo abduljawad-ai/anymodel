@@ -1,0 +1,101 @@
+/* ============================================================
+   COMPONENTS — Voice Recorder Overlay + Voice Capsules
+   ============================================================ */
+
+/* ===== Voice recorder overlay ===== */
+.voice-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(28,28,30,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+.voice-card {
+  background: var(--panel);
+  border-radius: 16px;
+  padding: 28px 32px;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+}
+.voice-card .rec-dot {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  background: var(--danger);
+  margin: 0 auto 16px;
+  display: flex; align-items: center; justify-content: center;
+  animation: voicePulse 1.5s infinite;
+}
+@keyframes voicePulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.08); opacity: .85; } }
+.voice-card .rec-dot svg { width: 28px; height: 28px; color: #fff; }
+.voice-card .rec-time {
+  font-family: var(--mono);
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+.voice-card .rec-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+.voice-card .rec-actions button {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+.voice-card .rec-actions .cancel { background: var(--bg); color: var(--ink-soft); }
+.voice-card .rec-actions .stop { background: var(--accent); color: #fff; }
+
+/* ===== Voice capsules (WhatsApp-style) ===== */
+.voice-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 190px;
+  max-width: 250px;
+  padding: 7px 10px;
+  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  margin-top: 6px;
+  user-select: none;
+}
+.msg.user .voice-capsule {
+  background: rgba(255,255,255,0.13);
+  border-color: transparent;
+}
+.voice-play {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: none; cursor: pointer;
+  background: var(--accent);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  flex-none;
+  padding: 0;
+}
+.voice-play svg { width: 16px; height: 16px; }
+.voice-wave {
+  display: flex; align-items: center; gap: 2px;
+  height: 26px; flex: 1; min-width: 0;
+}
+.voice-bar {
+  width: 3px;
+  background: currentColor;
+  opacity: 0.75;
+  border-radius: 2px;
+  flex-none;
+  transition: height .15s ease;
+}
+.voice-capsule.playing .voice-bar { animation: voicePulse .9s ease-in-out infinite; }
+.voice-dur {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint);
+  flex-none;
+}
+.msg.user .voice-dur { color: rgba(255,255,255,0.85); }

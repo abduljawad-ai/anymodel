@@ -1,0 +1,154 @@
+/* ============================================================
+   COMPONENTS — Model Picker (popover)
+   ============================================================ */
+
+.model-pop {
+  position: fixed;
+  z-index: 60;
+  width: min(360px, calc(100vw - 16px));
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: min(420px, 62dvh);
+  min-height: 180px;
+}
+.model-pop[hidden] { display: none; }
+
+.model-pop-providers {
+  display: flex;
+  gap: 6px;
+  padding: 10px 10px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+.model-pop-providers::-webkit-scrollbar { display: none; }
+
+.model-provider-chip {
+  flex-shrink: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: 999px;
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.model-provider-chip:hover { border-color: var(--accent); color: var(--accent); }
+.model-provider-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.picker-filter {
+  flex-shrink: 0;
+  margin: 14px 14px 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 13.5px;
+  outline: none;
+}
+.picker-filter:focus { border-color: var(--border); box-shadow: none; }
+.picker-filter:focus-visible { outline: none; }
+.picker-filter::placeholder { color: var(--ink-faint); }
+
+.model-pop-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+}
+
+.model-pop .picker-row { margin: 0 6px; flex-shrink: 0; }
+
+/* Picker rows (cross-provider search mode) */
+.picker-group-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .09en;
+  color: var(--ink-faint);
+  padding: 14px 8px 6px;
+}
+.picker-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--ink);
+}
+.picker-row:hover { background: var(--bg); }
+.picker-row-selected { background: var(--bg); }
+.picker-row-selected .picker-row-name { color: var(--ink); font-weight: 700; }
+.picker-row-active { background: var(--bg); }
+.picker-row-selected.picker-row-active { background: var(--bg); }
+.picker-row-dimmed .picker-row-name { color: var(--ink-faint); }
+.picker-row-name {
+  font-family: var(--mono);
+  font-size: 13.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.picker-provider-badge {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  background: var(--bg);
+  white-space: nowrap;
+}
+.picker-row .picker-provider-badge { margin-left: 8px; }
+
+.picker-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 26px 14px;
+  text-align: center;
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+
+/* Picker capability chips */
+.picker-caps { display: inline-flex; gap: 2px; margin-left: 8px; align-items: center; }
+.picker-cap { font-size: 12px; opacity: .75; display: inline-flex; }
+.picker-cap svg { width: 12px; height: 12px; }
+.picker-row { display: flex; align-items: center; }
+
+/* Centered modal for the model picker */
+#modelSheet {
+  left: 50%;
+  right: auto;
+  bottom: auto;
+  top: 50%;
+  width: min(560px, calc(100vw - 32px));
+  max-width: none;
+  max-height: min(600px, 80vh);
+  border-radius: 16px;
+  transform: translate(-50%,-50%) scale(.97);
+  opacity: 0;
+  transition: transform .18s ease, opacity .18s ease, visibility .18s;
+}
+#modelSheet.show {
+  transform: translate(-50%,-50%) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+}
+#modelSheet .sheet-grip { display: none; }

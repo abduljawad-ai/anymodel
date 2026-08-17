@@ -1,0 +1,64 @@
+/* ============================================================
+   ANIMATIONS / MICRO-ANIMATIONS
+   ============================================================ */
+
+/* Suggestion cards — lift on hover */
+.suggestion {
+  transition: background 0.18s ease, border-color 0.18s ease,
+              transform 0.18s ease, box-shadow 0.18s ease;
+}
+.suggestion:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.suggestion:active {
+  transform: translateY(0);
+}
+
+/* Send button — bounce on press */
+.send-btn:active:not(:disabled) { transform: scale(0.9); }
+
+/* Message bubbles — smooth entry */
+@keyframes msgFadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.msg { animation: msgFadeUp 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Sidebar session rows — smoother hover */
+.session-row {
+  transition: background 0.14s ease, color 0.14s ease,
+              padding-left 0.14s ease;
+}
+
+/* Model pill — smooth open/close */
+.model-pop {
+  animation: modelPopOpen 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes modelPopOpen {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Phase ring — accent color pulse */
+@keyframes phaseSpin { to { transform: rotate(360deg); } }
+.phase-ring { animation: phaseSpin 0.7s linear infinite; }
+
+/* Phase item slide-in */
+.phase-window:not(.collapsed) .phase-item {
+  animation: phaseIn 0.22s ease-out;
+}
+@keyframes phaseIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Avatar — tiny pulse when thinking */
+.msg.assistant .avatar { transition: transform 0.3s ease; }
+
+/* Empty state — smooth appear */
+@keyframes emptyIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.empty-state { animation: emptyIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
