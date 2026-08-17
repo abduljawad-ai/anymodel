@@ -96,7 +96,7 @@ tools/
 EOF
 
 
-src/services/storage/keylock.js
+
 src/state/appState.js
 src/services/intent/fastText.js
 src/services/intent/router.js
