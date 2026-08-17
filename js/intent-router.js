@@ -1,56 +1,25 @@
-/* ============================================================
-   INTENT ROUTER — client-side intent classification.
-
-   Uses the official fastText WebAssembly build (fasttext.js +
-   fasttext_wasm.js + fasttext_wasm.wasm, all from the fastText
-   repo's webassembly/ folder) and the quantized model trained by
-   train_model.py (intent_model.ftz). Everything runs in the
-   browser — routing costs zero API requests.
-
-   Exposes a global singleton on `window.IntentRouter`:
-     - ready:        true once the model is loaded
-     - loading:      true while the model downloads/compiles
-     - error:        the load error, if any
-     - classify(text) -> { intent, confidence, isConfident }
-     - route(text)    -> classify + { originalMessage, content }
-     - selfTests      -> results of the on-load self-tests
-
-   Confidence threshold: an unknown label (or a model that isn't
-   loaded) falls back to "chat" with isConfident: false, while a
-   known label below the threshold keeps its detected intent with
-   isConfident: false and its raw confidence — the composer uses
-   autoSwitchFloor (0.45) to decide whether to auto-switch models,
-   so detections that are merely "not confident" still route
-   automatically instead of falling back to chat.
-============================================================ */
-
 import { FastText, addOnPostRun } from "../fasttext.js";
 
 const MODEL_URL = "intent_model.ftz";
-const THRESHOLD = 0.65;          // "confident" marker (self-tests, isConfident)
-const AUTO_SWITCH_FLOOR = 0.45;  // minimum confidence to auto-switch models
+const THRESHOLD = 0.65;
+const AUTO_SWITCH_FLOOR = 0.45;
 const LABELS = new Set(["chat", "tts", "image", "transcription"]);
 
 const DEFAULT_HINT = "Enter to send · Shift+Enter for new line";
 const LOADING_HINT = "Loading AI classifier…";
 
-/* Self-tests that run automatically once the model is loaded. These
-   mirror the acceptance cases in train_model.py so the training
-   pipeline and the browser are gated on the same bar. */
+// Self-tests mirror acceptance cases in train_model.py so training and browser are gated on the same bar
 const SELF_TESTS = [
   { text: "make this talk",        expect: "tts",           min: 0.80 },
   { text: "crea una imagen",       expect: "image",         min: 0.70 },
   { text: "explain physics",       expect: "chat",          min: 0.80 },
-  { text: "genrate audo",          expect: "tts",           min: 0.65 },  // typo tolerance
+  { text: "genrate audo",          expect: "tts",           min: 0.65 },
   { text: "transcribe this audio", expect: "transcription", min: 0.65 },
-  { text: "generate speech of this text", expect: "tts",    min: 0.65 },  // low-threshold phrasing
-  { text: "summarize this text",   expect: "chat",          min: 0.65 },  // must NOT drift to image
+  { text: "generate speech of this text", expect: "tts",    min: 0.65 },
+  { text: "summarize this text",   expect: "chat",          min: 0.65 },
 ];
 
-/* Show the loading state in the composer hint line on first visit.
-   Only swaps the hint while it still shows the default text, so a
-   model-specific hint (TTS/transcription placeholders) is never
-   clobbered. Restored by Header.render() once loading finishes. */
+// Only swaps hint while it still shows default text; restored by Header.render() once loading finishes
 function setLoadingHint(on){
   const el = document.getElementById("composerHint");
   if(!el) return;
@@ -64,7 +33,7 @@ function setLoadingHint(on){
 class IntentRouter {
   constructor(){
     this.threshold = THRESHOLD;
-    this.autoSwitchFloor = AUTO_SWITCH_FLOOR;   // caller gate for auto-switching
+    this.autoSwitchFloor = AUTO_SWITCH_FLOOR;
     this.labels = LABELS;
     this.model = null;
     this.ready = false;
@@ -73,7 +42,6 @@ class IntentRouter {
     this.selfTests = [];
   }
 
-  /* Load the model once. Resolves when ready; safe to call any time. */
   async load(modelUrl = MODEL_URL){
     if(this.loading || this.ready) return;
     this.loading = true;
@@ -99,17 +67,13 @@ class IntentRouter {
     }finally{
       this.loading = false;
       setLoadingHint(false);
-      // Restore the model-appropriate hint (Header.render recomputes it).
       if(window.Header && window.Header.render) Header.render();
     }
   }
 
-  /* Classify a message. Returns { intent, confidence, isConfident }.
-     Unknown labels (and a model that isn't loaded yet) fall back to
-     "chat" with isConfident: false. A known label below the threshold
-     keeps its detected intent and confidence with isConfident: false,
-     so the caller can still auto-switch on it (see autoSwitchFloor)
-     instead of silently treating it as chat. Never throws. */
+  // Unknown labels and unloaded model fall back to "chat" with isConfident: false.
+  // Known labels below threshold keep detected intent with isConfident: false
+  // so caller can still auto-switch via autoSwitchFloor.
   classify(text){
     if(!this.model || !text || !text.trim()){
       return { intent: "chat", confidence: 0, isConfident: false };
@@ -119,8 +83,7 @@ class IntentRouter {
       const top = (preds && preds.size && preds.size() > 0) ? preds.get(0) : null;
       if(!top) return { intent: "chat", confidence: 0, isConfident: false };
 
-      // embind binds std::pair<float,string> as a JS array [prob, label].
-      // Accept {label, prob} objects too for forward compatibility.
+      // embind binds std::pair<float,string> as [prob, label]; also accept {label, prob} objects
       const isArr = Array.isArray(top);
       const rawLabel = isArr ? top[1] : (top.label !== undefined ? top.label : top[1]);
       const rawProb = isArr ? top[0] : (top.prob !== undefined ? top.prob : top[0]);
@@ -145,7 +108,6 @@ class IntentRouter {
     return { ...result, originalMessage: userMessage, content: userMessage };
   }
 
-  /* Run the on-load self-tests and record the results. */
   runSelfTests(){
     const results = SELF_TESTS.map(t => {
       const r = this.classify(t.text);
@@ -165,8 +127,6 @@ class IntentRouter {
   }
 }
 
-/* Module scripts run after the DOM is parsed, so the element the
-   loading hint touches already exists. Kick the load off immediately. */
 const router = new IntentRouter();
 window.IntentRouter = router;
 router.load();

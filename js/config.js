@@ -1,9 +1,3 @@
-/* ============================================================
-   CONFIG — anymodel constants and helpers.
-   Providers and models come from the bundled catalog
-   (models-catalog.json). Only UI metadata lives here.
-============================================================ */
-
 const LS_PROVIDER = "anymodel_provider_v1";
 const LS_KEYS = "anymodel_keys_v1";
 const LS_BASES = "anymodel_bases_v1";
@@ -18,9 +12,6 @@ const LS_THEME = "anymodel_theme_v1";
 
 const DEFAULT_PROVIDER = "openai";
 
-/* Map normalized capability flags to human-readable metadata.
-   `icon` is the legacy text token; `svgIcon` names the code-drawn SVG
-   from js/icons.js used by capability chips (header strip + model picker). */
 const CAP_META = {
   vision:                 { label:"Image",           icon:"Image",           svgIcon:"eye_vision",                 short:"vision" },
   function_calling:       { label:"Tools",           icon:"Tools",           svgIcon:"wrench_tools",               short:"tools" },
@@ -77,8 +68,6 @@ const CAP_META = {
   image_3d_zoom_to_fit:   { label:"Image 3D Zoom Fit",icon:"Image 3D Zoom Fit",short:"image_3d_zoom_to_fit" },
 };
 
-/* Render a capability badge: the matching code-drawn SVG when one exists,
-   otherwise the legacy text token. Synchronous — `icon` is loaded first. */
 function capIcon(k){
   const meta = CAP_META[k];
   if(meta && meta.svgIcon && typeof icon === "function") return icon(meta.svgIcon);
@@ -111,13 +100,11 @@ function getEndpointType(caps){
   return "chat";
 }
 
-/* Pick a swatch color for a model based on its provider. */
 function getModelColor(m){
   const id = (m && m.provider) || State.provider;
   return PROVIDER_COLORS[id] || "#FF7000";
 }
 
-/* Display label: catalog name if present, else humanize the model id. */
 function getModelLabel(m){
   if(m && m.name) return m.name;
   const id = (m && (m.id || m.name)) || "";
@@ -187,15 +174,9 @@ function runDemoTool(name, argsJson){
   return { error:"Unknown tool" };
 }
 
-/* Shared DOM helper — defined once here so every component file can
-   use it without re-declaring `const $` (which would throw a SyntaxError
-   in classic shared-global scripts). */
 const $ = id => document.getElementById(id);
 window.$ = $;
 
-/* Shared focus helpers for modal dialogs/sheets (role="dialog" aria-modal="true"
-   must keep keyboard focus inside while open — WCAG 2.4.3). Same shared-global
-   pattern as `$` above. */
 const FOCUSABLE = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 function focusFirst(root){
@@ -228,7 +209,6 @@ function trapFocus(root){
 window.focusFirst = focusFirst;
 window.trapFocus = trapFocus;
 
-// Expose globally
 window.Config = {
   LS_PROVIDER, LS_KEYS, LS_BASES, LS_MODEL_PREFIX, LS_SYS, LS_MESSAGES, LS_SESSIONS, LS_ACTIVE, LS_TTS_VOICE,
   DEFAULT_PROVIDER,

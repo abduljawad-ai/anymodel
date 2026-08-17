@@ -1,13 +1,4 @@
-/* ============================================================
-   COMPOSER — prompt input, attach buttons, send/stop button,
-   and all send flows (chat / transcription / OCR / TTS /
-   embeddings / moderation).
-============================================================ */
 (function(){
-
-/* ============================================================
-   HELPERS
-============================================================ */
 
 function $id(s){ return document.getElementById(s); }
 
@@ -27,14 +18,10 @@ function bytesToBase64(bytes){
   return btoa(binary);
 }
 
-/* ============================================================
-   RENDERING
-============================================================ */
-
 function updateSendButton(){
   const btn = $id("sendBtn");
   if(!btn) return;
-  // While streaming, the button must always be active so it can stop the request.
+  // Button must stay active while streaming so the user can stop the request.
   btn.disabled = !currentModel() && !State.sending;
   if(State.sending){
     btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
@@ -47,6 +34,7 @@ function updateSendButton(){
 
 function render(){
   updateSendButton();
+  renderThinkingPills();
   const m = currentModel();
   const canImage = !!(m && (m.capabilities?.vision || m.capabilities?.ocr ||
     (window.Catalog && Catalog.pickModel(State.provider, "ocr"))));
@@ -62,6 +50,15 @@ function render(){
   if(toolsCheck) toolsCheck.innerHTML = (m && m.capabilities?.function_calling && State.autoTools) ? icon('check_confirm') + " on" : "";
 }
 
+function renderThinkingPills(){
+  const pills = $id("thinkingPills");
+  if(!pills) return;
+  pills.querySelectorAll(".thinking-pill").forEach(p => {
+    p.classList.toggle("active", p.dataset.level === (State.thinkingEffort || "instant"));
+    p.setAttribute("aria-pressed", p.dataset.level === (State.thinkingEffort || "instant") ? "true" : "false");
+  });
+}
+
 function menuOpen(){ const menu = $id("composerMenu"); return menu && !menu.hidden; }
 
 function toggleMenu(force){
@@ -75,10 +72,6 @@ function toggleMenu(force){
 
 function closeMenu(){ toggleMenu(false); }
 
-/* ============================================================
-   SEND FLOWS
-============================================================ */
-
 async function handleSend(){
   if(State.sending) return;
   const text = $id("promptInput").value.trim();
@@ -90,7 +83,7 @@ async function handleSend(){
     return;
   }
 
-  // Attachments on a model that can't handle them: auto-switch to a capable one.
+  // Auto-switch to a capable model when attachments exceed current model's capabilities.
   if(State.pendingAudio && !m.capabilities?.audio_transcription){
     const tid = (window.Catalog && Catalog.pickModel(State.provider, "transcription")) || null;
     const tm = State.models.find(x => x.id === tid);
@@ -101,15 +94,9 @@ async function handleSend(){
     if(vm){ setModel(vm.id); m = currentModel(); }
   }
 
-  // Client-side intent routing (fastText WASM — zero API calls). When the
-  // message asks for speech ("make this talk") or image analysis and the
-  // selected model can't do it, automatically switch to a capable model
-  // for this turn only; the previous selection is restored when the turn
-  // ends. Routing is fully automatic: any detected tts/image intent above
-  // the auto-switch floor (0.45) triggers the switch — no popup or manual
-  // step. Explicit attachments always win over the classifier, and a
-  // still-loading classifier or a provider without a capable model is a
-  // silent no-op (the message is sent to the current model as chat).
+  // Client-side intent routing (fastText WASM — zero API calls). Auto-switches
+  // to a capable model for TTS/image intent when confidence ≥ floor; previous
+  // selection is restored when the turn ends.
   let revertModel = null;
   if(text && !State.pendingImage && !State.pendingAudio && window.IntentRouter && window.IntentRouter.ready){
     const intent = window.IntentRouter.route(text);
@@ -129,7 +116,6 @@ async function handleSend(){
     }
   }
 
-  // Best capable model for an intent, or null when the provider has none.
   function pickCapableModel(wantCap){
     if(wantCap === "vision"){
       const vm = State.models.find(x => x.capabilities?.vision || x.capabilities?.ocr);
@@ -138,7 +124,7 @@ async function handleSend(){
     return (window.Catalog && Catalog.pickModel(State.provider, "tts")) || null;
   }
 
-  // No-key check (ollama and keyless custom with base URL are exempt)
+  // No-key check — ollama and keyless custom providers with base URL are exempt.
   const hasKey = !!State.apiKey || State.provider === "ollama" ||
     (State.provider === "custom" && effectiveBase(State.provider));
   if(!hasKey){
@@ -186,8 +172,6 @@ async function handleSend(){
       const mid = (window.Catalog && Catalog.pickModel(State.provider, "ocr")) || m.id;
       result = { text: await Api.callOcrStreaming(turn, pendingImage.dataUrl, mid) };
     } else if(endpoint === "tts"){
-      // Use the user's selected TTS model; fall back to an auto-pick only
-      // when the selection lacks tts capabilities (custom/unknown models).
       const mid = (m.capabilities && m.capabilities.tts) ? m.id
         : ((window.Catalog && Catalog.pickModel(State.provider, "tts")) || m.id);
       result = await Api.callTtsStreaming(turn, text, mid);
@@ -205,10 +189,9 @@ async function handleSend(){
     Chat.finalizeTurn(turn, result, m);
     State.messages.push({ role:"assistant", content: result.text, modelUsed: m.id, toolUsed: result.toolUsed });
     saveMessages();
-    Chat.markMessagesRendered();   // turn row already in DOM — don't re-render it
+    Chat.markMessagesRendered();
   } catch(err){
     const isAbort = !!(err && err.name === "AbortError");
-    // Remove the empty assistant bubble so no ghost turn is left behind.
     if(turn && turn.row && turn.row.parentNode) turn.row.parentNode.removeChild(turn.row);
     if(isAbort){
       if(Chat.announce) Chat.announce("Generation stopped");
@@ -266,16 +249,21 @@ function cancelAttachment(kind){
   Chat.render();
 }
 
-/* ============================================================
-   EVENTS
-============================================================ */
-
 function initEvents(){
   $id("sendBtn").addEventListener("click", () => {
     if(State.sending){
       if(window.Api) Api.abortCurrentRequest();
     } else {
       handleSend();
+    }
+  });
+  $id("thinkingPills").addEventListener("click", (e) => {
+    const pill = e.target.closest(".thinking-pill");
+    if(!pill) return;
+    State.thinkingEffort = pill.dataset.level;
+    renderThinkingPills();
+    if(pill.dataset.level === "high" && !State.messages.length){
+      hint("High effort gives the model more time to reason — picks slower, deeper-capable models automatically.");
     }
   });
   $id("plusBtn").addEventListener("click", (e) => { e.stopPropagation(); toggleMenu(); });
@@ -346,7 +334,6 @@ function initEvents(){
   });
 }
 
-// Expose globally
 window.Composer = {
   render,
   handleSend,

@@ -1,13 +1,5 @@
-/* ============================================================
-   STATE — centralized app state and persistence.
-   Keys are per-provider; everything stores under anymodel_*.
-============================================================ */
-
-/* One-time migration: the app was previously branded "lahooti" and stored
-   everything under lahooti_* localStorage keys. Copy any leftover values to
-   the new anymodel_* keys (without clobbering newer data), then remove the
-   old keys. Runs before State is initialized so the app never reads stale
-   keys and existing data (API keys, sessions, models) survives the rename. */
+// One-time migration: "lahooti" → "anymodel" localStorage keys.
+// Runs before State is initialized so the app never reads stale keys.
 function migrateLegacyKeys(){
   try{
     if(typeof localStorage === 'undefined') return;
@@ -27,8 +19,7 @@ function migrateLegacyKeys(){
         localStorage.removeItem(oldKey);
       }
     }
-    /* Per-provider model selections are stored under a dynamic prefix
-       ("lahooti_model_<provider>") — move every one of those too. */
+    // Per-provider model selections under "lahooti_model_<provider>"
     const OLD_PREFIX = "lahooti_model_";
     const doomed = [];
     for(let i = 0; i < localStorage.length; i++){
@@ -59,21 +50,15 @@ function saveJson(key, value){
   try{
     if(typeof localStorage !== 'undefined') localStorage.setItem(key, JSON.stringify(value));
   }catch(e){
-    // Storage full or blocked: surface it once instead of silently
-    // swallowing the failure. Values stay in memory for this session.
+    // Storage full or blocked: surface once instead of swallowing
     try{ State.notice = "Storage is full — recent changes may not be saved."; }catch(e2){}
   }
 }
 
-/* ============================================================
-   API-KEY ENCRYPTION
-   Keys are encrypted at rest with AES-GCM (PBKDF2-derived key
-   from a user passphrase). The passphrase lives only in memory
-   for the session — never persisted. LS_KEYS stores:
-     { enc:1, iter, salt, iv, data }   (base64 fields)
-   Legacy plaintext {provider: key} objects are kept in memory
-   and migrated to an encrypted blob on the next key save.
-============================================================ */
+// API-KEY ENCRYPTION — AES-GCM, PBKDF2 (150k iterations, SHA-256).
+// Passphrase lives only in memory for the session — never persisted.
+// LS_KEYS stores: { enc:1, iter, salt, iv, data } (base64 fields).
+// Legacy plaintext objects are migrated to encrypted blob on next save.
 
 let keyPassphrase = null;   // session-only, never written to storage
 
@@ -122,7 +107,6 @@ async function decryptKeysBlob(blob, pass){
   return JSON.parse(new TextDecoder().decode(pt));
 }
 
-/* Raw stored value for LS_KEYS: encrypted blob | legacy object | null. */
 function keysBlob(){
   try{
     const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(Config.LS_KEYS) : null;
@@ -152,9 +136,8 @@ async function unlockKeys(pass){
   }catch(e){ return false; }
 }
 
-/* Load keys at boot: unlock the encrypted store if one exists, else
-   keep any legacy plaintext keys in memory for this session. Never
-   blocks app startup — resolves immediately if there's nothing to do. */
+// Load keys at boot: unlock encrypted store if present, else keep legacy
+// plaintext keys in memory. Resolves immediately if nothing to do.
 async function initKeys(){
   const blob = keysBlob();
   if(!blob){ State.apiKeys = {}; return; }
@@ -169,9 +152,7 @@ async function initKeys(){
   }
 }
 
-/* ============================================================
-   KEY-LOCK MODAL (passphrase prompt)
-============================================================ */
+// KEY-LOCK MODAL (passphrase prompt)
 
 let keylockMode = "unlock";    // "unlock" | "create"
 let keylockResolver = null;
@@ -258,6 +239,7 @@ const State = {
   systemPrompt: (typeof localStorage !== 'undefined' ? localStorage.getItem(Config.LS_SYS) : null) || "",
   ttsVoice: (typeof localStorage !== 'undefined' ? localStorage.getItem(Config.LS_TTS_VOICE) : null) || "",
   autoTools: true,
+  thinkingEffort: "instant",
   messages: loadJson(Config.LS_MESSAGES, []),
   notice: null,
   pendingImage: null,
@@ -270,15 +252,12 @@ const State = {
   activeSessionId: ""
 };
 
-/* Mirror the active provider's key and saved model. */
+// Mirror active provider's key and saved model
 State.apiKey = State.apiKeys[State.provider] || "";
 State.model = (typeof localStorage !== 'undefined' ? localStorage.getItem(Config.LS_MODEL_PREFIX + State.provider) : null) || "";
 
-/* ============================================================
-   SESSIONS — multi-conversation history.
-   Each session: { id, title, provider, createdAt, updatedAt, messages }.
-   The active session's messages are mirrored in State.messages.
-============================================================ */
+// SESSIONS — multi-conversation history.
+// Active session's messages are mirrored in State.messages.
 
 function genSessionId(){
   return "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -336,8 +315,7 @@ function newSession(){
   if(State.sending) return null;
   const cur = activeSession();
   if(cur){ cur.messages = State.messages; cur.updatedAt = Date.now(); }
-  // A chat with no messages isn't a session yet — drop abandoned empty ones
-  // so they never pile up in storage or show up in the sidebar.
+  // Drop empty sessions so they never pile up in storage or sidebar
   State.sessions = State.sessions.filter(s => (s.messages || []).length > 0);
   const s = freshSession();
   State.sessions.push(s);
@@ -409,9 +387,7 @@ function clearActiveSession(){
   State.messages = [];
 }
 
-/* ============================================================
-   PROVIDER SWITCHING
-============================================================ */
+// PROVIDER SWITCHING
 
 function setProvider(id){
   if(!id || id === State.provider) return;
@@ -425,15 +401,12 @@ function setProvider(id){
   if(window.Header) Header.render();
   if(window.Composer) Composer.render();
   if(window.Sidebar) Sidebar.render();
-  if(window.ModelPicker) ModelPicker.refresh();   // keep the dropdown in sync if open
+  if(window.ModelPicker) ModelPicker.refresh();
 }
 
-/* Save a key for a provider. The change is applied to memory immediately
-   (so this session can use it), then persisted as an encrypted blob.
-   - If an encrypted store exists but isn't unlocked, prompts for the passphrase
-     first so the existing blob is never silently clobbered.
-   - If no passphrase exists yet, prompts to create one.
-   - If the user cancels, the key stays in memory for this session only. */
+// Save a key for a provider: applies to memory immediately, then persists
+// as encrypted blob. Prompts for passphrase if locked store exists or
+// if no passphrase has been created yet. Cancel = session-only key.
 async function saveKeyFor(providerId, key){
   const apply = () => {
     if(!key) delete State.apiKeys[providerId];
@@ -455,7 +428,7 @@ async function saveKeyFor(providerId, key){
       if(!pass){ showToast("Key kept for this session only (not saved)."); return; }
       const ok = await unlockKeys(pass);
       if(!ok){ showToast("Couldn't unlock saved keys — change not saved."); return; }
-      apply();   // re-apply the change on top of the decrypted store
+      apply();
     } else {
       const pass = await showKeylock("create");
       if(!pass){ showToast("Key kept for this session only (not saved)."); return; }
@@ -469,9 +442,8 @@ async function saveKeyFor(providerId, key){
   }catch(e){}
 }
 
-/* Custom base URL override. HTTPS is required; http:// is allowed only for
-   local endpoints (localhost / 127.0.0.1) so self-hosted Ollama still works.
-   Returns true if the value was accepted, false otherwise. */
+// Custom base URL override. HTTPS required; http:// allowed for localhost
+// only (so self-hosted Ollama works). Returns true if accepted.
 function setCustomBase(providerId, url){
   if(!url){
     delete State.customBases[providerId];
@@ -487,7 +459,7 @@ function setCustomBase(providerId, url){
   return true;
 }
 
-/* Effective base URL: saved override > catalog entry > custom provider field. */
+// Effective base URL: saved override > catalog entry > custom provider field
 function effectiveBase(providerId){
   const id = providerId || State.provider;
   if(State.customBases[id]) return State.customBases[id];
@@ -496,9 +468,7 @@ function effectiveBase(providerId){
   return (p && p.api) || "";
 }
 
-/* ============================================================
-   MODELS
-============================================================ */
+// MODELS
 
 function setModel(id){
   State.model = id;
@@ -524,9 +494,7 @@ function currentEndpointType(){
   return Config.getEndpointType((m && m.capabilities) || {});
 }
 
-/* ============================================================
-   MESSAGES
-============================================================ */
+// MESSAGES
 
 function saveMessages(){
   const s = activeSession();
@@ -536,14 +504,11 @@ function saveMessages(){
   s.updatedAt = Date.now();
   maybeAutoTitle(s);
   persistSessions();
-  // First message makes this a real session — pop it into the sidebar right
-  // away (with its auto title) even if the panel is already open.
+  // First message → show session in sidebar immediately
   if(wasEmpty && s.messages.length && window.Sidebar) Sidebar.render();
 }
 
-/* ============================================================
-   TOASTS
-============================================================ */
+// TOASTS
 
 let toastTimer = null;
 function showToast(msg){
@@ -560,10 +525,9 @@ function showToast(msg){
   t.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), 5000);
-  t.onclick = () => t.classList.remove("show");   // manual dismiss
+  t.onclick = () => t.classList.remove("show");
 }
 
-// Expose globally
 migrateLegacyMessages();
 window.State = State;
 window.setModel = setModel;

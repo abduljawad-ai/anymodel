@@ -1,24 +1,12 @@
-/* ============================================================
-   SETTINGS — provider, API keys, system prompt, auto-tools.
-============================================================ */
 (function(){
 
-let prevFocus = null;   // element focused before the sheet opened (restored on close)
-
-/* ============================================================
-   HELPERS
-============================================================ */
+let prevFocus = null;
 
 function esc(str){ return String(str ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\"/g,"&quot;").replace(/'/g,"&#39;"); }
-
-/* ============================================================
-   RENDERING
-============================================================ */
 
 function render(){
   const providerId = State.provider;
 
-  // Provider dropdown
   const sel = $("providerSelect");
   const providers = window.Catalog ? Catalog.providerList() : [];
   sel.innerHTML = providers.map(p =>
@@ -26,7 +14,6 @@ function render(){
   ).join("");
   sel.value = providerId;
 
-  // Base URL row: custom provider, or a catalog provider without a base URL
   const pInfo = window.Catalog ? Catalog.getProvider(providerId) : null;
   const needBase = providerId === "custom" || ((!pInfo || !pInfo.api) && !State.customBases[providerId]);
   $("customUrlRow").style.display = needBase ? "block" : "none";
@@ -41,10 +28,6 @@ function render(){
   $("autoToolSwitch").classList.toggle("on", State.autoTools);
   $("keyStatus").style.display = "none";
 }
-
-/* ============================================================
-   OPEN/CLOSE
-============================================================ */
 
 function open(){
   prevFocus = (document.activeElement && document.activeElement !== document.body)
@@ -64,10 +47,6 @@ function close(){
   if(prevFocus && prevFocus.focus){ try{ prevFocus.focus({ preventScroll:true }); }catch(e){} }
   prevFocus = null;
 }
-
-/* ============================================================
-   API KEY
-============================================================ */
 
 async function saveKey(){
   const providerId = State.provider;
@@ -125,18 +104,12 @@ function showKeyStatus(kind, msg){
   $("keyStatus").textContent = msg;
 }
 
-/* ============================================================
-   EVENTS
-============================================================ */
-
 function initEvents(){
-  // Sheet controls
   const sheetClose = $("settingsSheetClose");
   if(sheetClose){ const s = sheetClose.querySelector("svg"); if(s) s.outerHTML = icon('close_x'); }
   $("settingsSheetClose").addEventListener("click", close);
   $("settingsScrim").addEventListener("click", close);
 
-  // Provider change
   $("providerSelect").addEventListener("change", () => {
     const id = $("providerSelect").value;
     if(!id) return;
@@ -144,7 +117,6 @@ function initEvents(){
     render();
   });
 
-  // Custom base URL (saved as you type)
   let baseTimeout;
   $("customBaseUrl").addEventListener("input", () => {
     clearTimeout(baseTimeout);
@@ -156,7 +128,6 @@ function initEvents(){
     }, 400);
   });
 
-  // Key visibility toggle
   let keyVisible = false;
   $("toggleKeyVisibility").addEventListener("click", () => {
     keyVisible = !keyVisible;
@@ -164,20 +135,16 @@ function initEvents(){
     $("toggleKeyVisibility").textContent = keyVisible ? "Hide" : "Show";
   });
 
-  // Save key
   $("saveKeyBtn").addEventListener("click", saveKey);
 
-  // Clear key
   $("clearKeyBtn").addEventListener("click", clearKey);
 
-  // Auto tools toggle
   $("autoToolSwitch").addEventListener("click", () => {
     State.autoTools = !State.autoTools;
     $("autoToolSwitch").classList.toggle("on", State.autoTools);
     Header.render();
   });
 
-  // System prompt
   let systemPromptTimeout;
   $("systemPromptInput").addEventListener("input", () => {
     clearTimeout(systemPromptTimeout);
@@ -187,7 +154,6 @@ function initEvents(){
     }, 300);
   });
 
-  // TTS voice
   let ttsVoiceTimeout;
   $("ttsVoiceInput").addEventListener("input", () => {
     clearTimeout(ttsVoiceTimeout);
@@ -197,7 +163,7 @@ function initEvents(){
     }, 300);
   });
 
-  // Clear chat — two-step inline confirm (no blocking confirm())
+  // Two-step inline confirm for clear chat (no blocking confirm()).
   let clearChatPending = false;
   let clearChatTimeout = null;
   $("clearChatBtn").addEventListener("click", () => {
@@ -223,11 +189,10 @@ function initEvents(){
     }
   });
 
-  // Sheet close on grip/head click
   $("settingsSheet").querySelector(".sheet-grip").addEventListener("click", close);
   $("settingsSheet").querySelector(".sheet-head").addEventListener("click", close);
 
-  // Sheet close on Escape; keep focus trapped inside while open (WCAG 2.4.3)
+  // WCAG 2.4.3: focus trap while settings sheet is open.
   document.addEventListener("keydown", (e) => {
     if(!$("settingsSheet").classList.contains("show")) return;
     if(e.key === "Escape"){ close(); return; }
@@ -235,7 +200,6 @@ function initEvents(){
   });
 }
 
-// Expose globally
 window.Settings = {
   open,
   close,

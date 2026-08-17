@@ -1,7 +1,3 @@
-/* ============================================================
-   SIDEBAR — collapsible drawer/panel with session history.
-   Mobile: overlay drawer + scrim. Desktop: panel, no scrim.
-============================================================ */
 (function(){
 
 function esc(str){ return String(str ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\"/g,"&quot;").replace(/'/g,"&#39;"); }
@@ -9,16 +5,11 @@ function esc(str){ return String(str ?? "").replace(/&/g,"&amp;").replace(/</g,"
 let renamingId = null;
 let deletingId = null;
 
-/* ============================================================
-   RENDERING
-============================================================ */
-
 function render(){
   const list = $("sidebarList");
   if(!list) return;
-  // Only finished chats appear in history. A fresh new chat (no messages
-  // yet) is not a session until the first message is sent, so it stays out
-  // of the list just like ChatGPT/Gemini/Claude do.
+  // Only finished chats appear — a fresh new chat (no messages yet) stays out
+  // of the list, matching ChatGPT/Gemini/Claude behavior.
   const sorted = [...State.sessions]
     .filter(s => (s.messages || []).length > 0)
     .sort((a,b) => b.updatedAt - a.updatedAt);
@@ -93,10 +84,6 @@ function render(){
   }
 }
 
-/* ============================================================
-   OPEN / CLOSE / TOGGLE
-============================================================ */
-
 function open(){
   const sb = $("sidebar"), sc = $("sidebarScrim");
   if(!sb) return;
@@ -130,10 +117,6 @@ function toggle(){
   sb.classList.contains("show") ? close() : open();
 }
 
-/* ============================================================
-   EVENTS
-============================================================ */
-
 function initEvents(){
   const closeBtn = $("sidebarClose");
   if(closeBtn) closeBtn.addEventListener("click", close);
@@ -146,12 +129,18 @@ function initEvents(){
   const settingsBtn = $("btnSidebarSettings");
   if(settingsBtn) settingsBtn.addEventListener("click", () => { close(); Settings.open(); });
 
+  document.querySelectorAll(".feat-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const name = (btn.dataset.feat || "Feature").trim();
+      showToast(name + " — coming soon");
+    });
+  });
+
   document.addEventListener("keydown", (e) => {
     if(e.key === "Escape" && $("sidebar").classList.contains("show")) close();
   });
 }
 
-// Expose globally
 window.Sidebar = {
   render,
   open,
@@ -160,7 +149,6 @@ window.Sidebar = {
   initEvents
 };
 
-// Hydrate the brand glyph (static HTML placeholder) synchronously.
 (function(){
   const bg = $("brandGlyph");
   if(bg) bg.innerHTML = icon("bot_robot_face");

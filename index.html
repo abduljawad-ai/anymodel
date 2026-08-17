@@ -4,21 +4,22 @@
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com 'wasm-unsafe-eval'; style-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; connect-src https: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="description" content="anymodel — bring your own API key. Chat with models from 180+ providers.">
-    <meta name="theme-color" content="#6366f1">
-    <meta name="referrer" content="no-referrer">
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='10' fill='%23FF7000'/%3E%3Ctext x='50' y='68' font-family='Arial' font-size='52' font-weight='bold' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
+  <meta name="description" content="anymodel — bring your own API key. Chat with models from 180+ providers.">
+  <meta name="theme-color" content="#6366f1">
+  <meta name="referrer" content="no-referrer">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%236366f1'/%3E%3Ctext x='50' y='68' font-family='Arial' font-size='52' font-weight='bold' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
   <title>anymodel — bring your own key</title>
+  <!-- Inline theme init to avoid flash -->
   <script>
   (function() {
     try {
-      const saved = localStorage.getItem('anymodel_theme_v1');
+      const saved = localStorage.getItem('anymodel_theme_v1') || localStorage.getItem('theme');
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       document.documentElement.setAttribute('data-theme', saved || (prefersDark ? 'dark' : 'light'));
     } catch(e) {}
   })();
-</script>
-    <link rel="stylesheet" href="css/styles.css?v=2">
+  </script>
+  <link rel="stylesheet" href="css/styles.css?v=3">
   <link rel="stylesheet" href="css/markdown.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha384-F/bZzf7p3Joyp5psL90p/p89AZJsndkSoGwRpXcZhleCWhd8SnRuoYo4d0yirjJp" crossorigin="anonymous"></script>
@@ -77,8 +78,9 @@
       <div class="chat-scroll" id="chatScroll">
         <div class="chat-inner" id="chatInner">
           <div class="loading-state" id="loadingState" style="display:none;">Loading models…</div>
-        <div class="empty-state" id="emptyState" role="status">
-            <div class="glyph" id="emptyGlyph"></div>
+          <div class="empty-state" id="emptyState" role="status">
+            <!-- Animated robot hero — populated by robot-avatar.js -->
+            <div class="robot-hero-wrap" id="emptyGlyph"></div>
             <h1>What are we building?</h1>
             <p>Bring your own API key. Pick any provider from 180+ — OpenAI, Anthropic, Google, Mistral, Groq, OpenRouter… — add your key, choose a model, and chat. The right tools switch on automatically for what your model supports.</p>
             <div class="suggestion-grid">
@@ -95,7 +97,7 @@
                 <span>Code models</span>
               </div>
               <div class="suggestion" data-fill="__AUDIO__">
-                <b><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 19v4"/><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M16.5 7.5a4.5 4.5 0 0 1 0 9"/><path d="M19.5 4.5a7.5 7.5 0 0 1 0 15"/></svg> Transcribe audio</b>
+                <b><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 19v4"/><rect x="9" y="2" width="6" height="13" rx="3"/></svg> Transcribe audio</b>
                 <span>Audio models</span>
               </div>
             </div>
@@ -122,7 +124,12 @@
               </div>
             </div>
             <textarea id="promptInput" rows="1" placeholder="Message"></textarea>
-<button class="model-pill" id="modelPill" type="button" aria-haspopup="listbox" aria-expanded="false" title="Choose a model">
+            <!-- thinkingPills: referenced by composer.js — must exist in DOM -->
+            <div class="thinking-pills" id="thinkingPills" aria-label="Thinking effort" role="group" style="display:none;">
+              <button class="thinking-pill active" data-level="instant" aria-pressed="true">Fast</button>
+              <button class="thinking-pill" data-level="high" aria-pressed="false">Deep</button>
+            </div>
+            <button class="model-pill" id="modelPill" type="button" aria-haspopup="listbox" aria-expanded="false" title="Choose a model">
               <span class="name" id="modelPillName">…</span>
               <svg class="chev" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M7 10l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
             </button>
@@ -148,7 +155,7 @@
           <div class="rec-time" id="recTime">00:00</div>
           <div class="rec-actions">
             <button class="cancel" id="cancelRecording">Cancel</button>
-            <button class="stop" id="stopRecording">Stop & Send</button>
+            <button class="stop" id="stopRecording">Stop &amp; Send</button>
           </div>
         </div>
       </div>
@@ -241,12 +248,13 @@
     </div>
   </div>
 
-  <!-- SCRIPTS -->
+  <!-- SCRIPTS (order matters — each file depends on the previous) -->
   <script src="js/icons.js"></script>
   <script src="js/config.js"></script>
   <script src="js/catalog.js"></script>
   <script src="js/state.js"></script>
   <script src="js/markdown.js"></script>
+  <script src="js/robot-avatar.js"></script>
   <script src="js/api.js"></script>
   <script src="js/components/settings.js"></script>
   <script src="js/components/model-picker.js"></script>

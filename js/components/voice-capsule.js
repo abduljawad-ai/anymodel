@@ -1,18 +1,11 @@
-/* ============================================================
-   VOICE CAPSULE — WhatsApp-style voice message pill with
-   waveform bars, play/pause, and duration. Shared by:
-   - user voice messages (STT path — chat.js render)
-   - assistant TTS responses (api.js callTtsStreaming)
-   Only one capsule plays at a time; bars animate while playing.
-============================================================ */
 (function(){
 
   const BAR_COUNT = 28;
   const PLAY_ICON = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
   const PAUSE_ICON = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
 
-  let current = null;          // { audio, cap, playBtn } — only one plays at once
-  let sharedCtx = null;        // one AudioContext reused for all decoding
+  let current = null;
+  let sharedCtx = null;
 
   function ctx(){
     if(!sharedCtx){
@@ -22,8 +15,7 @@
     return sharedCtx;
   }
 
-  /* Deterministic pseudo-random placeholder bars (shown while the real
-     waveform decodes, and as fallback when decoding fails). */
+  // Deterministic placeholder bars shown while the real waveform decodes.
   function placeholderBars(){
     const bars = [];
     let seed = 7;
@@ -41,8 +33,6 @@
     return m + ":" + String(s).padStart(2, "0");
   }
 
-  /* Turn a data: URL into bytes (no network — CSP-safe). Returns null
-     for anything that is not a base64 data URL. */
   function dataUrlToBytes(src){
     if(typeof src !== "string" || src.indexOf("data:") !== 0) return null;
     const comma = src.indexOf(",");
@@ -57,10 +47,8 @@
     }catch(e){ return null; }
   }
 
-  /* Decode audio into [0..1] amplitude bars. `raw` (Blob/ArrayBuffer/
-     Uint8Array) is preferred — fetching blob:/data: URLs is blocked by
-     the page CSP, so those must be passed as bytes when available.
-     Falls back to fetch() only for http(s) sources. */
+  // Decode audio into [0..1] amplitude bars. Uses raw bytes when available
+  // (CSP-safe for blob:/data: URLs); falls back to fetch() for http(s).
   async function decodeWaveform(src, raw, count){
     const ac = ctx();
     try{
@@ -70,7 +58,7 @@
           const res = await fetch(src);
           buf = await res.arrayBuffer();
         } else {
-          buf = dataUrlToBytes(src);   // data: → bytes without network
+          buf = dataUrlToBytes(src);
         }
       }
       if(!buf) return null;
@@ -107,11 +95,8 @@
     c.playBtn.setAttribute("aria-label", "Play voice message");
   }
 
-  /* Build a capsule into `container`.
-     Options: { src, raw, durationMs, text }
-     - src: playable URL (blob:/data:/http)
-     - raw: Blob/ArrayBuffer/Uint8Array for waveform decoding (CSP-safe
-       when src is blob:, where fetch is blocked) */
+  // Build a capsule into `container`.
+  // Options: { src, raw, durationMs, text }
   function build(container, opts){
     if (typeof document === 'undefined') return;
     const src = opts && opts.src;
@@ -194,6 +179,5 @@
     return cap;
   }
 
-  // Expose globally
   window.VoiceCapsule = { build, stopCurrent };
 })();

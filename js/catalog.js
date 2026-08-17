@@ -1,13 +1,6 @@
-/* ============================================================
-   CATALOG — bundled model catalog (models.dev, trimmed).
-   Providers, models, and capabilities come from models-catalog.json.
-   Extra providers (custom, Ollama) and known extra model ids are
-   appended here so every provider works out of the box.
-============================================================ */
-
 const CATALOG_URL = "models-catalog.json";
 const CATALOG_LS_KEY = "anymodel_catalog_v1";
-const CATALOG_TTL_MS = 24 * 60 * 60 * 1000;   // 24h
+const CATALOG_TTL_MS = 24 * 60 * 60 * 1000;
 
 let catalogData = null;
 let catalogPromise = null;
@@ -16,9 +9,7 @@ async function ensureCatalogLoaded(){
   if(catalogData) return catalogData;
   if(catalogPromise) return catalogPromise;
   catalogPromise = (async () => {
-    // Serve from a 24h localStorage cache when fresh — avoids re-downloading
-    // the ~2MB catalog on every load. The cache is optional: any failure
-    // falls through to the network fetch.
+    // 24h localStorage cache avoids re-downloading the ~2MB catalog on every load
     try{
       const cached = JSON.parse(localStorage.getItem(CATALOG_LS_KEY) || "null");
       if(cached && cached.ts && Date.now() - cached.ts < CATALOG_TTL_MS && cached.data){
@@ -38,14 +29,12 @@ async function ensureCatalogLoaded(){
   return catalogPromise;
 }
 
-/* Providers not listed in models.dev but supported anyway. */
 const EXTRA_PROVIDERS = {
   ollama: { id:"ollama", name:"Ollama (local)", api:"http://localhost:11434/v1", format:"openai", models:{} },
   custom: { id:"custom", name:"Custom provider", api:"", format:"openai", models:{} }
 };
 
-/* Extra model ids for providers whose catalog entry omits them.
-   "" for moderation on mistral means "use the currently selected model". */
+// "" for moderation on mistral means "use the currently selected model"
 const KNOWN_EXTRAS = {
   openai: {
     transcription: "whisper-1",
@@ -92,7 +81,6 @@ function getProvider(id){
   return allProviders()[id] || null;
 }
 
-/* Normalize a catalog model into the app's capability shape. */
 function normalizeModel(mid, m, providerId){
   const input = m.input_modalities || [];
   const output = m.output_modalities || [];
@@ -116,17 +104,13 @@ function listModels(providerId){
   return Object.entries(p.models).map(([mid, m]) => normalizeModel(mid, m, providerId));
 }
 
-/* Pick a model for a special endpoint kind, or null if the provider
-   lacks one. Only OpenAI-compatible providers expose the extra
-   endpoints (transcription/TTS/OCR/embeddings/moderation); the
-   chat pick works for any provider. */
+// Pick a model for a special endpoint kind; chat pick works for any provider.
 function pickModel(providerId, kind){
   const p = getProvider(providerId);
   if(!p) return null;
   const entries = Object.entries(p.models || []);
   if(kind === "chat"){
-    // Prefer a text-output chat model; skip image/audio/embed/moderation/ocr
-    // model ids so we never land on gpt-image-2 or whisper as the default.
+    // Skip image/audio/embed/moderation/ocr model ids so we never land on gpt-image-2 or whisper as default
     const skip = /dall-e|image|whisper|tts|speech|voice|audio-speech|embed|moderat|guard|ocr|sdxl|flux|stable-diffusion/i;
     let best = null;
     for(const [mid, mm] of entries){
@@ -136,7 +120,6 @@ function pickModel(providerId, kind){
       if(!best || (mm.tool_call && !best[1].tool_call)) best = [mid, mm];
     }
     if(best) return best[0];
-    // Fallback: first non-special model even without text output declared.
     const any = entries.find(([mid]) => !skip.test(mid));
     return any ? any[0] : (entries[0] ? entries[0][0] : null);
   }
@@ -164,7 +147,6 @@ function pickModel(providerId, kind){
   return null;
 }
 
-// Expose globally
 window.Catalog = {
   ensureLoaded: ensureCatalogLoaded,
   providerList,

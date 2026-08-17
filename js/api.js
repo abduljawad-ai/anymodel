@@ -1,19 +1,5 @@
-/* ============================================================
-   API — provider adapters and streaming handlers.
-   Routing is by provider format:
-     - openai:    POST /chat/completions  (OpenAI-compatible)
-     - anthropic: POST /messages          (x-api-key)
-     - google:    POST /models/{id}:streamGenerateContent?alt=sse
-   Extras (transcription/tts/ocr/embeddings/moderation) are
-   OpenAI-compatible and gated by the catalog.
-============================================================ */
-
-/* ============================================================
-   HELPERS
-============================================================ */
-
-/* Active-request cancellation. A new chat request supersedes any
-   in-flight one; the UI's stop button aborts it explicitly. */
+/* Active-request cancellation. A new chat supersedes any in-flight one;
+   the UI's stop button aborts it explicitly. */
 let currentAbortController = null;
 
 function abortCurrentRequest(){
@@ -24,7 +10,7 @@ function abortCurrentRequest(){
 }
 
 function beginRequest(){
-  abortCurrentRequest();   // never run two streams at once
+  abortCurrentRequest();
   const ctrl = new AbortController();
   currentAbortController = ctrl;
   return ctrl;
@@ -55,10 +41,8 @@ function errorMessage(status, body){
   if(status === 401) return "Invalid API key. Check it in Settings.";
   if(status === 429) return "Rate limit hit — wait a moment and try again.";
   if(apiMsg && /requires terms|terms acceptance|accept the terms|terms of use/i.test(apiMsg)){
-    // Providers like Groq gate certain models (e.g. Orpheus) behind a
-    // one-time per-account terms acceptance. It's enforced server-side —
-    // the client can't bypass it, so point the user at the accept page
-    // instead of showing a confusing raw error on every restart.
+    // Providers like Groq gate certain models behind a one-time per-account
+    // terms acceptance — enforced server-side, so point the user at the page.
     const url = (apiMsg.match(/https?:\/\/\S+/i) || [])[0];
     const name = (apiMsg.match(/`([^`]+)`/) || [])[1] || body?.model || "this model";
     const link = (url || "https://console.groq.com/playground").replace(/[.,;)]+$/, "");
@@ -103,35 +87,22 @@ function guessAudioFormat(name){
   return allowedFormats.has(ext) ? ext : "wav";
 }
 
-/* ============================================================
-   TOKEN MANAGEMENT — budget-based context windowing.
-   Estimates use the provider-documented "1 token ≈ 4 chars"
-   rule plus a per-message overhead (OpenAI). Media token
-   estimates are computed once at attach time from the
-   downscaled dimensions and stored on the message, so we
-   never re-decode images here. When a conversation fits the
-   model's context budget nothing changes (identical payload);
-   only when it grows past the budget do we drop the oldest
-   messages, and only a single oversized message is truncated
-   (head + tail kept). See docs/token-management-research.md.
-============================================================ */
+// Token estimation constants — "1 token ≈ 4 chars" plus per-message overhead.
+const TOKEN_CHARS = 4;
+const MSG_OVERHEAD_TOKENS = 4;
+const SAFETY_MARGIN_TOKENS = 2000;
+const MAX_SINGLE_MSG_FRACTION = 0.8;
 
-const TOKEN_CHARS = 4;                // ~1 token per 4 chars
-const MSG_OVERHEAD_TOKENS = 4;        // OpenAI per-message overhead
-const SAFETY_MARGIN_TOKENS = 2000;    // headroom beyond max_tokens
-const MAX_SINGLE_MSG_FRACTION = 0.8;  // single-message cap, as fraction of budget
-
-const REQUEST_TIMEOUT_MS = 120000;    // chat streams
-const MEDIA_TIMEOUT_MS = 300000;      // transcription/ocr/tts/embeddings/moderation
-const MODELS_TIMEOUT_MS = 30000;      // /models listings
+const REQUEST_TIMEOUT_MS = 120000;
+const MEDIA_TIMEOUT_MS = 300000;
+const MODELS_TIMEOUT_MS = 30000;
 
 function estimateTokens(str){
   return Math.ceil(String(str || "").length / TOKEN_CHARS);
 }
 
 function estimateImageTokens(width, height){
-  // Anthropic: ~w*h/750. OpenAI (detail=auto, already ≤1024px): 85 + 170*tiles.
-  // Google has no exact public formula; the OpenAI tile model is the closest fit.
+  // Anthropic: ~w*h/750. OpenAI (detail=auto): 85 + 170*tiles. Google: closest fit.
   if(window.Catalog && Catalog.getProvider && Catalog.getProvider(State.provider)){
     const p = Catalog.getProvider(State.provider);
     if(p && p.format === "anthropic"){
@@ -144,26 +115,22 @@ function estimateImageTokens(width, height){
 
 function estimateMessageTokens(mm){
   let t = MSG_OVERHEAD_TOKENS + estimateTokens(mm.content);
-  if(mm.tokenEstimate) t += mm.tokenEstimate;   // media tokens recorded at attach time
+  if(mm.tokenEstimate) t += mm.tokenEstimate;
   return t;
 }
 
-/* Context window from the catalog/runtime model list, if known. */
 function getContextWindow(m){
   const ctx = m && m.context;
   return (typeof ctx === "number" && ctx > 0) ? ctx : null;
 }
 
-/* Reserve output headroom. Anthropic requires max_tokens; the
-   derived value is capped at 4096 and floored at 1024. */
 function getMaxOutputTokens(m){
   const ctx = getContextWindow(m);
   if(!ctx) return null;
   return Math.min(4096, Math.max(1024, Math.round(ctx * 0.2)));
 }
 
-/* Last-resort truncation of a single oversized message:
-   keep the head (context) and the tail (the actual ask). */
+// Keep head (context) + tail (the actual ask) when a single message exceeds the budget.
 function truncateText(text, maxChars){
   if(text.length <= maxChars) return text;
   const marker = "\n…[truncated to fit the context window]…\n";
@@ -172,12 +139,8 @@ function truncateText(text, maxChars){
   return text.slice(0, headLen) + marker + text.slice(text.length - tailLen);
 }
 
-/* Select the history messages to send (oldest → newest) within the
-   model's input budget. Walks newest → oldest so the freshest turns
-   survive; the newest history message and the current turn are never
-   dropped. With no context info we keep today's behavior (send all).
-   Returns { messages, singleCapChars } where singleCapChars is the
-   per-message size cap the caller must apply to the current turn. */
+// Walk newest→oldest so freshest turns survive; newest history + current turn never dropped.
+// Returns { messages, singleCapChars }.
 function selectContext(m, currentText, currentMediaTokens){
   const ctx = getContextWindow(m);
   const history = State.messages.slice(0, -1);
@@ -190,7 +153,6 @@ function selectContext(m, currentText, currentMediaTokens){
   const budget = ctx - maxOutput - SAFETY_MARGIN_TOKENS;
   const singleCapChars = Math.max(1024, Math.floor(budget * MAX_SINGLE_MSG_FRACTION * TOKEN_CHARS));
 
-  // Fixed cost: system prompt + current user message (+ its media).
   let used = estimateTokens(State.systemPrompt)
            + estimateTokens(currentText)
            + (currentMediaTokens || 0)
@@ -202,7 +164,7 @@ function selectContext(m, currentText, currentMediaTokens){
     let content = String(mm.content || "");
     if(content.length > singleCapChars) content = truncateText(content, singleCapChars);
     const est = MSG_OVERHEAD_TOKENS + estimateTokens(content) + (mm.tokenEstimate || 0);
-    if(selected.length > 0 && used + est > budget) break;   // drop this and everything older
+    if(selected.length > 0 && used + est > budget) break;
     selected.unshift({ role: mm.role, content });
     used += est;
   }
@@ -210,9 +172,7 @@ function selectContext(m, currentText, currentMediaTokens){
   return { messages: selected, singleCapChars };
 }
 
-/* fetch with an abort-triggered timeout. On timeout the underlying
-   request is aborted and a plain Error (NOT AbortError) is thrown so
-   the caller surfaces a real error instead of treating it as a stop. */
+// Timeout throws a plain Error (NOT AbortError) so callers surface a real message.
 function fetchWithTimeout(url, opts, timeoutMs){
   const ctrl = opts && opts.ctrl;
   return new Promise((resolve, reject) => {
@@ -227,15 +187,11 @@ function fetchWithTimeout(url, opts, timeoutMs){
   });
 }
 
-/* ============================================================
-   MODELS
-============================================================ */
-
-let modelsFetchPromise = null;   // memoize in-flight fetch so concurrent callers await the same request
+let modelsFetchPromise = null;
 
 async function fetchModels(){
   if(State.modelsLoaded) return State.models;
-  const provider = State.provider;   // capture; bail if provider changes mid-flight
+  const provider = State.provider;
   if(modelsFetchPromise) return modelsFetchPromise;
 
   modelsFetchPromise = (async () => {
@@ -266,12 +222,8 @@ async function fetchModels(){
       const smart = (window.Catalog && Catalog.pickModel) ? Catalog.pickModel(State.provider, "chat") : null;
       setModel(smart || State.models[0].id);
     } else if(State.model && State.models.length && !State.models.some(m => m.id === State.model)){
-      // Saved model doesn't exist on this provider — fall back to the first one
-      // (e.g. after switching providers with a model list that changed).
       setModel(State.models[0].id);
     }
-    // Always re-render so the composer pill / header never show a stale model
-    // after a provider switch.
     if(window.Header) Header.render();
     if(window.Composer) Composer.render();
     return State.models;
@@ -280,11 +232,11 @@ async function fetchModels(){
   try{
     return await modelsFetchPromise;
   } finally {
-    modelsFetchPromise = null;   // clear memo so the next provider switch fetches fresh
+    modelsFetchPromise = null;
   }
 }
 
-/* Verify a provider connection from Settings (key + base URL). */
+// Verify a provider connection from Settings (key + base URL).
 async function testConnection(providerId, key){
   const p = (window.Catalog && Catalog.getProvider(providerId)) || null;
   const base = State.customBases[providerId] || (p ? p.api : "") || (providerId === "custom" ? (State.customBases.custom || "") : "");
@@ -299,10 +251,6 @@ async function testConnection(providerId, key){
     return res.ok || res.status === 429 || res.status === 404;
   }catch(e){ return false; }
 }
-
-/* ============================================================
-   CHAT — OpenAI-compatible provider
-============================================================ */
 
 async function streamOpenAI(turn, body){
   const ctrl = beginRequest();
@@ -416,15 +364,13 @@ async function chatOpenAI(turn, text, image, audio, m){
   return { text: first.fullText || "(no content)" };
 }
 
-/* ============================================================
-   CHAT — Anthropic
-============================================================ */
-
 async function streamAnthropic(turn, body){
   const ctrl = beginRequest();
+  const headers = { "Content-Type": "application/json", "x-api-key": State.apiKey, "anthropic-version": "2023-06-01" };
+  if(body._extendedThinking) headers["anthropic-beta"] = "interleaved-thinking-2025-05-14";
   const res = await fetchWithTimeout(`${getBaseUrl()}/messages`, {
     method:"POST",
-    headers: { "Content-Type": "application/json", "x-api-key": State.apiKey, "anthropic-version": "2023-06-01" },
+    headers,
     body: JSON.stringify({ ...body, stream:true }),
     signal: ctrl.signal,
     ctrl
@@ -438,7 +384,7 @@ async function streamAnthropic(turn, body){
   let buf = "";
   let fullText = "";
   let toolCalls = [];
-  let currentBlock = null;   // { type, id, name, args }
+  let currentBlock = null;
   let firstTokenSeen = false;
 
   function flushBlock(){
@@ -470,6 +416,12 @@ async function streamAnthropic(turn, body){
           if(block.type === "tool_use"){
             currentBlock = { type:"tool_use", id: block.id || "", name: block.name || "", args: "" };
             Chat.setPhase(turn, "tool", "Using " + block.name + "…");
+          } else if(block.type === "thinking"){
+            currentBlock = { type:"thinking" };
+            // Ensure thinking popup is visible
+            if(turn.thinkingPopup && turn.thinkingPopup.style.display === "none"){
+              Chat.setPhase(turn, "thinking", "Thinking…");
+            }
           } else {
             currentBlock = { type:"text" };
           }
@@ -481,6 +433,11 @@ async function streamAnthropic(turn, body){
             turn.bubble.innerHTML = Markdown.renderMarkdownish(fullText) + '<span class="type-cursor"></span>';
             Markdown.scheduleHighlight(turn.bubble);
             Chat.scrollIfSticky();
+          } else if(delta.type === "thinking_delta" && delta.thinking){
+            // Stream thinking tokens into the popup line by line
+            if(Chat.appendThinkingLine){
+              delta.thinking.split("\n").forEach(line => Chat.appendThinkingLine(turn, line));
+            }
           } else if(delta.type === "input_json_delta" && currentBlock && currentBlock.type === "tool_use" && delta.partial_json){
             currentBlock.args += delta.partial_json;
           }
@@ -521,19 +478,14 @@ async function chatAnthropic(turn, text, image, audio, m){
 
   const body = { model: m.id, max_tokens: getMaxOutputTokens(m) || 4096, messages };
   if(State.systemPrompt){
-    // Anthropic prompt caching (ephemeral):
-    //  - explicit breakpoint on the system prompt keeps it cached even when
-    //    the user switches conversations (system sits at the front of every
-    //    request's prefix);
-    //  - the top-level automatic breakpoint follows the growing conversation,
-    //    moving forward each turn (its 20-block lookback finds the previous
-    //    write, so only the new tail is billed).
-    // Together they use 2 of the 4 allowed breakpoints. Undersized prompts
-    // are silently skipped by the API (no error, no cache), so no threshold
-    // logic is needed here. See docs/token-management-research.md D5.
     body.system = [{ type: "text", text: State.systemPrompt, cache_control: { type: "ephemeral" } }];
   }
   body.cache_control = { type: "ephemeral" };
+  // Enable extended thinking for reasoning-capable models
+  if(m.capabilities?.reasoning){
+    body.thinking = { type: "enabled", budget_tokens: 8000 };
+    body._extendedThinking = true;
+  }
   if(m.capabilities?.function_calling && State.autoTools){
     body.tools = Config.DEMO_TOOLS.map(t => ({ name: t.function.name, description: t.function.description, input_schema: t.function.parameters }));
   }
@@ -563,10 +515,6 @@ async function chatAnthropic(turn, text, image, audio, m){
 
   return { text: first.fullText || "(no content)" };
 }
-
-/* ============================================================
-   CHAT — Google (Gemini)
-============================================================ */
 
 function parseGoogleResponse(data){
   let fullText = "";
@@ -711,10 +659,6 @@ async function callChatStreaming(turn, text, image, audio, m){
   return chatOpenAI(turn, text, image, audio, m);
 }
 
-/* ============================================================
-   OTHER ENDPOINTS — OpenAI-compatible (provider-gated)
-============================================================ */
-
 async function callTranscriptionStreaming(turn, dataUrl, modelId){
   const ctrl = beginRequest();
   Chat.setPhase(turn, "audio", "Transcribing audio…");
@@ -752,8 +696,7 @@ async function callOcrStreaming(turn, dataUrl, modelId){
   return text;
 }
 
-/* Response format accepted by a provider's TTS endpoint. OpenAI-style
-   providers default to mp3, but some (e.g. Groq) only accept wav. */
+// TTS response format: Groq only accepts wav, others default to mp3.
 const TTS_RESPONSE_FORMATS = { groq: "wav" };
 
 function ttsResponseFormat(){
@@ -765,8 +708,6 @@ async function callTtsStreaming(turn, text, modelId){
   Chat.setPhase(turn, "connect", "Generating speech…");
   const fmt = ttsResponseFormat();
   const body = { model: modelId, input: text, response_format: fmt };
-  // Some TTS models (e.g. Orpheus on Groq) require a voice — it's
-  // user-configurable in Settings and sent only when set.
   const voice = (State.ttsVoice || "").trim();
   if(voice) body.voice = voice;
   const res = await fetchWithTimeout(`${getBaseUrl()}/audio/speech`, {
@@ -788,10 +729,9 @@ async function callTtsStreaming(turn, text, modelId){
     if(!audioB64) throw new Error("No audio returned.");
     src = "data:audio/" + fmt + ";base64," + audioB64;
   } else {
-    // OpenAI/Groq standard: raw audio bytes
     const blob = await res.blob();
     src = URL.createObjectURL(blob);
-    raw = blob;   // waveform decoding needs bytes — fetch(blob:…) is CSP-blocked
+    raw = blob;
   }
 
   turn.bubble.innerHTML = "";
@@ -848,7 +788,6 @@ async function callModerationStreaming(turn, text, modelId){
   return mdText;
 }
 
-// Expose globally
 window.Api = {
   fetchModels,
   testConnection,

@@ -1,21 +1,10 @@
 (function(){
-  /* ============================================================
-     VOICE RECORDER — in-browser voice recording for audio models.
-  ============================================================ */
-
-  /* ============================================================
-     STATE
-  ============================================================ */
 
   let mediaRecorder = null;
   let audioChunks = [];
   let startTime = null;
   let timerInterval = null;
   let recordedMs = 0;
-
-  /* ============================================================
-     RENDERING
-  ============================================================ */
 
   function renderTimer(){
     if(!startTime) return;
@@ -24,10 +13,6 @@
     const seconds = (elapsed % 60).toString().padStart(2, "0");
     $("recTime").textContent = `${minutes}:${seconds}`;
   }
-
-  /* ============================================================
-     RECORDING
-  ============================================================ */
 
   async function startRecording(){
     try{
@@ -59,7 +44,6 @@
     } catch(err){
       console.error("Error accessing microphone:", err);
       $("voiceOverlay").style.display = "flex";
-      // Clear any leftover error chips from previous attempts first.
       $("voiceOverlay").querySelectorAll(".voice-error").forEach(el => el.remove());
       const errorElement = document.createElement("div");
       errorElement.className = "voice-error";
@@ -83,10 +67,6 @@
     $("voiceOverlay").style.display = "none";
   }
 
-  /* ============================================================
-     TOGGLE
-  ============================================================ */
-
   function toggle(){
     if(mediaRecorder && mediaRecorder.state === "recording"){
       stopRecording();
@@ -94,10 +74,6 @@
       startRecording();
     }
   }
-
-  /* ============================================================
-     EVENTS
-  ============================================================ */
 
   function initEvents(){
     $("cancelRecording").addEventListener("click", () => {
@@ -108,7 +84,6 @@
     $("stopRecording").addEventListener("click", stopRecording);
   }
 
-  // Expose globally
   window.VoiceRecorder = {
     toggle,
     initEvents

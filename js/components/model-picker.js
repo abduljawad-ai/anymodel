@@ -1,13 +1,4 @@
-/* ============================================================
-   MODEL PICKER — Gemini-style dropdown anchored to the composer
-   model pill. Provider chip strip + type-to-filter model list;
-   Arrow keys + Enter, Escape to close, click-away closes.
-============================================================ */
 (function(){
-
-/* ============================================================
-   HELPERS
-============================================================ */
 
 function esc(str){ return String(str ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\"/g,"&quot;").replace(/'/g,"&#39;"); }
 
@@ -16,24 +7,14 @@ function providerName(){
   return (p && p.name) || State.provider;
 }
 
-/* ============================================================
-   MODULE STATE
-============================================================ */
-
 let filterValue = "";
 let highlightedIndex = -1;
-let visibleRows = [];   // flat list of { id, providerId } for keyboard navigation
-let allModelsCache = null; // cached cross-provider model list
+let visibleRows = [];
+let allModelsCache = null;
 let anchorEl = null;
 let isOpen = false;
 
-/* ============================================================
-   RENDERING
-============================================================ */
-
-/* Capability → search keywords. Every active capability contributes its
-   synonyms to the search space, so queries like "tts", "stt", "vision",
-   "tools", "search", "reasoning" find models by type. */
+// Capability → search keywords for type-to-filter (e.g. "tts" finds TTS models).
 const CAP_KEYWORDS = {
   tts:                   ["tts", "text-to-speech", "speech", "voice"],
   audio_transcription:   ["stt", "transcri", "asr", "speech-to-text", "transcription"],
@@ -51,7 +32,6 @@ const CAP_KEYWORDS = {
   parallel_tool_calling: ["ptc", "parallel tool"]
 };
 
-/* Collect the search keywords a model matches via its capabilities. */
 function modelKeywords(m){
   const caps = m.capabilities || {};
   const kws = new Set();
@@ -67,10 +47,8 @@ function modelKeywords(m){
   return kws;
 }
 
-/* Token-based match: every whitespace-separated token in the query must
-   hit the model id/label/description, its provider name/id, or one of its
-   capability keywords. So "groq tts" lists TTS models from Groq and
-   "google reasoning" lists reasoning models from Google. */
+// Token-based match: every whitespace-separated token must hit the model
+// id/label/provider or its capability keywords.
 function modelMatches(m){
   const q = filterValue.trim().toLowerCase();
   if(!q) return true;
@@ -89,7 +67,6 @@ function modelMatches(m){
   });
 }
 
-/* Build a flat list of all models across all providers (cached). */
 async function getAllModels(){
   if(allModelsCache) return allModelsCache;
   await Catalog.ensureLoaded();
@@ -127,7 +104,6 @@ function providerChipsHtml(){
 function wireProviderChips(){
   $("modelPopProviders").querySelectorAll(".model-provider-chip").forEach(chip => {
     chip.addEventListener("click", () => setProvider(chip.dataset.provider));
-    // setProvider() calls ModelPicker.refresh() via its own hook (state.js)
   });
 }
 
@@ -145,7 +121,7 @@ async function buildModelSheet(){
 
   let html = "";
   visibleRows = [];
-  
+
   if(isCrossProvider){
     html += `<div class="picker-group-label">All providers (${modelsToShow.length} results)</div>`;
   }else{
@@ -154,7 +130,6 @@ async function buildModelSheet(){
 
   modelsToShow.forEach(m => {
     const idx = visibleRows.length;
-    // normalizeModel() sets `provider`; getAllModels() spreads providerId on top.
     const pid = m.providerId || m.provider || State.provider;
     visibleRows.push({ id: m.id, providerId: pid });
     const cls = ["picker-row"];
@@ -217,50 +192,41 @@ function renderAll(){
 function position(){
   const pop = $("modelPop"), pill = anchorEl;
   if(!pop || !pill) return;
-  // Work in visual-viewport coordinates so the panel never hides behind
-  // the on-screen keyboard (iOS keeps the layout viewport untouched and
-  // pans the visual viewport instead; Android shrinks it).
+  // Use visual-viewport coords so the panel never hides behind the
+  // on-screen keyboard (iOS pans the visual viewport; Android shrinks it).
   const vv = window.visualViewport;
   const vw = vv ? vv.width : window.innerWidth;
   const vh = vv ? vv.height : window.innerHeight;
   const vTop = vv ? vv.offsetTop : 0;
   const vLeft = vv ? vv.offsetLeft : 0;
   const r = pill.getBoundingClientRect();
-  const pTop = r.top - vTop;       // pill top within the visible area
+  const pTop = r.top - vTop;
   const pBottom = r.bottom - vTop;
   const pLeft = r.left - vLeft;
   const w = pop.offsetWidth || Math.min(360, vw - 16);
   const left = Math.max(8, Math.min(pLeft, vw - w - 8));
   pop.style.left = left + "px";
 
-  const above = pTop - 8;                       // visible room above the pill
-  const below = vh - pBottom - 8;               // visible room below the pill
-  const fitsAbove = above >= 180 && pTop <= vh; // pill itself must be on-screen
+  const above = pTop - 8;
+  const below = vh - pBottom - 8;
+  const fitsAbove = above >= 180 && pTop <= vh;
   const fitsBelow = below >= 180 && pBottom >= 0;
   let maxH;
   if(fitsAbove){
-    // Panel above pill: its bottom edge sits 8px above the pill's top.
     pop.style.top = "auto";
     pop.style.bottom = (window.innerHeight - (pTop - 8 + vTop)) + "px";
     maxH = Math.max(180, Math.min(420, above));
   } else if(fitsBelow){
-    // Panel below pill: its top edge sits 8px under the pill's bottom.
     pop.style.bottom = "auto";
     pop.style.top = (pBottom + 8 + vTop) + "px";
     maxH = Math.max(180, Math.min(420, below));
   } else {
-    // Not enough room either side (keyboard open on a small screen):
-    // pin the panel to the top of the visible area so it stays reachable.
     pop.style.bottom = "auto";
     pop.style.top = (vTop + 8) + "px";
     maxH = Math.max(120, vh - 16);
   }
   pop.style.maxHeight = maxH + "px";
 }
-
-/* ============================================================
-   OPEN/CLOSE/TOGGLE/REFRESH
-=========================================================== */
 
 function open(anchor){
   if (typeof document === 'undefined') return;
@@ -278,9 +244,7 @@ function open(anchor){
   const f = $("modelFilter");
   if(f){
     f.value = "";
-    // Don't auto-focus on touch devices: focusing the filter pops the
-    // on-screen keyboard over the panel and blocks the model list. The
-    // user taps the search box themselves when they want to filter.
+    // Don't auto-focus on touch devices — it pops the keyboard over the panel.
     const coarse = window.matchMedia && window.matchMedia("(any-pointer: coarse)").matches;
     if(!coarse) f.focus({ preventScroll:true });
   }
@@ -301,7 +265,6 @@ function toggle(anchor){
   else open(anchor);
 }
 
-/* Re-render the open panel after a provider change (setProvider hook). */
 function refresh(){
   if (typeof document === 'undefined' || !isOpen) return;
   $("modelListBody").innerHTML = '<div class="picker-empty">Loading models…</div>';
@@ -314,10 +277,6 @@ function refresh(){
         '<div class="picker-empty">Couldn\'t load models: ' + esc(err && err.message ? err.message : "network error") + '</div>';
     });
 }
-
-/* ============================================================
-   EVENTS
-=========================================================== */
 
 function handleKeydown(e){
   if (typeof document === 'undefined' || !isOpen) return;
@@ -365,13 +324,12 @@ function initEvents(){
     if(!isOpen) return;
     const pop = $("modelPop"), p = $("modelPill");
     if(pop && pop.contains(e.target)) return;
-    if(p && p.contains(e.target)) return;   // pill click handled by its own listener
+    if(p && p.contains(e.target)) return;
     close();
   });
 
-  // Reposition instead of closing on viewport changes: opening the
-  // on-screen keyboard resizes the layout/visual viewport, and closing
-  // there would yank the picker away mid-selection on mobile.
+  // Reposition on viewport changes instead of closing — the on-screen keyboard
+  // resizing the viewport would yank the picker away mid-selection on mobile.
   let viewportTimer = null;
   const repositionSoon = () => {
     clearTimeout(viewportTimer);
@@ -385,11 +343,9 @@ function initEvents(){
   window.addEventListener("scroll", (e) => {
     if(!isOpen) return;
     const pop = $("modelPop");
-    // Some browsers can emit scroll with a non-Node target (e.g. window);
-    // guard so `contains()` never throws.
-    if(pop && e.target instanceof Node && pop.contains(e.target)) return;   // scrolling the panel's own list
-    // Keyboard-induced page scroll (iOS pans the visual viewport while
-    // typing in the filter): keep the panel open and just re-anchor it.
+    if(pop && e.target instanceof Node && pop.contains(e.target)) return;
+    // Keyboard-induced page scroll (iOS visual viewport pan while typing
+    // in the filter): keep the panel open and re-anchor it.
     if(window.visualViewport &&
        window.visualViewport.height < window.innerHeight - 40){
       repositionSoon();
@@ -399,7 +355,6 @@ function initEvents(){
   }, true);
 }
 
-// Expose globally
 window.ModelPicker = {
   open,
   close,

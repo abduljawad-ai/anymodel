@@ -1,0 +1,30 @@
+{
+  "files": [],
+  "completed": [
+    "./fasttext.js",
+    "./train_model.py",
+    "./js/intent-router.js",
+    "./js/markdown.js",
+    "./js/icons.js",
+    "./js/config.js",
+    "./js/app.js",
+    "./js/catalog.js",
+    "./js/components/voice-recorder.js",
+    "./js/components/voice-capsule.js",
+    "./js/components/settings.js",
+    "./js/components/chat.js",
+    "./js/components/header.js",
+    "./js/components/model-picker.js",
+    "./js/components/sidebar.js",
+    "./js/components/composer.js",
+    "./js/state.js",
+    "./js/api.js",
+    "./fasttext_wasm.js",
+    "./tools/make_icons.py",
+    "./index.html",
+    "./css/markdown.css",
+    "./css/styles.css"
+  ],
+  "current_batch": 3,
+  "map_file": "PROJECT_MAP.md"
+}

@@ -1,11 +1,3 @@
-/* ============================================================
-    APP — main entry point that wires everything together.
-============================================================ */
-
-/* ============================================================
-    THEME — light/dark via data-theme on <html>.
-    Preference: localStorage('theme') → system prefers-color-scheme.
-============================================================ */
 (function initTheme(){
   const html = document.documentElement;
   const saved = localStorage.getItem('theme');
@@ -30,16 +22,16 @@ function themeToggle(){
   html.setAttribute('data-theme', next);
   localStorage.setItem('theme', next);
   updateThemeToggle();
+  // Rebuild robot hero so its SVG colour reads the new CSS var
+  if(window.RobotAvatar){
+    const g = $("emptyGlyph");
+    if(g) RobotAvatar.buildHero(g);
+  }
 }
-
-/* ============================================================
-    INITIALIZATION
-============================================================ */
 
 let initialized = false;
 
-/* Frame-busting (defense in depth — the app holds API keys in memory).
-   If we are embedded in a cross-origin iframe, break out. */
+// Frame-busting: defense in depth — the app holds API keys in memory.
 (function(){
   try{
     if(window.self !== window.top && !window.parent.location.hostname.includes(location.hostname)){
@@ -51,7 +43,6 @@ let initialized = false;
 async function init(){
   if(initialized) return;
   initialized = true;
-  // Initialize components
   Header.initEvents();
   ModelPicker.initEvents();
   Settings.initEvents();
@@ -60,38 +51,33 @@ async function init(){
   VoiceRecorder.initEvents();
   Sidebar.initEvents();
 
-  // Theme toggle button (sidebar footer)
   const themeBtn = document.getElementById("themeToggle");
   if(themeBtn) themeBtn.addEventListener("click", themeToggle);
   updateThemeToggle();
 
-  // Hydrate State from localStorage
   State.provider = localStorage.getItem(Config.LS_PROVIDER) || Config.DEFAULT_PROVIDER;
-  await initKeys();   // loads encrypted key store (unlock prompt) or migrates legacy plaintext
+  await initKeys();
   try{ State.customBases = JSON.parse(localStorage.getItem(Config.LS_BASES) || "{}"); }
-  catch(e){ State.customBases = {}; }   // corrupted storage must never block the app
+  catch(e){ State.customBases = {}; }
   State.systemPrompt = localStorage.getItem(Config.LS_SYS) || "";
   try{ State.sessions = JSON.parse(localStorage.getItem(Config.LS_SESSIONS) || "[]"); } catch(e){ State.sessions = []; }
   State.activeSessionId = localStorage.getItem(Config.LS_ACTIVE) || "";
   if(!State.sessions.some(s => s.id === State.activeSessionId)){
     State.activeSessionId = State.sessions[0] ? State.sessions[0].id : "";
   }
-  // Clean up empty "New chat" ghosts from before sessions needed a first
-  // message. Keep the active one so the current empty chat survives a reload.
+  // Purge empty "New chat" ghosts but keep the active one so a current empty chat survives reload.
   const before = State.sessions.length;
   State.sessions = State.sessions.filter(s => (s.messages || []).length > 0 || s.id === State.activeSessionId);
   if(State.sessions.length !== before) localStorage.setItem(Config.LS_SESSIONS, JSON.stringify(State.sessions));
   State.messages = (State.sessions.find(s => s.id === State.activeSessionId) || {}).messages || [];
   State.model = localStorage.getItem(Config.LS_MODEL_PREFIX + State.provider);
 
-  // Fetch models
   try{
     $("loadingState").style.display = "block";
     if(window.Catalog) await Catalog.ensureLoaded();
     await Api.fetchModels();
-    // Models are loaded now — only fall back to a chat pick when the saved
-    // model is missing (e.g. provider switch). Checking before fetchModels()
-    // would discard TTS/vision/ocr selections on every reload.
+    // Only fall back to a chat pick when saved model is missing (e.g. provider switch).
+    // Checking before fetchModels() would discard TTS/vision/ocr selections on every reload.
     if(!State.model || !State.models.some(m => m.id === State.model)){
       State.model = Catalog.pickModel(State.provider, "chat");
     }
@@ -105,7 +91,13 @@ async function init(){
     $("loadingState").style.display = "none";
   }
 
-  // Handle suggestion clicks
+  // Init animated robot hero in the empty state
+  const emptyGlyph = $("emptyGlyph");
+  if(emptyGlyph && window.RobotAvatar){
+    if(!emptyGlyph.querySelector('.robot-svg')){
+      RobotAvatar.buildHero(emptyGlyph);
+    }
+  }
   document.querySelectorAll(".suggestion").forEach(el => {
     el.addEventListener("click", () => {
       const fill = el.dataset.fill;
@@ -132,7 +124,6 @@ async function init(){
     });
   });
 
-  // Handle desktop layout
   const desktopMQ = window.matchMedia("(min-width:860px)");
   desktopMQ.addEventListener("change", toggleLayoutChrome);
   toggleLayoutChrome();
@@ -142,22 +133,15 @@ async function init(){
     $("headerDesktop").style.display = desktop ? "flex" : "none";
   }
 
-  // Initialize UI
   Header.render();
   Chat.render();
   Sidebar.render();
 }
 
-/* ============================================================
-    BOOT
-============================================================ */
-
-// Wait for DOM to load
 if(document.readyState === "loading"){
   document.addEventListener("DOMContentLoaded", init);
 } else {
   init();
 }
 
-// Convenience
 window.$ = (id) => document.getElementById(id);
