@@ -1,16 +1,97 @@
 # ============================================================
+
 # anymodel — gitignore
-# Only the app itself is tracked. Everything else stays local.
+
+# Only production app/source assets are tracked.
+
+# Local development, generated artifacts, research, and tooling
+
+# stay local.
+
 # ============================================================
 
-# Browser test artifacts (Playwright MCP snapshots / console logs)
+# ------------------------------------------------------------
+
+# Browser / Playwright test artifacts
+
+# ------------------------------------------------------------
+
 .playwright-mcp/
 
-# Local development
+# ------------------------------------------------------------
+
+# Dependencies
+
+# ------------------------------------------------------------
+
 node_modules/
+
+# ------------------------------------------------------------
+
+# Local development artifacts
+
+# ------------------------------------------------------------
+
 *.log
 .DS_Store
+*.swp
+*.swo
+.vscode/
+.idea/
 
-# Working notes & docs — not part of the deployed app
+# ------------------------------------------------------------
+
+# Python local artifacts
+
+# ------------------------------------------------------------
+
+**pycache**/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# ------------------------------------------------------------
+
+# Project documentation / research / working notes
+
+# ------------------------------------------------------------
+
 docs/
 ISSUES.md
+new-ui-reference.md
+PROJECT_MAP.md
+PROJECT_SOURCE.md
+PROMPT-CHACHING-GROQ.md
+
+# ------------------------------------------------------------
+
+# Local project-generation / mapping artifacts
+
+# ------------------------------------------------------------
+
+.project_map_progress.json
+
+# ------------------------------------------------------------
+
+# Development / training / build-only tooling
+
+# ------------------------------------------------------------
+
+train_model.py
+intent_train.txt
+tools/
+
+# ------------------------------------------------------------
+
+# Temporary / generated files
+
+# ------------------------------------------------------------
+
+*.tmp
+*.temp
+*.bak
+*.backup
+EOF
+
