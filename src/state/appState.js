@@ -20,17 +20,17 @@ import {
   LS_PROVIDER, LS_KEYS, LS_BASES, LS_MODEL_PREFIX, LS_SYS,
   LS_MESSAGES, LS_SESSIONS, LS_ACTIVE, LS_TTS_VOICE, LS_THEME,
   DEFAULT_PROVIDER
-} from "../../config/constants.js";
+} from "../config/constants.js";
 
 import {
   loadJson, saveJson, migrateLegacyKeys
-} from "./localStorage.js";
+} from "../services/storage/localStorage.js";
 
 import {
   encryptKeysBlob, decryptKeysBlob, keysBlob, keysLocked as isKeysLocked
-} from "./encryption.js";
+} from "../services/storage/encryption.js";
 
-import { getEndpointType } from "../../config/capabilities.js";
+import { getEndpointType } from "../config/capabilities.js";
 
 export class AppState {
   constructor(deps) {

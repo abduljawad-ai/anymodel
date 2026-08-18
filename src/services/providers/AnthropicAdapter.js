@@ -6,8 +6,8 @@
  */
 
 import { ProviderAdapter } from "./Adapter.js";
-import { parseToolArgs } from "../../api/client.js";
-import { getMaxOutputTokens } from "../../api/context.js";
+import { parseToolArgs } from "../api/client.js";
+import { getMaxOutputTokens } from "../api/context.js";
 
 export class AnthropicAdapter extends ProviderAdapter {
   getStreamUrl() {

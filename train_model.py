@@ -24,7 +24,7 @@ TRAIN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "intent_tr
 MODEL_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "intent_model.ftz")
 
 # The self-test cases that run automatically in the browser (see
-# js/intent-router.js). Used here to gate the training output.
+# src/services/intent/router.js). Used here to gate the training output.
 SELF_TESTS = [
     ("make this talk",         "tts",           0.80),
     ("crea una imagen",        "image",         0.70),

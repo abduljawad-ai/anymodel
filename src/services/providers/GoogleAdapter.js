@@ -6,7 +6,7 @@
  */
 
 import { ProviderAdapter } from "./Adapter.js";
-import { parseToolArgs } from "../../api/client.js";
+import { parseToolArgs } from "../api/client.js";
 
 export class GoogleAdapter extends ProviderAdapter {
   getStreamUrl(modelId) {

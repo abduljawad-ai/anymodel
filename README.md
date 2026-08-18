@@ -233,23 +233,27 @@ Browser
 ```text
 anymodel/
 │
-├── index.html
+├── index.html              # Single <script type="module" src="src/main.js">
 ├── css/
 │
-├── js/
-│   ├── api.js
-│   ├── app.js
-│   ├── catalog.js
-│   ├── config.js
-│   ├── state.js
-│   └── components/
+├── src/
+│   ├── main.js             # ESM entry — wires config → utils → services → state → components
+│   ├── config/             # constants, capabilities, demo tools
+│   ├── utils/              # dom, icons, markdown, toasts
+│   ├── services/           # catalog, api, intent, providers, storage
+│   ├── state/              # AppState (pub/sub, persistence, encrypted keys)
+│   └── components/         # Chat, Composer, Header, ModelPicker, RobotAvatar,
+│                           # Settings, Sidebar, VoiceCapsule, VoiceRecorder
 │
 ├── assets/
 ├── models-catalog.json
+├── fasttext.js             # Vendor fastText WASM wrapper
+├── fasttext_wasm.js        # Vendor Emscripten build
+├── intent_model.ftz        # Quantized intent classifier
 └── README.md
 ```
 
-The frontend is built with plain **HTML, CSS, and JavaScript** with no framework requirement.
+The frontend is built with plain **HTML, CSS, and JavaScript (ES modules)** with no framework requirement and no build step.
 
 ---
 

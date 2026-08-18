@@ -13,6 +13,7 @@ import { focusFirst, trapFocus } from "../../utils/dom.js";
 
 export class Keylock {
   constructor({ $ }) {
+    /** @type {function(string): HTMLElement|null} */
     this.$ = $;
     this.mode = "unlock"; // "unlock" | "create"
     this.verifyCallback = null;

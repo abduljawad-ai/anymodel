@@ -3,8 +3,6 @@
  * truncation logic. Pure functions — no global state access.
  */
 
-import { getContextWindow } from "../../config/capabilities.js";
-
 // ── Constants ─────────────────────────────────────────────────────────
 const TOKEN_CHARS = 4;
 const MSG_OVERHEAD_TOKENS = 4;
@@ -36,6 +34,9 @@ export function getContextWindowSize(m) {
   const ctx = m && m.context;
   return (typeof ctx === "number" && ctx > 0) ? ctx : null;
 }
+
+// Alias for backward compatibility (api/index.js imports getContextWindow)
+export const getContextWindow = getContextWindowSize;
 
 export function getMaxOutputTokens(m) {
   const ctx = getContextWindowSize(m);

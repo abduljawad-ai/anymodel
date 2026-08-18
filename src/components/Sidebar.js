@@ -86,7 +86,6 @@ export class Sidebar {
       });
     });
 
-    const { $ } = this.deps;
     const dot = $("sidebarKeyDot");
     if (dot) {
       dot.classList.toggle("on", !!state.apiKey);

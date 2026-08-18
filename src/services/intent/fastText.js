@@ -14,4 +14,4 @@
 
 // Re-export vendor symbols. If the vendor's API changes, only this file
 // needs to adapt.
-export { FastText, addOnPostRun } from "../../fasttext.js";
+export { FastText, addOnPostRun } from "../../../fasttext.js";

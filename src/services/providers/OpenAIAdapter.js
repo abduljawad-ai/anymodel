@@ -6,7 +6,7 @@
  */
 
 import { ProviderAdapter } from "./Adapter.js";
-import { guessAudioFormat } from "../../api/client.js";
+import { guessAudioFormat } from "../api/client.js";
 
 export class OpenAIAdapter extends ProviderAdapter {
   getStreamUrl() {
