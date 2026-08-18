@@ -1,310 +1,134 @@
-# anymodel
+<div align="center">
 
-### One chat. 150+ AI providers. Thousands of models. Your keys. Your browser.
+# ⚡ anymodel
 
-**Live → https://abduljawad-ai.github.io/anymodel/**
+**One interface. 150+ AI providers. Your keys, your browser.**
 
-anymodel is a fast, privacy-first **BYOK (Bring Your Own API Key)** AI chat interface built to put a huge range of AI models in one place.
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-6d28d9?style=for-the-badge&logo=github)](https://abduljawad-ai.github.io/anymodel/)
+[![License](https://img.shields.io/badge/License-All%20Rights%20Reserved-gray?style=for-the-badge)](https://github.com/abduljawad-ai/anymodel)
+[![No Build](https://img.shields.io/badge/No%20Build-ES%20Modules-16a34a?style=for-the-badge)]()
+[![Privacy](https://img.shields.io/badge/Privacy-100%25%20Local-0891b2?style=for-the-badge)]()
 
-Connect your own API keys, choose a provider, pick a model, and start chatting.
-
-No account.
-No backend.
-No platform lock-in.
-No middleman holding your keys.
-
-Everything runs directly in your browser.
+</div>
 
 ---
 
-## ✦ Why anymodel?
+## 🖥️ It looks like this
 
-AI has become fragmented.
+<p align="center">
+  <img src="assets/screenshots/dark.png" alt="anymodel dark mode" width="80%">
+  <br>
+  <em>Dark mode · chat with any model from any provider</em>
+</p>
 
-One model lives in one app.
-Another lives somewhere else.
-Different providers have different interfaces, limits, and tools.
+<p align="center">
+  <img src="assets/screenshots/mobile-dark.png" alt="anymodel mobile" width="28%">
+  &nbsp;&nbsp;&nbsp;
+  <img src="assets/screenshots/light.png" alt="anymodel light mode" width="52%">
+  <br>
+  <em>Mobile-first · light & dark themes</em>
+</p>
 
-**anymodel puts them behind one interface.**
+---
 
-Use the models you already have access to, switch providers whenever you want, and keep your conversations in one place.
+## 💡 The pitch
 
-> **You bring the keys. anymodel brings the interface.**
+Most AI chat apps want you to use **their** models.
+
+anymodel goes the other way — it's a **BYOK (Bring Your Own API Key)** chat interface that puts every model you have access to behind one screen.
+
+> You bring the keys. anymodel brings the interface.
+
+- **No account. No backend. No lock-in.**
+- Keys stay in your browser, sent only to the provider you pick.
+- Everything runs client-side — zero servers, zero tracking.
 
 ---
 
 ## ✨ What it can do
 
-<table>
-<tr>
-<td width="50%">
-
-### 🌐 150+ Providers
-
-Connect a growing ecosystem of AI providers through a single interface.
-
-From major hosted APIs to local and OpenAI-compatible endpoints.
-
-</td>
-<td width="50%">
-
-### 🧠 Huge Model Catalog
-
-Explore a large catalog of models and choose the right one for the task instead of being locked into a single provider.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-### 🔑 Bring Your Own Key
-
-Your API keys stay in your browser and are sent directly to the provider you choose.
-
-No central server receives them.
-
-</td>
-<td>
-
-### ⚡ Streaming Chat
-
-Responses arrive as they are generated, with markdown rendering and syntax-highlighted code.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-### 👁️ Vision & Attachments
-
-Send images and audio, attach files, and use voice input directly from the composer.
-
-</td>
-<td>
-
-### 🛠️ Tools & Web Access
-
-Models can use supported tools for tasks that need current information or external actions.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-### 💬 Persistent Conversations
-
-Create, rename, switch, and delete conversations. Your sessions remain available after reloads.
-
-</td>
-<td>
-
-### 📱 Built for Every Screen
-
-A responsive interface designed to work smoothly across desktop, tablet, and mobile.
-
-</td>
-</tr>
-</table>
+| | |
+|---|---|
+| 🌐 **150+ providers** | Groq, OpenAI, Anthropic, Gemini, Ollama, custom endpoints, and more |
+| 🧠 **Thousands of models** | A searchable catalog with 40+ capability tags — pick by *what it does*, not who made it |
+| 🔑 **Bring your own key** | AES-256-GCM encrypted, stored only in your browser |
+| ⚡ **Streaming chat** | Responses render live, with markdown + syntax-highlighted code |
+| 👁️ **Vision & audio** | Send images, record voice, attach files — the app auto-picks a capable model |
+| 🛠️ **Tools & intent routing** | Models call tools; a client-side fastText classifier auto-routes your message |
+| 💬 **Persistent sessions** | Rename, switch, delete — history survives reloads |
+| 📱 **Any screen** | Responsive from phone to desktop, dark & light themes |
 
 ---
 
 ## 🚀 Quick start
 
-There is no build process and no dependency installation.
-
-Clone the repository:
-
 ```bash
 git clone https://github.com/abduljawad-ai/anymodel.git
 cd anymodel
-```
-
-Start a local server:
-
-```bash
 python3 -m http.server 8899
 ```
 
-Then open:
+Open **http://localhost:8899/** → Settings → add your key → pick a model → chat.
 
-**http://localhost:8899/**
-
-Open **Settings**, add your API key, choose a provider and model, and start chatting.
+That's it. No install, no build, no dependencies.
 
 ---
 
-## 🔐 Privacy & security
+## 🔐 Privacy
 
-anymodel follows a simple model:
-
-**Your key → your browser → your chosen provider**
-
-There is no application backend sitting between you and the provider.
-
-API keys are stored locally in your browser and are sent only to the API endpoint you choose.
-
-Keys are not hardcoded into the project and are not uploaded to an anymodel server.
-
-> **Your credentials belong to you.**
-
-### Important
-
-BYOK does not magically make an API key risk-free.
-
-If you use a browser application with your own API key, your browser is part of the security boundary. Only use providers and endpoints you trust.
-
----
-
-## 🧩 Supported providers
-
-anymodel is designed around a provider-agnostic architecture.
-
-Examples include:
-
-* Groq
-* OpenAI
-* Anthropic
-* Google Gemini
-* Ollama
-* OpenAI-compatible APIs
-* Custom endpoints
-
-The provider catalog is designed to grow without requiring the chat interface itself to be rewritten.
-
----
-
-## 🧠 Built around models, not brands
-
-Instead of designing the application around a single AI provider, anymodel treats providers and models as data.
-
-That means the same interface can support:
-
-```text
-Provider
-   ↓
-Models
-   ↓
-Capabilities
-   ↓
-Chat
+```
+Your key → your browser → your chosen provider
 ```
 
-Models can advertise capabilities such as:
+- API keys are **never** hardcoded, logged, or uploaded to any anymodel server.
+- Keys are encrypted (AES-256-GCM) before touching `localStorage`.
+- The only network traffic goes straight from your browser to the provider you chose.
 
-* Text
-* Vision
-* Audio
-* Tools
-* Reasoning
-* Streaming
-
-So choosing a model becomes about **what it can do**, not just who made it.
+> Your credentials belong to you. (Still, use providers you trust — your browser is part of the security boundary.)
 
 ---
 
 ## 🏗️ Architecture
 
-anymodel is intentionally lightweight.
-
-There is no large application server behind the interface.
+Everything lives in the browser as ES modules — no framework, no build step.
 
 ```text
 Browser
-│
-├── UI
-├── Chat state
-├── Provider catalog
-├── Local persistence
-│
-└── Provider API
-       ├── OpenAI
-       ├── Anthropic
-       ├── Gemini
-       ├── Groq
-       ├── Ollama
-       └── OpenAI-compatible endpoints
+  ├── src/main.js          ← single entry point (ESM)
+  │     ├── config/        constants · capabilities · demo tools
+  │     ├── utils/         dom · icons · markdown · toasts
+  │     ├── services/      catalog · api · intent · providers · storage
+  │     ├── state/         AppState — pub/sub · persistence · encrypted keys
+  │     └── components/    Chat · Composer · Header · ModelPicker · Settings ·
+  │                        Sidebar · VoiceRecorder · VoiceCapsule · RobotAvatar
+  │
+  └── Provider API (OpenAI / Anthropic / Gemini / Groq / Ollama / compatible)
 ```
 
-### Project structure
-
-```text
-anymodel/
-│
-├── index.html              # Single <script type="module" src="src/main.js">
-├── css/
-│
-├── src/
-│   ├── main.js             # ESM entry — wires config → utils → services → state → components
-│   ├── config/             # constants, capabilities, demo tools
-│   ├── utils/              # dom, icons, markdown, toasts
-│   ├── services/           # catalog, api, intent, providers, storage
-│   ├── state/              # AppState (pub/sub, persistence, encrypted keys)
-│   └── components/         # Chat, Composer, Header, ModelPicker, RobotAvatar,
-│                           # Settings, Sidebar, VoiceCapsule, VoiceRecorder
-│
-├── assets/
-├── models-catalog.json
-├── fasttext.js             # Vendor fastText WASM wrapper
-├── fasttext_wasm.js        # Vendor Emscripten build
-├── intent_model.ftz        # Quantized intent classifier
-└── README.md
-```
-
-The frontend is built with plain **HTML, CSS, and JavaScript (ES modules)** with no framework requirement and no build step.
+Models are treated as **data** — a provider catalog maps each model to its capabilities, so the UI never cares who made it.
 
 ---
 
-## 🎯 The idea
+## 🧩 Supported providers
 
-There are plenty of AI chat interfaces.
+OpenAI · Anthropic · Google Gemini · Groq · Ollama · OpenAI-compatible APIs · custom endpoints
 
-Most of them want you to use **their** models.
-
-anymodel takes the opposite approach:
-
-### Use the models you want.
-
-Your provider.
-Your API key.
-Your choice of model.
-One interface.
+*(The catalog grows without touching the chat interface.)*
 
 ---
 
-## 🛣️ What's next?
+## 🧭 What's next
 
-anymodel is still evolving.
-
-The goal isn't simply to keep adding providers.
-
-The goal is to make switching between hundreds of models feel **simple, fast, and natural**.
-
-Better model discovery.
-Better provider integrations.
-Better tools.
-Better conversations.
-Better performance.
+- Better model discovery & comparisons
+- More providers, more tools
+- Smarter routing & context handling
 
 ---
 
-## 📜 License
+<div align="center">
 
-All rights reserved.
+### Built for people who want **one interface for many models**.
 
-The repository is publicly available for inspection and reference. No license is granted for reuse, redistribution, or derivative works unless explicitly stated otherwise.
+[🚀 Live Demo](https://abduljawad-ai.github.io/anymodel/) · [📦 Repository](https://github.com/abduljawad-ai/anymodel)
 
----
-
-<p align="center">
-  Built for people who want <b>one interface for many models</b>.
-</p>
-
-<p align="center">
-  <a href="https://abduljawad-ai.github.io/anymodel/">Live Demo</a>
-  ·
-  <a href="https://github.com/abduljawad-ai/anymodel">Repository</a>
-</p>
-
+</div>
