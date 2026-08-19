@@ -1,6 +1,6 @@
 # READ THIS BEFORE DOING ANYTHING
 
-## FIRST STEP: Read PROJECT_SOURCE.md
+## FIRST STEP: Read PROJECT_MAP.md
 
 Before making any changes to the codebase, you MUST read `PROJECT_SOURCE.md` in the project root. This file contains:
 - Complete file structure

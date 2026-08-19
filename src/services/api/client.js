@@ -111,18 +111,42 @@ export function guessAudioFormat(name) {
 //
 // Returns { fullText, toolCalls: [...] }
 export async function streamSSE(url, headers, body, parseEvent, callbacks) {
-  const ctrl = beginRequest();
+  let attempt = 0;
+  const maxRetries = 3;
 
-  const res = await fetchWithTimeout(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-    signal: ctrl.signal,
-    ctrl
-  }, REQUEST_TIMEOUT_MS);
+  while (true) {
+    const ctrl = beginRequest();
 
-  if (!res.ok) throw new Error(errorMessage(res.status, await safeJson(res)));
-  if (!res.body) throw new Error("Streaming not supported");
+    let res;
+    try {
+      res = await fetchWithTimeout(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+        signal: ctrl.signal,
+        ctrl
+      }, REQUEST_TIMEOUT_MS);
+    } catch (err) {
+      if (err.name === 'AbortError') throw err; // Don't retry user aborts
+      if (attempt < maxRetries) {
+        attempt++;
+        const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      throw err;
+    }
+
+    if (!res.ok) {
+      if ((res.status === 429 || res.status === 503) && attempt < maxRetries) {
+        attempt++;
+        const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      throw new Error(errorMessage(res.status, await safeJson(res)));
+    }
+    if (!res.body) throw new Error("Streaming not supported");
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();

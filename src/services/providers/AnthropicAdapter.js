@@ -98,7 +98,7 @@ export class AnthropicAdapter extends ProviderAdapter {
       content: [{
         type: "tool_result",
         tool_use_id: tc.id,
-        content: JSON.stringify(opts.runDemoTool(tc.name, tc.arguments))
+        content: JSON.stringify(toolResults[i])
       }]
     }));
 

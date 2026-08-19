@@ -354,9 +354,18 @@ export class AppState {
         }
       }
     } else {
-      // Legacy plaintext keys — will be migrated to encrypted on next save
+      // Legacy plaintext keys — warn user and migrate to encrypted on next save
       this.apiKeys = blob;
       this._syncApiKey();
+      // Show warning that keys are unencrypted
+      const { showToast } = this._deps;
+      if (showToast) {
+        setTimeout(() => {
+          showToast("⚠️ Your API keys are stored in plaintext. Set a passphrase in Settings to encrypt them.", 8000);
+        }, 1500);
+      }
+      // Mark for auto-encryption on next save
+      this._needsEncryption = true;
     }
   }
 
@@ -393,12 +402,6 @@ export class AppState {
    */
   async saveKeyFor(providerId, key) {
     const self = this;
-    const apply = () => {
-      if (!key) delete this.apiKeys[providerId];
-      else this.apiKeys[providerId] = key;
-      if (providerId === this.provider) self._syncApiKey();
-    };
-    apply();
 
     if (!window.crypto || !crypto.subtle) {
       this._deps.showToast("Encryption isn't available in this browser context — key kept for this session only.");
@@ -427,7 +430,6 @@ export class AppState {
           }
         });
         if (!pass) { self._deps.showToast("Key kept for this session only (not saved)."); return; }
-        apply();
       } else {
         const pass = await keylock.show("create");
         if (!pass) { self._deps.showToast("Key kept for this session only (not saved)."); return; }
@@ -435,6 +437,12 @@ export class AppState {
       }
     }
 
+    // Apply key to in-memory state ONLY after passphrase is confirmed
+    if (!key) delete this.apiKeys[providerId];
+    else this.apiKeys[providerId] = key;
+    if (providerId === this.provider) self._syncApiKey();
+
+    // Encrypt and persist
     const encBlob = await encryptKeysBlob(this.apiKeys, this._keyPassphrase);
     try {
       localStorage.setItem(LS_KEYS, JSON.stringify(encBlob));

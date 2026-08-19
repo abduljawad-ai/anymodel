@@ -10,15 +10,6 @@ export class Settings {
     this.prevFocus = null;
   }
 
-  esc(str) {
-    return String(str ?? "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-  }
-
   render() {
     const { $, state, catalog, config, icon } = this.deps;
     const providerId = state.provider;
@@ -26,7 +17,7 @@ export class Settings {
     const sel = $("providerSelect");
     const providers = catalog ? catalog.providerList() : [];
     sel.innerHTML = providers.map((p) =>
-      `<option value="${this.esc(p.id)}" ${p.id === providerId ? "selected" : ""}>${this.esc(p.name)}</option>`
+      `<option value="${this.deps.escHtml(p.id)}" ${p.id === providerId ? "selected" : ""}>${this.deps.escHtml(p.name)}</option>`
     ).join("");
     sel.value = providerId;
 
@@ -41,7 +32,7 @@ export class Settings {
     if (nameLabel) {
       nameLabel.innerHTML = icon("lock_security") + " " + (providerId === "custom"
         ? "API key (optional)"
-        : "API key for " + this.esc((pInfo && pInfo.name) || providerId));
+        : "API key for " + this.deps.escHtml((pInfo && pInfo.name) || providerId));
     }
     const keyInput = $("apiKeyInput");
     if (keyInput) keyInput.value = state.apiKeys[providerId] || "";
@@ -145,6 +136,49 @@ export class Settings {
     this.showKeyStatus("", "Key removed from this device.");
   }
 
+  exportKeys() {
+    const { showToast, config } = this.deps;
+    const blob = localStorage.getItem(config.LS_KEYS);
+    if (!blob) {
+      showToast("No keys found to export.");
+      return;
+    }
+    const a = document.createElement("a");
+    a.href = "data:application/json;charset=utf-8," + encodeURIComponent(blob);
+    a.download = `anymodel_keys_${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    showToast("Keys exported successfully.");
+  }
+
+  async importKeys(file) {
+    const { state, showToast, header, composer, sidebar, config } = this.deps;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!data || typeof data !== "object") throw new Error("Invalid format");
+      
+      // Basic validation: must be an encrypted blob structure or a plain object
+      if (data.enc && (!data.iv || !data.salt || !data.cipher)) {
+         throw new Error("Invalid encrypted blob");
+      }
+
+      localStorage.setItem(config.LS_KEYS, JSON.stringify(data));
+      // Re-initialize state keys
+      state._keyPassphrase = null; // force re-unlock
+      await state.initKeys();
+      
+      if (header) header.render();
+      if (composer) composer.render();
+      if (sidebar) sidebar.render();
+      
+      showToast("Keys imported successfully. Please unlock to use.");
+    } catch (e) {
+      showToast("Failed to import keys: " + e.message);
+    }
+  }
+
   showKeyStatus(kind, msg) {
     const { $ } = this.deps;
     const el = $("keyStatus");
@@ -208,12 +242,35 @@ export class Settings {
     const clearKeyBtn = $("clearKeyBtn");
     if (clearKeyBtn) clearKeyBtn.addEventListener("click", () => settings.clearKey());
 
+    const exportKeysBtn = $("exportKeysBtn");
+    if (exportKeysBtn) exportKeysBtn.addEventListener("click", () => settings.exportKeys());
+
+    const importKeysBtn = $("importKeysBtn");
+    const importKeysInput = $("importKeysInput");
+    if (importKeysBtn && importKeysInput) {
+      importKeysBtn.addEventListener("click", () => importKeysInput.click());
+      importKeysInput.addEventListener("change", (e) => {
+        if (e.target.files && e.target.files[0]) {
+          settings.importKeys(e.target.files[0]);
+          e.target.value = "";
+        }
+      });
+    }
+
     const autoToolSwitch = $("autoToolSwitch");
     if (autoToolSwitch) {
-      autoToolSwitch.addEventListener("click", () => {
+      const toggleAutoTools = () => {
         state.autoTools = !state.autoTools;
         autoToolSwitch.classList.toggle("on", state.autoTools);
+        autoToolSwitch.setAttribute("aria-checked", String(state.autoTools));
         if (this.deps.header) this.deps.header.render();
+      };
+      autoToolSwitch.addEventListener("click", toggleAutoTools);
+      autoToolSwitch.addEventListener("keydown", (e) => {
+        if (e.key === " " || e.key === "Enter") {
+          e.preventDefault();
+          toggleAutoTools();
+        }
       });
     }
 

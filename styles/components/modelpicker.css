@@ -55,7 +55,7 @@
   outline: none;
 }
 .picker-filter:focus { border-color: var(--border); box-shadow: none; }
-.picker-filter:focus-visible { outline: none; }
+.picker-filter:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .picker-filter::placeholder { color: var(--ink-faint); }
 
 .model-pop-list {

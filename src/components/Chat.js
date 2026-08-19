@@ -10,15 +10,6 @@ export class Chat {
     this.renderedCount = 0;
   }
 
-  esc(str) {
-    return String(str ?? "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-  }
-
   announce(msg) {
     if (typeof document === "undefined") return;
     const announcer = document.getElementById("aria-announcer");
@@ -122,7 +113,7 @@ export class Chat {
         if (mm.role === "assistant" && mm.toolUsed) {
           const tag = document.createElement("span");
           tag.className = "tool-tag";
-          tag.innerHTML = icon("wrench_tools") + " " + this.esc(mm.toolUsed);
+          tag.innerHTML = icon("wrench_tools") + " " + this.deps.escHtml(mm.toolUsed);
           col.appendChild(tag);
         }
         const b = document.createElement("div");
@@ -277,7 +268,7 @@ export class Chat {
     if (result.toolUsed) {
       const tag = document.createElement("span");
       tag.className = "tool-tag";
-      tag.innerHTML = icon("wrench_tools") + " " + this.esc(result.toolUsed);
+      tag.innerHTML = icon("wrench_tools") + " " + this.deps.escHtml(result.toolUsed);
       turn.col.insertBefore(tag, turn.bubble);
     }
     const modelTag = document.createElement("span");
@@ -308,11 +299,27 @@ export class Chat {
     try {
       const words = text.split(/(\s+)/);
       const perTick = Math.min(64, Math.max(1, Math.round(words.length / 400)));
+      let renderTimer = null;
+      const scheduleRender = (buf) => {
+        if (renderTimer) return;
+        renderTimer = setTimeout(() => {
+          renderTimer = null;
+          turn.bubble.innerHTML = markdown.renderMarkdownish(buf);
+          markdown.scheduleHighlight(turn.bubble);
+        }, 300);
+      };
       for (let i = 0; i < words.length; i += perTick) {
         out += words.slice(i, i + perTick).join("");
         const last = i + perTick >= words.length;
-        turn.bubble.innerHTML = markdown.renderMarkdownish(out) + (last ? "" : '<span class="type-cursor"></span>');
-        markdown.scheduleHighlight(turn.bubble);
+        if (last) {
+          // Final render — clear any pending debounce
+          if (renderTimer) { clearTimeout(renderTimer); renderTimer = null; }
+          turn.bubble.innerHTML = markdown.renderMarkdownish(out);
+        } else {
+          // During streaming: append raw text cheaply, schedule debounced full render
+          turn.bubble.textContent = out;
+          scheduleRender(out);
+        }
         this.scrollIfSticky();
         if (!last) await new Promise((r) => setTimeout(r, 12));
       }
@@ -328,20 +335,36 @@ export class Chat {
     const self = this;
     const { markdown } = this.deps;
 
+    // Debounced full markdown render for streaming — avoids O(n²) re-renders
+    let streamRenderTimer = null;
+    let pendingText = "";
+    const scheduleStreamRender = (fullText) => {
+      pendingText = fullText;
+      if (streamRenderTimer) return;
+      streamRenderTimer = setTimeout(() => {
+        streamRenderTimer = null;
+        turn.bubble.innerHTML = markdown.renderMarkdownish(pendingText) + '<span class="type-cursor"></span>';
+        markdown.scheduleHighlight(turn.bubble);
+      }, 300);
+    };
+
     return {
       onPhase: (key, label) => self.setPhase(turn, key, label),
       onFirstToken: () => {
         self.collapsePhase(turn);
       },
       onToken: (fullText) => {
-        turn.bubble.innerHTML = markdown.renderMarkdownish(fullText) + '<span class="type-cursor"></span>';
-        markdown.scheduleHighlight(turn.bubble);
+        // Append raw text cheaply, schedule debounced full markdown render
+        turn.bubble.textContent = fullText;
+        scheduleStreamRender(fullText);
         self.scrollIfSticky();
       },
       onThinking: (text) => {
         self.appendThinkingLine(turn, text);
       },
       onDone: (fullText) => {
+        // Final render — clear any pending debounce
+        if (streamRenderTimer) { clearTimeout(streamRenderTimer); streamRenderTimer = null; }
         if (fullText) turn.bubble.innerHTML = markdown.renderMarkdownish(fullText);
         markdown.enhanceCodeBlocks(turn.bubble);
       },

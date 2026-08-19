@@ -2,11 +2,20 @@
 <html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com 'wasm-unsafe-eval'; style-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; connect-src https: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://plausible.io 'wasm-unsafe-eval'; style-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; connect-src https: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="anymodel — bring your own API key. Chat with models from 180+ providers.">
   <meta name="theme-color" content="#6366f1">
   <meta name="referrer" content="no-referrer">
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="anymodel — bring your own key">
+  <meta property="og:description" content="Chat with AI models from 180+ providers using your own API keys. OpenAI, Anthropic, Google, Mistral, and more.">
+  <meta property="og:site_name" content="anymodel">
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="anymodel — bring your own key">
+  <meta name="twitter:description" content="Chat with AI models from 180+ providers using your own API keys.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%236366f1'/%3E%3Ctext x='50' y='68' font-family='Arial' font-size='52' font-weight='bold' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
   <title>anymodel — bring your own key</title>
   <link rel="stylesheet" href="styles/base/base.css?v=3">
@@ -23,7 +32,8 @@
   <link rel="stylesheet" href="css/markdown.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha384-F/bZzf7p3Joyp5psL90p/p89AZJsndkSoGwRpXcZhleCWhd8SnRuoYo4d0yirjJp" crossorigin="anonymous"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js" integrity="sha384-+VfUPEb0PdtChMwmBcBmykRMDd+v6D/oFmB3rZM/puCMDYcIvF968OimRh4KQY9a" crossorigin="anonymous"></script>
+  <script src="vendor/purify.min.js"></script>
+  <script defer data-domain="anymodel.dev" src="https://plausible.io/js/script.js"></script>
 </head>
 <body>
   <div class="app">
@@ -78,7 +88,7 @@
       <div class="chat-scroll" id="chatScroll">
         <div class="chat-inner" id="chatInner">
           <div class="loading-state" id="loadingState" style="display:none;">Loading models…</div>
-          <div class="empty-state" id="emptyState" role="status">
+          <div class="empty-state" id="emptyState" role="status" style="display:none;">
             <!-- Animated robot hero — populated by robot-avatar.js -->
             <div class="robot-hero-wrap" id="emptyGlyph"></div>
             <h1>What are we building?</h1>
@@ -187,7 +197,7 @@
 
           <div class="field-label" id="providerNameLabel"></div>
           <div class="key-input-row">
-            <input type="password" id="apiKeyInput" placeholder="Paste your API key…" autocomplete="off" spellcheck="false" maxlength="512">
+            <input type="password" id="apiKeyInput" placeholder="Paste your API key…" autocomplete="off" spellcheck="false" maxlength="512" aria-label="API key">
             <button id="toggleKeyVisibility">Show</button>
           </div>
           <div id="keyStatus" class="status-box" style="display:none;" role="alert"></div>
@@ -197,6 +207,14 @@
           </div>
           <button class="btn-primary" id="saveKeyBtn">Save key</button>
           <button class="btn-ghost" id="clearKeyBtn">Remove saved key</button>
+
+          <div class="section-title" style="margin-top:24px;">Key Vault</div>
+          <div class="field-hint">Backup all encrypted keys to a JSON file, or restore them to a new device.</div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-ghost" id="exportKeysBtn" style="flex:1;">Export keys</button>
+            <input type="file" id="importKeysInput" accept="application/json" hidden>
+            <button class="btn-ghost" id="importKeysBtn" style="flex:1;">Import keys</button>
+          </div>
         </div>
 
         <div>
@@ -206,7 +224,7 @@
               <div class="lbl">Auto tool selection</div>
               <div class="sub">Only show tools the model supports</div>
             </div>
-            <div class="switch on" id="autoToolSwitch"></div>
+            <div class="switch on" id="autoToolSwitch" role="switch" tabindex="0" aria-checked="true" aria-label="Auto tool selection"></div>
           </div>
           <div class="toggle-row">
             <div>
@@ -214,10 +232,10 @@
               <div class="sub">Sent with every message</div>
             </div>
           </div>
-          <textarea id="systemPromptInput" class="sys-textarea" rows="3" placeholder="You are a helpful assistant."></textarea>
+          <textarea id="systemPromptInput" class="sys-textarea" rows="3" placeholder="You are a helpful assistant." aria-label="System prompt"></textarea>
 
           <div class="field-label"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4Z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg> TTS voice</div>
-          <input type="text" id="ttsVoiceInput" class="sys-textarea" placeholder="alloy — or tara, leah… for Orpheus on Groq" autocomplete="off" spellcheck="false" maxlength="64">
+          <input type="text" id="ttsVoiceInput" class="sys-textarea" placeholder="alloy — or tara, leah… for Orpheus on Groq" autocomplete="off" spellcheck="false" maxlength="64" aria-label="TTS voice">
           <div class="field-hint">Voice used by text-to-speech models. Leave empty for the provider default. Groq Orpheus needs one of: tara, leah, jess, leo, dan, mia, zac, zoe.</div>
         </div>
 

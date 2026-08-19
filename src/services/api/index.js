@@ -118,6 +118,11 @@ export class Api {
       callbacks
     );
 
+    // Validate non-empty model response or tool calls
+    if (!first.fullText.trim() && !first.toolCalls.length) {
+      throw new Error("Model returned an empty response. Please retry your message.");
+    }
+
     // Tool-call follow-up
     if (first.toolCalls.length && state.autoTools) {
       const toolResults = first.toolCalls.map(tc =>
@@ -140,6 +145,10 @@ export class Api {
         adapter.parseStreamEvent.bind(adapter),
         callbacks
       );
+
+      if (!second.fullText.trim() && !second.toolCalls.length) {
+        throw new Error("Model returned an empty response during tool execution. Please retry.");
+      }
 
       return {
         text: second.fullText || "(tool call completed)",

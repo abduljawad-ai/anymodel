@@ -15,15 +15,6 @@ export class ModelPicker {
     this.isOpen = false;
   }
 
-  esc(str) {
-    return String(str ?? "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-  }
-
   providerName() {
     const { state, catalog } = this.deps;
     const p = catalog ? catalog.getProvider(state.provider) : null;
@@ -68,18 +59,17 @@ export class ModelPicker {
     const q = this.filterValue.trim().toLowerCase();
     if (!q) return true;
     const tokens = q.split(/\s+/).filter(Boolean);
-    const id = (m.id || "").toLowerCase();
-    const label = (this.deps.config.getModelLabel(m) || "").toLowerCase();
-    const desc = (m.description || "").toLowerCase();
-    const pName = (m.providerName || "").toLowerCase();
-    const pId = (m.providerId || m.provider || "").toLowerCase();
-    const haystack = [id, label, desc, pName, pId].join(" ");
-    const kws = [...this.modelKeywords(m)];
+    if (!m._searchableText) {
+      const id = (m.id || "").toLowerCase();
+      const label = (this.deps.config.getModelLabel(m) || "").toLowerCase();
+      const desc = (m.description || "").toLowerCase();
+      const pName = (m.providerName || "").toLowerCase();
+      const pId = (m.providerId || m.provider || "").toLowerCase();
+      const kws = [...this.modelKeywords(m)].join(" ");
+      m._searchableText = [id, label, desc, pName, pId, kws].join(" ");
+    }
 
-    return tokens.every((tok) => {
-      if (haystack.includes(tok)) return true;
-      return kws.some((kw) => kw && (tok.includes(kw) || kw.includes(tok)));
-    });
+    return tokens.every((tok) => m._searchableText.includes(tok));
   }
 
   async getAllModels() {
@@ -117,7 +107,7 @@ export class ModelPicker {
     const { state, catalog } = this.deps;
     const providers = catalog ? catalog.providerList() : [];
     return providers.map((p) =>
-      `<button class="model-provider-chip${p.id === state.provider ? " active" : ""}" data-provider="${this.esc(p.id)}">${this.esc(p.name)}</button>`
+      `<button class="model-provider-chip${p.id === state.provider ? " active" : ""}" data-provider="${this.deps.escHtml(p.id)}">${this.deps.escHtml(p.name)}</button>`
     ).join("");
   }
 
@@ -149,7 +139,7 @@ export class ModelPicker {
     if (isCrossProvider) {
       html += `<div class="picker-group-label">All providers (${modelsToShow.length} results)</div>`;
     } else {
-      html += `<div class="picker-group-label">${this.esc(this.providerName())}</div>`;
+      html += `<div class="picker-group-label">${this.deps.escHtml(this.providerName())}</div>`;
     }
 
     modelsToShow.forEach((m) => {
@@ -160,13 +150,13 @@ export class ModelPicker {
       if (m.id === state.model && pid === state.provider) cls.push("picker-row-selected");
       const caps = Object.keys(m.capabilities || {}).filter((k) => m.capabilities[k]);
       const capHtml = caps.length
-        ? `<span class="picker-caps">${caps.slice(0, 3).map((k) => `<span class="picker-cap" title="${this.esc(config.CAP_META[k] ? config.CAP_META[k].label : k)}">${config.capIcon(k, icon)}</span>`).join("")}</span>`
+        ? `<span class="picker-caps">${caps.slice(0, 3).map((k) => `<span class="picker-cap" title="${this.deps.escHtml(config.CAP_META[k] ? config.CAP_META[k].label : k)}">${config.capIcon(k, icon)}</span>`).join("")}</span>`
         : "";
       const providerBadge = isCrossProvider
-        ? `<span class="picker-provider-badge">${this.esc(m.providerName)}</span>`
+        ? `<span class="picker-provider-badge">${this.deps.escHtml(m.providerName)}</span>`
         : "";
-      html += `<div class="${cls.join(" ")}" data-model="${this.esc(m.id)}" data-idx="${idx}" data-provider="${this.esc(pid)}">
-        <span class="picker-row-name">${this.esc(config.getModelLabel(m))}</span>
+      html += `<div class="${cls.join(" ")}" data-model="${this.deps.escHtml(m.id)}" data-idx="${idx}" data-provider="${this.deps.escHtml(pid)}">
+        <span class="picker-row-name">${this.deps.escHtml(config.getModelLabel(m))}</span>
         ${capHtml}
         ${providerBadge}
       </div>`;
@@ -174,10 +164,10 @@ export class ModelPicker {
 
     if (!modelsToShow.length) {
       if (isCrossProvider) {
-        html = `<div class="picker-empty">No models match '${this.esc(this.filterValue)}' across all providers</div>`;
+        html = `<div class="picker-empty">No models match '${this.deps.escHtml(this.filterValue)}' across all providers</div>`;
       } else {
         html = state.models.length
-          ? `<div class="picker-empty">No results for '${this.esc(this.filterValue)}'</div>`
+          ? `<div class="picker-empty">No results for '${this.deps.escHtml(this.filterValue)}'</div>`
           : `<div class="picker-empty">No models available for this provider. Check Settings.</div>`;
       }
       this.visibleRows = [];
@@ -314,7 +304,7 @@ export class ModelPicker {
     } catch (err) {
       if (this.isOpen && body) {
         body.innerHTML =
-          '<div class="picker-empty">Couldn\'t load models: ' + this.esc(err && err.message ? err.message : "network error") + '</div>';
+          '<div class="picker-empty">Couldn\'t load models: ' + this.deps.escHtml(err && err.message ? err.message : "network error") + '</div>';
       }
     }
   }

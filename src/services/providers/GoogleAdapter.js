@@ -69,7 +69,7 @@ export class GoogleAdapter extends ProviderAdapter {
     const userParts = streamResult.toolCalls.map((tc, i) => ({
       functionResponse: {
         name: tc.name,
-        response: { result: opts.runDemoTool(tc.name, tc.arguments) }
+        response: { result: toolResults[i] }
       }
     }));
 

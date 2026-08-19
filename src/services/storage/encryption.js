@@ -27,11 +27,11 @@ function bytesFromB64(b64) {
 
 // ── Key derivation ───────────────────────────────────────────────────
 
-async function deriveKey(pass, salt) {
+async function deriveKey(pass, salt, iter = 600000) {
   const enc = new TextEncoder();
   const material = await crypto.subtle.importKey("raw", enc.encode(pass), "PBKDF2", false, ["deriveKey"]);
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations: 150000, hash: "SHA-256" },
+    { name: "PBKDF2", salt, iterations: iter, hash: "SHA-256" },
     material,
     { name: "AES-GCM", length: 256 },
     false,
@@ -49,7 +49,8 @@ async function deriveKey(pass, salt) {
 export async function encryptKeysBlob(keysObj, pass) {
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await deriveKey(pass, salt);
+  const iter = 600000;
+  const key = await deriveKey(pass, salt, iter);
   const enc = new TextEncoder();
   const ct = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
@@ -58,7 +59,7 @@ export async function encryptKeysBlob(keysObj, pass) {
   );
   return {
     enc: 1,
-    iter: 150000,
+    iter,
     salt: b64FromBytes(salt),
     iv: b64FromBytes(iv),
     data: b64FromBytes(new Uint8Array(ct))
@@ -72,7 +73,7 @@ export async function encryptKeysBlob(keysObj, pass) {
  * @returns {Promise<object>} the decrypted keys map
  */
 export async function decryptKeysBlob(blob, pass) {
-  const key = await deriveKey(pass, bytesFromB64(blob.salt));
+  const key = await deriveKey(pass, bytesFromB64(blob.salt), blob.iter || 150000);
   const pt = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: bytesFromB64(blob.iv) },
     key,

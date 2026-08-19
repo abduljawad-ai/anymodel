@@ -22,9 +22,9 @@ export class Sidebar {
       .sort((a, b) => b.updatedAt - a.updatedAt);
     list.innerHTML = sorted.map((s) => {
       const active = s.id === state.activeSessionId ? " active" : "";
-      const title = this.escHtml(s.title || "New chat");
+      const title = this.deps.escHtml(s.title || "New chat");
       const renaming = this.renamingId === s.id;
-      const esc = (str) => this.escHtml(str);
+      const esc = (str) => this.deps.escHtml(str);
 
       return `<div class="session-row${active}" data-id="${esc(s.id)}">
         <div class="session-title">${title}</div>
@@ -163,12 +163,4 @@ export class Sidebar {
     if (bg) bg.innerHTML = icon("bot_robot_face");
   }
 
-  escHtml(str) {
-    return String(str ?? "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-  }
 }

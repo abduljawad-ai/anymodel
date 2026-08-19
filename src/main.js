@@ -64,6 +64,9 @@ import { ModelPicker } from "./components/ModelPicker.js";
   } catch (e) {}
 })();
 
+// ── Module-scoped references (no window globals) ─────────────────────
+let _robotAvatar = null;
+
 // ── Theme toggle ───────────────────────────────────────────────────────
 function updateThemeToggle() {
   const btn = document.getElementById("themeToggle");
@@ -83,8 +86,8 @@ function toggleTheme() {
   updateThemeToggle();
   // Rebuild robot hero so its SVG colour reads the new CSS var
   const hero = document.getElementById("emptyGlyph");
-  if (hero && window.__robotAvatar) {
-    window.__robotAvatar.buildHero(hero);
+  if (hero && _robotAvatar) {
+    _robotAvatar.buildHero(hero);
   }
 }
 
@@ -178,9 +181,16 @@ deps.composer = composer;
 deps.settings = settings;
 deps.modelPicker = modelPicker;
 
-// Expose on window for legacy debugging and the theme re-init in toggleTheme
-window.__robotAvatar = robotAvatar;
-window.__state = state;
+// Module-scoped reference for theme toggle (no window globals — security)
+_robotAvatar = robotAvatar;
+
+// ── Basic error tracking ────────────────────────────────────────────
+window.addEventListener("error", (e) => {
+  console.error("[anymodel] Uncaught error:", e.message, e.filename, e.lineno);
+});
+window.addEventListener("unhandledrejection", (e) => {
+  console.error("[anymodel] Unhandled promise rejection:", e.reason);
+});
 
 // ── Async init ─────────────────────────────────────────────────────────
 let initialized = false;
