@@ -48,10 +48,13 @@ export class Api {
    */
   constructor(deps) {
     this.deps = deps;
+    this._adapterCache = null;
   }
 
   _createAdapter(providerId) {
     const { state, catalog } = this.deps;
+    const cacheKey = `${providerId}|${state.apiKey}|${state.customBases?.[providerId] || ""}`;
+    if (this._adapterCache?.key === cacheKey) return this._adapterCache.adapter;
     const provider = catalog.getProvider(providerId) || {
       id: providerId,
       name: providerId,
@@ -59,7 +62,9 @@ export class Api {
       format: "openai"
     };
     const customBase = state.customBases?.[providerId] || "";
-    return createAdapter(provider, state.apiKey, customBase);
+    const adapter = createAdapter(provider, state.apiKey, customBase);
+    this._adapterCache = { key: cacheKey, adapter };
+    return adapter;
   }
 
   // ── Chat streaming ────────────────────────────────────────────────

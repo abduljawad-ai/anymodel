@@ -2,7 +2,7 @@
 
 ## FIRST STEP: Read PROJECT_MAP.md
 
-Before making any changes to the codebase, you MUST read `PROJECT_SOURCE.md` in the project root. This file contains:
+Before making any changes to the codebase, you MUST read `PROJECT_MAP.md` in the project root. This file contains:
 - Complete file structure
 - Architecture overview
 - All module responsibilities
@@ -14,7 +14,7 @@ Before making any changes to the codebase, you MUST read `PROJECT_SOURCE.md` in 
 
 ## CRITICAL RULES (Never Violate)
 
-1. **READ PROJECT_SOURCE.md FIRST** — Understand the codebase from the summary, not individual files.
+1. **READ PROJECT_MAP.md FIRST** — Understand the codebase from the summary, not individual files.
 2. **NO VERIFICATION LOOPS** — You may read a file ONCE per task. After reading, you MUST act immediately.
 3. **ACT FIRST, VERIFY NEVER** — If you know what needs to change, change it. Do not re-read to confirm.
 4. **MAX 2 FILE READS PER TURN** — You already have the source file. Only read for specific implementation details.

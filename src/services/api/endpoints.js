@@ -103,9 +103,9 @@ export async function callTranscription(adapter, dataUrl, modelId, callbacks) {
 
   if (!res.ok) throw new Error(errorMessage(res.status, await safeJson(res)));
   const data = await res.json();
-  callbacks.onDone();
   const text = data.text || "(no transcription returned)";
   callbacks.onToken(text);
+  callbacks.onDone();
   return text;
 }
 
@@ -139,7 +139,7 @@ export async function callOcr(adapter, dataUrl, modelId, callbacks) {
 export async function callTts(adapter, text, modelId, ttsVoice, callbacks) {
   const ctrl = beginRequest();
   callbacks.onPhase("connect", "Generating speech…");
-  const fmt = adapter.getTtsResponseFormat();
+  const fmt = adapter.getTtsResponseFormat() || "wav";
   const body = { model: modelId, input: text, response_format: fmt };
   const voice = (ttsVoice || "").trim();
   if (voice) body.voice = voice;

@@ -3,11 +3,14 @@
  * and key status indicator.
  */
 
+import { trapFocus } from "../utils/dom.js";
+
 export class Sidebar {
   constructor(deps) {
     this.deps = deps;
     this.renamingId = null;
     this.deletingId = null;
+    this._focusTrapHandler = null;
   }
 
   render() {
@@ -103,16 +106,27 @@ export class Sidebar {
     if (sc) { sc.hidden = false; sc.classList.add("show"); }
     const first = $("btnSidebarNewChat");
     if (first) first.focus({ preventScroll: true });
+    // Focus trap
+    this._focusTrapHandler = trapFocus(sb);
+    document.addEventListener("keydown", this._focusTrapHandler);
   }
 
   close() {
     const { $ } = this.deps;
     const sb = $("sidebar"), sc = $("sidebarScrim");
     if (!sb) return;
+    // Restore focus to the menu button that opened the sidebar
+    const trigger = $("btnMenuDesktop") || $("btnMenu");
     sb.classList.remove("show");
     sb.setAttribute("aria-hidden", "true");
     this.setMenuButtonExpanded(false);
+    if (trigger) trigger.focus({ preventScroll: true });
     if (sc) { sc.classList.remove("show"); setTimeout(() => { sc.hidden = true; }, 200); }
+    // Remove focus trap
+    if (this._focusTrapHandler) {
+      document.removeEventListener("keydown", this._focusTrapHandler);
+      this._focusTrapHandler = null;
+    }
   }
 
   setMenuButtonExpanded(isOpen) {

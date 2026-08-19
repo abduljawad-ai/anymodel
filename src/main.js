@@ -290,10 +290,6 @@ async function init() {
   desktopMQ.addEventListener("change", toggleLayoutChrome);
   toggleLayoutChrome();
 
-  header.render();
-  chat.render();
-  sidebar.render();
-
   // Start loading the intent classifier (async, doesn't block the app)
   intentRouter.load().then(() => {
     composer.render();

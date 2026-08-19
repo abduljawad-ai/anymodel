@@ -49,7 +49,7 @@ export function truncateText(text, maxChars) {
   if (text.length <= maxChars) return text;
   const marker = "\n…[truncated to fit the context window]…\n";
   const headLen = Math.floor(maxChars * 0.6);
-  const tailLen = maxChars - headLen - marker.length;
+  const tailLen = Math.max(0, maxChars - headLen - marker.length);
   return text.slice(0, headLen) + marker + text.slice(text.length - tailLen);
 }
 

@@ -191,7 +191,7 @@ export class ModelPicker {
             : state.models.find((x) => x.id === modelId);
           if (m) {
             if (providerId !== state.provider) {
-              await state.setProvider(providerId);
+              state.setProvider(providerId);
             }
             state.setModel(m.id);
           }
@@ -328,7 +328,7 @@ export class ModelPicker {
           const { state, catalog } = this.deps;
           const providerId = row.providerId || state.provider;
           if (providerId !== state.provider) {
-            await state.setProvider(providerId);
+            state.setProvider(providerId);
           }
           const m = state.models.find((x) => x.id === row.id) || (await this.getAllModels()).find((x) => x.id === row.id && x.providerId === providerId);
           if (m) state.setModel(m.id);

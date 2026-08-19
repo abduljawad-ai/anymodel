@@ -35,4 +35,4 @@ export const PROVIDER_COLORS = {
 // ── Request timeouts (ms) ────────────────────────────────────────────
 export const REQUEST_TIMEOUT_MS  = 120000;  // 2 min
 export const MEDIA_TIMEOUT_MS    = 300000;  // 5 min
-export const MODELS_TIMEOUT_MS   = 300000;  // 30 sec — corrected from original 30s
+export const MODELS_TIMEOUT_MS   = 300000;  // 5 min

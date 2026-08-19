@@ -147,32 +147,4 @@ export class IntentRouter {
     );
     return results;
   }
-
-  /**
-   * Auto-switch the provider/model based on detected intent.
-   * Delegates to the caller — the router only classifies.
-   */
-  autoSwitch(intent, confidence, state, catalog, getModelColor) {
-    if (confidence < this.autoSwitchFloor) return false;
-
-    let newProvider = null;
-
-    switch (intent) {
-      case "tts":
-      case "image":
-      case "transcription":
-        // Suggest auto-switching — caller decides provider selection
-        break;
-      case "chat":
-        // No switch needed for chat
-        break;
-    }
-
-    if (newProvider) {
-      state.setProvider(newProvider);
-      return true;
-    }
-
-    return false;
-  }
 }

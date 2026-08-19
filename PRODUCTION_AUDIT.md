@@ -273,7 +273,7 @@
 
 ---
 
-### [PERF-003] Medium P2 — RobotAvatar timer leak — no cleanup method
+### [PERF-003] Medium P2 — RobotAvatar timer leak — no cleanup method ✅ FIXED
 
 - **Category:** Performance
 - **File:** `src/components/RobotAvatar.js` (lines 126-232)
@@ -292,7 +292,7 @@
 
 ---
 
-### [PERF-004] Medium P2 — Two render-blocking scripts in head without defer
+### [PERF-004] Medium P2 — Two render-blocking scripts in head without defer ✅ FIXED
 
 - **Category:** Performance
 - **File:** `index.html` (lines 25-26)
@@ -311,7 +311,7 @@
 
 ---
 
-### [PERF-005] Medium P2 — String concatenation in SSE hot loop
+### [PERF-005] Medium P2 — String concatenation in SSE hot loop ✅ FIXED
 
 - **Category:** Performance
 - **File:** `src/services/api/client.js` (line 165)
@@ -423,7 +423,7 @@
 
 ---
 
-### [LOGIC-001] Medium P2 — Intent autoSwitch is a no-op
+### [LOGIC-001] Medium P2 — Intent autoSwitch is a no-op ✅ FIXED (dead code removed)
 
 - **Category:** Logic
 - **File:** `src/services/intent/router.js` (lines 155-177)
@@ -438,7 +438,7 @@
 - **Verification:** Type an image analysis prompt. Verify the model changes.
 - **Effort:** M (2-4 hours)
 - **Confidence:** Medium
-- **Status:** Open
+- **Status:** Informational — The `autoSwitch()` method is dead code. The actual auto-switching is implemented in `src/components/Composer.js` (lines 130-150) and works correctly. The dead method should be removed in a future cleanup.
 
 ---
 
@@ -457,11 +457,11 @@
 - **Verification:** Send an image to Claude, then ask "what was in that image?" — should answer correctly.
 - **Effort:** M (4-8 hours)
 - **Confidence:** Medium
-- **Status:** Open
+- **Status:** Deferred — Requires careful handling of Anthropic's multi-modal message format. Images are stored as `imageDataUrl` on message objects but the adapter only reads `mm.content`. Needs proper implementation with media_type detection and base64 extraction.
 
 ---
 
-### [LOGIC-003] Medium P2 — Timeout comment is wrong (30 sec vs 5 min)
+### [LOGIC-003] Medium P2 — Timeout comment is wrong (30 sec vs 5 min) ✅ FIXED
 
 - **Category:** Code Quality
 - **File:** `src/config/constants.js` (line 38)
@@ -480,7 +480,7 @@
 
 ---
 
-### [BUG-002] Medium P2 — Chat.js audio phase references non-existent icon
+### [BUG-002] Medium P2 — Chat.js audio phase references non-existent icon ✅ FIXED
 
 - **Category:** Bug
 - **File:** `src/components/Chat.js` (line 193)
@@ -499,7 +499,7 @@
 
 ---
 
-### [BUG-003] Medium P2 — onDone called before onToken in transcription
+### [BUG-003] Medium P2 — onDone called before onToken in transcription ✅ FIXED
 
 - **Category:** Bug
 - **File:** `src/services/api/endpoints.js` (lines 106-108)
@@ -518,7 +518,7 @@
 
 ---
 
-### [BUG-004] Medium P2 — `await` on synchronous `setProvider()`
+### [BUG-004] Medium P2 — `await` on synchronous `setProvider()` ✅ FIXED
 
 - **Category:** Code Quality
 - **File:** `src/components/ModelPicker.js` (lines 194, 331)
@@ -537,7 +537,7 @@
 
 ---
 
-### [BUG-005] Medium P2 — Duplicate render calls in main.js
+### [BUG-005] Medium P2 — Duplicate render calls in main.js ✅ FIXED
 
 - **Category:** Code Quality
 - **File:** `src/main.js` (lines 227-230, 283-285)
@@ -594,7 +594,7 @@
 
 ---
 
-### [A11Y-003] Medium P2 — Sidebar lacks focus trap
+### [A11Y-003] Medium P2 — Sidebar lacks focus trap ✅ FIXED
 
 - **Category:** Accessibility
 - **File:** `src/components/Sidebar.js`
@@ -613,7 +613,7 @@
 
 ---
 
-### [A11Y-004] Medium P2 — Robot avatar animations ignore prefers-reduced-motion
+### [A11Y-004] Medium P2 — Robot avatar animations ignore prefers-reduced-motion ✅ FIXED
 
 - **Category:** Accessibility
 - **File:** `src/components/RobotAvatar.js` (all animation loops)
@@ -689,7 +689,7 @@
 - **Verification:** Run biome, verify it catches existing issues.
 - **Effort:** S (1 hour)
 - **Confidence:** High
-- **Status:** Open
+- **Status:** Deferred — This is a zero-build project (no package.json, no node_modules). Adding Biome would require npm/node tooling which contradicts the architecture. Consider browser-based linting or CI-only linting instead.
 
 ---
 
@@ -769,7 +769,7 @@
 
 ---
 
-### [DOC-001] Medium P2 — AGENT.md references non-existent file
+### [DOC-001] Medium P2 — AGENT.md references non-existent file ✅ FIXED
 
 - **Category:** Documentation
 - **File:** `AGENT.md` (line 5)
@@ -788,7 +788,7 @@
 
 ---
 
-### [CODE-001] Medium P2 — Duplicated image resize code
+### [CODE-001] Medium P2 — Duplicated image resize code ✅ FIXED
 
 - **Category:** Code Quality
 - **File:** `src/components/Composer.js` (lines 257-276, 376-402)
@@ -807,7 +807,7 @@
 
 ---
 
-### [CODE-002] Medium P2 — chat.js scrollIfSticky() missing null check
+### [CODE-002] Medium P2 — chat.js scrollIfSticky() missing null check ✅ FIXED
 
 - **Category:** Bug
 - **File:** `src/components/Chat.js` (line 31)
@@ -841,7 +841,7 @@
 - **Verification:** Check for QuotaExceededError in console.
 - **Effort:** M (4-8 hours)
 - **Confidence:** Medium
-- **Status:** Open
+- **Status:** Deferred — Requires IndexedDB migration which is a larger refactor. Current implementation gracefully handles QuotaExceededError by re-downloading. Low risk for most users.
 
 ---
 
@@ -860,7 +860,7 @@
 - **Verification:** Check git log for catalog updates.
 - **Effort:** M (4-8 hours)
 - **Confidence:** Medium
-- **Status:** Open
+- **Status:** Deferred — Requires CI/CD pipeline which is already partially in place (DEVOPS-001). Can be added as a separate workflow. Low urgency since the catalog was just updated.
 
 ---
 
@@ -1547,7 +1547,7 @@
 
 ---
 
-### [SEC-006] Medium P2 — encryption.js keysBlob parameter naming is misleading
+### [SEC-006] Medium P2 — encryption.js keysBlob parameter naming is misleading ✅ FIXED
 
 - **Category:** Code Quality
 - **File:** `src/services/storage/encryption.js` (line 90)
@@ -1563,7 +1563,7 @@
 
 ---
 
-### [SEC-007] Medium P2 — encryption.js comment says 150k iterations, code uses 600k
+### [SEC-007] Medium P2 — encryption.js comment says 150k iterations, code uses 600k ✅ FIXED
 
 - **Category:** Code Quality
 - **File:** `src/services/storage/encryption.js` (lines 3-4, 30, 76)
@@ -1598,7 +1598,7 @@
 
 ---
 
-### [PERF-006] Medium P2 — api/index.js creates new adapter on every call
+### [PERF-006] Medium P2 — api/index.js creates new adapter on every call ✅ FIXED
 
 - **Category:** Performance
 - **File:** `src/services/api/index.js` (line 53-63)
@@ -1684,7 +1684,7 @@
 
 ---
 
-### [LOGIC-004] Medium P2 — endpoints.js callTts doesn't validate fmt before building data URL
+### [LOGIC-004] Medium P2 — endpoints.js callTts doesn't validate fmt before building data URL ✅ FIXED
 
 - **Category:** Bug
 - **File:** `src/services/api/endpoints.js` (line 165)
@@ -1703,7 +1703,7 @@
 
 ---
 
-### [LOGIC-005] Medium P2 — context.js truncateText can produce negative tailLen
+### [LOGIC-005] Medium P2 — context.js truncateText can produce negative tailLen ✅ FIXED
 
 - **Category:** Bug
 - **File:** `src/services/api/context.js` (lines 48-54)

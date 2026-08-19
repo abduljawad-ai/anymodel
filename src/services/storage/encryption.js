@@ -1,7 +1,7 @@
 /**
  * AES-GCM encrypted API key storage.
  *
- * Keys are encrypted with a user-supplied passphrase using PBKDF2 (150k iterations,
+ * Keys are encrypted with a user-supplied passphrase using PBKDF2 (600k iterations,
  * SHA-256) to derive an AES-256-GCM key. The passphrase lives only in memory
  * for the session — never persisted.
  *
@@ -87,9 +87,9 @@ export async function decryptKeysBlob(blob, pass) {
 /**
  * Read and parse the raw stored blob from localStorage (may be plaintext or encrypted).
  */
-export function keysBlob(getItem) {
+export function keysBlob(storageKey) {
   try {
-    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(getItem) : null;
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(storageKey) : null;
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === "object" ? parsed : null;

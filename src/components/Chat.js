@@ -28,7 +28,8 @@ export class Chat {
   scrollIfSticky() {
     if (typeof document === "undefined") return;
     const { $, state } = this.deps;
-    if (state.stickToBottom) $("chatScroll").scrollTop = $("chatScroll").scrollHeight;
+    const el = $("chatScroll");
+    if (el && state.stickToBottom) el.scrollTop = el.scrollHeight;
   }
 
   appendWithLinks(el, text) {
@@ -190,7 +191,7 @@ export class Chat {
     thinking: { kind: "thinking", icon: "ring" },
     tool:     { kind: "tool",     icon: "ring" },
     ocr:      { kind: "ocr",      icon: "ring" },
-    audio:    { kind: "connect",  icon: "bars" }
+    audio:    { kind: "connect",  icon: "pause_bars" }
   };
 
   setPhase(turn, key, label) {

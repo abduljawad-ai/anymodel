@@ -125,6 +125,8 @@ export class RobotAvatar {
   /* ── auto-blink loop ── */
   startBlinkLoop(container) {
     if (!container) return;
+    // Respect prefers-reduced-motion
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     let handle = null;
 
     const doBlink = () => {
@@ -164,6 +166,7 @@ export class RobotAvatar {
   /* ── thinking pupil dart loop ── */
   startThinkingLoop(container) {
     if (!container) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     let handle = null;
 
     const dartPupils = () => {
@@ -204,6 +207,7 @@ export class RobotAvatar {
   /* ── speaking mouth animation ── */
   startSpeakingLoop(container) {
     if (!container) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     let handle = null;
 
     const cycle = () => {
@@ -250,5 +254,13 @@ export class RobotAvatar {
     this.startBlinkLoop(container);
     this.startThinkingLoop(container);
     this.startSpeakingLoop(container);
+  }
+
+  /* ── cleanup ── */
+  cleanup(container) {
+    if (!container) return;
+    if (container._stopBlink) container._stopBlink();
+    if (container._stopThinking) container._stopThinking();
+    if (container._stopSpeaking) container._stopSpeaking();
   }
 }

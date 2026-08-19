@@ -151,8 +151,7 @@ export async function streamSSE(url, headers, body, parseEvent, callbacks) {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buf = "";
-  let fullText = "";
-  const toolCalls = [];
+  const textChunks = [];
   let firstTokenSeen = false;
 
   // For Anthropic-style tool blocks that accumulate input_json_delta
@@ -185,8 +184,8 @@ export async function streamSSE(url, headers, body, parseEvent, callbacks) {
                   firstTokenSeen = true;
                   callbacks.onFirstToken && callbacks.onFirstToken();
                 }
-                fullText += event.text;
-                callbacks.onToken && callbacks.onToken(fullText);
+                textChunks.push(event.text);
+                callbacks.onToken && callbacks.onToken(textChunks.join(""));
                 callbacks.onScroll && callbacks.onScroll();
               }
               break;
@@ -216,6 +215,7 @@ export async function streamSSE(url, headers, body, parseEvent, callbacks) {
       }
     }
 
+    const fullText = textChunks.join("");
     callbacks.onDone && callbacks.onDone(fullText);
     return { fullText, toolCalls: toolCalls.filter(Boolean) };
   } finally {

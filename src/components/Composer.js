@@ -6,6 +6,8 @@
  * appropriate API endpoint.
  */
 
+import { resizeImage } from "../utils/imageResize.js";
+
 export class Composer {
   constructor(deps) {
     this.deps = deps;
@@ -255,25 +257,12 @@ export class Composer {
     reader.onload = () => {
       const base64 = (reader.result || "").split(",").pop() || "";
       if (kind === "image") {
-        const img = new Image();
-        img.onload = () => {
-          const maxDim = 1024;
-          let { width, height } = img;
-          if (width > maxDim || height > maxDim) {
-            const scale = maxDim / Math.max(width, height);
-            width = Math.round(width * scale);
-            height = Math.round(height * scale);
-          }
-          const canvas = document.createElement("canvas");
-          canvas.width = width;
-          canvas.height = height;
-          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        resizeImage(file).then(({ dataUrl, name, width, height }) => {
           const tokenEstimate = api.estimateImageTokens
             ? api.estimateImageTokens(width, height)
             : 0;
-          state.pendingImage = { dataUrl: canvas.toDataURL("image/jpeg", 0.85), name: file.name, tokenEstimate };
-        };
-        img.src = "data:" + file.type + ";base64," + base64;
+          state.pendingImage = { dataUrl, name, tokenEstimate };
+        }).catch(() => {});
       } else {
         state.pendingAudio = { dataUrl: "data:" + (file.type || "audio/webm") + ";base64," + base64, name: file.name };
       }
@@ -371,31 +360,13 @@ export class Composer {
             const file = item.getAsFile();
             if (!file) continue;
             e.preventDefault();
-            const reader = new FileReader();
-            reader.onload = () => {
-              const base64 = (reader.result || "").split(",").pop() || "";
-              const img = new Image();
-              img.onload = () => {
-                const maxDim = 1024;
-                let { width, height } = img;
-                if (width > maxDim || height > maxDim) {
-                  const scale = maxDim / Math.max(width, height);
-                  width = Math.round(width * scale);
-                  height = Math.round(height * scale);
-                }
-                const canvas = document.createElement("canvas");
-                canvas.width = width;
-                canvas.height = height;
-                canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-                const tokenEstimate = api.estimateImageTokens
-                  ? api.estimateImageTokens(width, height)
-                  : 0;
-                state.pendingImage = { dataUrl: canvas.toDataURL("image/jpeg", 0.85), name: "pasted-image.png", tokenEstimate };
-                chat.render();
-              };
-              img.src = "data:" + item.type + ";base64," + base64;
-            };
-            reader.readAsDataURL(file);
+            resizeImage(file).then(({ dataUrl, width, height }) => {
+              const tokenEstimate = api.estimateImageTokens
+                ? api.estimateImageTokens(width, height)
+                : 0;
+              state.pendingImage = { dataUrl, name: "pasted-image.png", tokenEstimate };
+              chat.render();
+            }).catch(() => {});
             break;
           }
         }
