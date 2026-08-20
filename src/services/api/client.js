@@ -148,77 +148,79 @@ export async function streamSSE(url, headers, body, parseEvent, callbacks) {
     }
     if (!res.body) throw new Error("Streaming not supported");
 
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buf = "";
-  const textChunks = [];
-  let firstTokenSeen = false;
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    const textChunks = [];
+    const toolCalls = [];
+    let firstTokenSeen = false;
 
-  // For Anthropic-style tool blocks that accumulate input_json_delta
-  let pendingToolBlocks = {};
+    // For Anthropic-style tool blocks that accumulate input_json_delta
+    let pendingToolBlocks = {};
 
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      const lines = buf.split("\n");
-      buf = lines.pop();
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop();
 
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith("data:")) continue;
-        const payload = trimmed.slice(5).trim();
-        if (!payload || payload === "[DONE]") continue;
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data:")) continue;
+          const payload = trimmed.slice(5).trim();
+          if (!payload || payload === "[DONE]") continue;
 
-        let json;
-        try { json = JSON.parse(payload); } catch (e) { continue; }
+          let json;
+          try { json = JSON.parse(payload); } catch (e) { continue; }
 
-        const events = parseEvent(json);
+          const events = parseEvent(json);
 
-        for (const event of events) {
-          switch (event.type) {
-            case "text":
-              if (event.text) {
-                if (!firstTokenSeen) {
-                  firstTokenSeen = true;
-                  callbacks.onFirstToken && callbacks.onFirstToken();
+          for (const event of events) {
+            switch (event.type) {
+              case "text":
+                if (event.text) {
+                  if (!firstTokenSeen) {
+                    firstTokenSeen = true;
+                    callbacks.onFirstToken && callbacks.onFirstToken();
+                  }
+                  textChunks.push(event.text);
+                  callbacks.onToken && callbacks.onToken(textChunks.join(""));
+                  callbacks.onScroll && callbacks.onScroll();
                 }
-                textChunks.push(event.text);
-                callbacks.onToken && callbacks.onToken(textChunks.join(""));
-                callbacks.onScroll && callbacks.onScroll();
-              }
-              break;
+                break;
 
-            case "thinking":
-              if (event.text && callbacks.onThinking) {
-                callbacks.onThinking(event.text);
-              }
-              break;
+              case "thinking":
+                if (event.text && callbacks.onThinking) {
+                  callbacks.onThinking(event.text);
+                }
+                break;
 
-            case "tool_call": {
-              const idx = event.index ?? 0;
-              if (!toolCalls[idx]) toolCalls[idx] = { id: "", name: "", arguments: "" };
-              if (event.id) toolCalls[idx].id = event.id;
-              if (event.name) toolCalls[idx].name += event.name;
-              if (event.arguments) toolCalls[idx].arguments += event.arguments;
-              const names = toolCalls.filter(Boolean).map(t => t.name).filter(Boolean).join(", ");
-              if (names) callbacks.onPhase && callbacks.onPhase("tool", "Using " + names + "…");
-              break;
+              case "tool_call": {
+                const idx = event.index ?? 0;
+                if (!toolCalls[idx]) toolCalls[idx] = { id: "", name: "", arguments: "" };
+                if (event.id) toolCalls[idx].id = event.id;
+                if (event.name) toolCalls[idx].name += event.name;
+                if (event.arguments) toolCalls[idx].arguments += event.arguments;
+                const names = toolCalls.filter(Boolean).map(t => t.name).filter(Boolean).join(", ");
+                if (names) callbacks.onPhase && callbacks.onPhase("tool", "Using " + names + "…");
+                break;
+              }
+
+              case "done":
+                // stream finished (OpenAI only sends this; others just close)
+                break;
             }
-
-            case "done":
-              // stream finished (OpenAI only sends this; others just close)
-              break;
           }
         }
       }
-    }
 
-    const fullText = textChunks.join("");
-    callbacks.onDone && callbacks.onDone(fullText);
-    return { fullText, toolCalls: toolCalls.filter(Boolean) };
-  } finally {
-    reader.cancel().catch(() => {});
-  }
+      const fullText = textChunks.join("");
+      callbacks.onDone && callbacks.onDone(fullText);
+      return { fullText, toolCalls: toolCalls.filter(Boolean) };
+    } finally {
+      reader.cancel().catch(() => {});
+    }
+  } // end retry while
 }
