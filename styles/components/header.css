@@ -113,5 +113,5 @@
     border-bottom: 1px solid var(--border);
     background: var(--panel);
   }
-  .header-desktop { display: none; }
+  .header { display: none; }
 }

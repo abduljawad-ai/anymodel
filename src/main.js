@@ -301,7 +301,9 @@ async function init() {
 function toggleLayoutChrome() {
   const desktop = window.matchMedia("(min-width:860px)").matches;
   const headerDesktop = document.getElementById("headerDesktop");
+  const headerMobile = document.getElementById("headerMobile");
   if (headerDesktop) headerDesktop.style.display = desktop ? "flex" : "none";
+  if (headerMobile) headerMobile.style.display = desktop ? "none" : "flex";
 }
 
 if (document.readyState === "loading") {
