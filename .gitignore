@@ -4,3 +4,5 @@ dist/
 coverage/
 *.local
 .DS_Store
+docs/
+TODO.md
