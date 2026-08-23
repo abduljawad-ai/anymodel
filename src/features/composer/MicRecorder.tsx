@@ -24,7 +24,12 @@ export function MicRecorder({ onTranscript }: { onTranscript: (text: string) => 
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => () => timerRef.current && clearInterval(timerRef.current), []);
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    },
+    [],
+  );
 
   async function toggle() {
     if (recording) {
