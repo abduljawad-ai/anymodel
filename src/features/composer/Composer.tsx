@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { toast } from '../../lib/toast';
-import { anyActive } from '../../state/streamRegistry';
-import { sendTurn, stopStream } from '../thread/useSend';
+import { anyActive, stopStream } from '../../state/streamRegistry';
+import { sendTurn } from '../thread/useSend';
 import { ImageAttach, fileToDataUrl } from './ImageAttach';
 import { ModelDial } from './ModelDial';
 
