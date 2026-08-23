@@ -22,6 +22,25 @@ export function DataPort() {
 
   const importJson = async (file: File) => {
     const text = await file.text();
+    // Parse first to validate and count sessions before confirming
+    try {
+      const j = JSON.parse(text) as { sessions?: unknown[] };
+      if (!Array.isArray(j.sessions)) {
+        alert('That file is not a valid Relay backup.');
+        return;
+      }
+      const existingCount = useSessionStore.getState().sessions.length;
+      const importCount = j.sessions.length;
+      const confirmed = window.confirm(
+        `Import ${importCount} session${importCount !== 1 ? 's' : ''}?\n\n` +
+        `This will REPLACE your ${existingCount} existing session${existingCount !== 1 ? 's' : ''}. ` +
+        `This action cannot be undone.`
+      );
+      if (!confirmed) return;
+    } catch {
+      alert('That file is not a valid Relay backup.');
+      return;
+    }
     const res = useSessionStore.getState().importJson(text);
     if (res === 'ok') window.location.reload();
     else alert('That file is not a valid Relay backup.');
