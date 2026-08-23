@@ -27,7 +27,7 @@ test('session store lifecycle, autotitle, import/export', () => {
   expect(s().active()!.title).toBe('New thread');
 
   s().addTurn(id, { id: 't1', role: 'user', content: 'Explain quantum tunneling briefly please' });
-  expect(s().active()!.title).toBe('Explain quantum tunneling briefly pleas');
+  expect(s().active()!.title).toBe('Explain quantum tunneling briefly please'); // ≤48 chars → full text
 
   s().addTurn(id, { id: 'a1', role: 'assistant', content: '', modelId: 'gpt-4o', providerId: 'openai', streaming: true });
   s().appendDelta(id, 'a1', 'He');
