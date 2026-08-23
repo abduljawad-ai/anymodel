@@ -1,0 +1,30 @@
+import type { ProviderId } from '../catalog/types';
+
+const LS_SETTINGS = 'relay.settings.v1';
+
+export interface RelaySettings {
+  theme: 'light' | 'dark';
+  autoLockMin: number;
+  /** Custom base URL per provider ('' or missing → PROVIDERS.defaultBase). */
+  bases: Partial<Record<ProviderId, string>>;
+  lastModel: { providerId: ProviderId; modelId: string };
+}
+
+export const DEFAULT_SETTINGS: RelaySettings = {
+  theme: 'light',
+  autoLockMin: 15,
+  bases: {},
+  lastModel: { providerId: 'openai', modelId: 'gpt-4o' },
+};
+
+export function loadSettings(): RelaySettings {
+  try {
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(LS_SETTINGS) ?? '{}') };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+export function saveSettings(patch: Partial<RelaySettings>): void {
+  localStorage.setItem(LS_SETTINGS, JSON.stringify({ ...loadSettings(), ...patch }));
+}
