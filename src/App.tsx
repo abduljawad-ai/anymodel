@@ -11,7 +11,7 @@ import { ToastStack } from './features/shell/ToastStack';
 import { ThreadView } from './features/thread/ThreadView';
 import { Composer } from './features/composer/Composer';
 import { ProvidersPage } from './features/providers/ProvidersPage';
-import { autoLoadKeyedModels } from './features/providers/autoLoad';
+import { autoLoadKeyedModels, ensureSaneActiveModel } from './features/providers/autoLoad';
 import { Palette } from './features/palette/Palette';
 import { SettingsSheet } from './features/settings/SettingsSheet';
 
@@ -36,7 +36,9 @@ export default function App() {
 
   // The moment the vault is usable, silently load every keyed provider's models.
   useEffect(() => {
-    if (vaultStatus === 'unlocked') void autoLoadKeyedModels();
+    if (vaultStatus === 'unlocked') {
+      void autoLoadKeyedModels().then(ensureSaneActiveModel);
+    }
   }, [vaultStatus]);
 
   // Global shortcuts: ⌘K/Ctrl+K palette, Esc closes overlays.

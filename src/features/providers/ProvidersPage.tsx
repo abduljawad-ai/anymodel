@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { cachedModels, ensureModels, invalidate, isChatCapable, isLoaded } from '../../catalog';
 import type { ModelInfo, ProviderMeta } from '../../catalog/types';
-import { listProviders } from '../../catalog/providers';
+import { listProviders, PROVIDERS } from '../../catalog/providers';
 import { createAdapter } from '../../adapters/factory';
 import { resolveDeps, custodyOf } from '../../vault/gate';
 import { isAllowedBase } from '../../adapters/base';
@@ -9,7 +9,7 @@ import { loadSettings, saveSettings } from '../../state/settings';
 import { useUiStore } from '../../state/uiStore';
 import { useVaultStore } from '../../vault/vaultStore';
 import { toast } from '../../lib/toast';
-import { onModelsChanged } from './autoLoad';
+import { onModelsChanged, ensureSaneActiveModel } from './autoLoad';
 
 /** Compact single-line provider row — expands on click into full controls. */
 function ProviderRow({ meta }: { meta: ProviderMeta }) {
@@ -33,6 +33,7 @@ function ProviderRow({ meta }: { meta: ProviderMeta }) {
     try {
       setModels(await ensureModels(meta.id));
       setOpen(true);
+      ensureSaneActiveModel();
       toast(`${meta.name}: ${cachedModels(meta.id).length} models ready`);
     } catch {
       toast(`${meta.name}: could not fetch models — check key, use Refresh later`);
@@ -90,6 +91,23 @@ function ProviderRow({ meta }: { meta: ProviderMeta }) {
               </a>
             )}
             {meta.local && <span className="chip">local</span>}
+            {!PROVIDERS[meta.id] && (
+              <button
+                className="btn btn-danger"
+                style={{ marginLeft: 'auto', padding: '3px 10px', fontSize: 12 }}
+                title="Delete this custom provider"
+                onClick={() => {
+                  saveSettings({
+                    customProviders: loadSettings().customProviders.filter((c) => c.id !== meta.id),
+                  });
+                  invalidate(meta.id);
+                  toast(`${meta.name} deleted`);
+                  window.dispatchEvent(new Event('relay-providers-changed'));
+                }}
+              >
+                Delete provider
+              </button>
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
