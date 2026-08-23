@@ -11,6 +11,7 @@ import { ToastStack } from './features/shell/ToastStack';
 import { ThreadView } from './features/thread/ThreadView';
 import { Composer } from './features/composer/Composer';
 import { Palette } from './features/palette/Palette';
+import { SettingsSheet } from './features/settings/SettingsSheet';
 
 /**
  * Shell: vault gate → rail + topbar + active view.
@@ -21,6 +22,7 @@ export default function App() {
   const view = useUiStore((s) => s.view);
   const railOpen = useUiStore((s) => s.railOpen);
   const paletteOpen = useUiStore((s) => s.paletteOpen);
+  const settingsOpen = useUiStore((s) => s.settingsOpen);
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
   const setRailOpen = useUiStore((s) => s.setRailOpen);
 
@@ -91,6 +93,7 @@ export default function App() {
       </div>
       <ToastStack />
       {paletteOpen && <Palette />}
+      {settingsOpen && <SettingsSheet />}
     </div>
   );
 }
