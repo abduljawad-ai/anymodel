@@ -1,112 +1,51 @@
 import { useEffect, useRef, useState } from 'react';
 import { toast } from '../../lib/toast';
 import { anyActive, stopStream } from '../../state/streamRegistry';
-import { useSessionStore } from '../../state/sessionStore';
 import { loadSettings, saveSettings } from '../../state/settings';
-import { getProviderMeta } from '../../catalog/providers';
-import type { ModelRef } from '../../state/uiStore';
 import { sendTurn } from '../thread/useSend';
 import { ImageAttach, fileToDataUrl } from './ImageAttach';
 import { MicRecorder } from './MicRecorder';
 import { ModelDial } from './ModelDial';
-import { useUiStore } from '../../state/uiStore';
 
-/** Recent models = unique assistant models in the active thread + current pick. */
-function recentModels(limit = 4): ModelRef[] {
-  const s = useSessionStore.getState().active();
-  const out: ModelRef[] = [useUiStore.getState().activeModel];
-  if (s) {
-    for (const t of [...s.turns].reverse()) {
-      if (t.role === 'assistant' && t.modelId && t.providerId) {
-        const ref = { providerId: t.providerId, modelId: t.modelId };
-        if (!out.some((m) => m.modelId === ref.modelId && m.providerId === ref.providerId)) out.push(ref);
-      }
-      if (out.length >= limit) break;
-    }
-  }
-  return out;
-}
 
-/** Bottom-right pill: model recents + thinking effort + deep-research toggle. */
-function ModeSelector() {
-  const cfg = loadSettings();
+
+/** Effort pill — thinking effort applies to EVERY model. */
+function EffortPill() {
   const [open, setOpen] = useState(false);
-  const popRef = useRef<HTMLDivElement>(null);
+  const cfg = loadSettings();
+  const ref = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent) => {
-      if (!popRef.current?.contains(e.target as Node)) setOpen(false);
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
     };
     window.addEventListener('mousedown', close);
     return () => window.removeEventListener('mousedown', close);
   }, [open]);
 
-  const label = cfg.researchMode ? 'Research' : cfg.effort === 'high' ? 'High' : 'Standard';
-
-  function setEffort(e: 'standard' | 'high') {
-    saveSettings({ effort: e });
-    toast(`Thinking effort: ${e} — applied to every model`);
-    setOpen(false);
-  }
-  function toggleResearch() {
-    const next = !loadSettings().researchMode;
-    saveSettings({ researchMode: next });
-    setOpen(false);
-    toast(next ? 'Deep research ON — reason → search → synthesize loop' : 'Deep research off');
-  }
-
   return (
-    <span style={{ position: 'relative', marginLeft: 'auto' }} ref={popRef}>
-      <button className="dial-btn" onClick={() => setOpen((o) => !o)} aria-label="Mode and effort">
-        <span style={{ color: cfg.researchMode ? 'var(--accent)' : undefined }}>
-          {cfg.researchMode ? '🔍 Research' : `⚡ ${label}`}
-        </span>
-        <span style={{ opacity: 0.5 }}>▾</span>
+    <span style={{ position: 'relative', marginLeft: 'auto' }} ref={ref}>
+      <button className="dial-btn" onClick={() => setOpen((o) => !o)} aria-label="Thinking effort">
+        ⚡ {cfg.effort === 'high' ? 'High' : 'Standard'} <span style={{ opacity: 0.5 }}>▾</span>
       </button>
-
       {open && (
         <div className="mode-pop" role="menu">
-          <div className="pop-sec">RECENT MODELS</div>
-          {recentModels().map((m) => (
+          <div className="pop-sec">THINKING EFFORT — APPLIES TO EVERY MODEL</div>
+          {(['standard', 'high'] as const).map((e) => (
             <button
-              key={`${m.providerId}/${m.modelId}`}
+              key={e}
               className="pop-row"
               onClick={() => {
-                useUiStore.getState().setActiveModel(m);
+                saveSettings({ effort: e });
+                toast(e === 'high' ? 'High — forced step-by-step reasoning' : 'Standard — fast chat');
                 setOpen(false);
               }}
             >
-              <span className="tint-dot" style={{ ['--tint' as string]: getProviderMeta(m.providerId)?.tint }} />
-              <span>{m.modelId}</span>
-            </button>
-          ))}
-          <button
-            className="pop-row"
-            onClick={() => {
-              setOpen(false);
-              useUiStore.getState().setPaletteOpen(true);
-            }}
-          >
-            Browse all… ⌘K
-          </button>
-
-          <div className="pop-div" />
-          <div className="pop-sec">THINKING EFFORT — applies to every model</div>
-          {(['standard', 'high'] as const).map((e) => (
-            <button key={e} className="pop-row" onClick={() => setEffort(e)}>
-              <span>{e === 'standard' ? 'Standard — fast chat' : 'High — forced step-by-step reasoning'}</span>
+              <span>{e === 'standard' ? 'Standard · fast chat' : 'High · forced reasoning'}</span>
               {cfg.effort === e && <span style={{ marginLeft: 'auto', color: 'var(--accent)' }}>✓</span>}
             </button>
           ))}
-
-          <div className="pop-div" />
-          <button className="pop-row" onClick={toggleResearch}>
-            🔍 Deep research loop
-            <span style={{ marginLeft: 'auto', color: loadSettings().researchMode ? 'var(--accent)' : 'var(--muted)' }}>
-              {loadSettings().researchMode ? 'ON' : 'OFF'}
-            </span>
-          </button>
         </div>
       )}
     </span>
@@ -114,8 +53,8 @@ function ModeSelector() {
 }
 
 /**
- * The composer: autosize textarea, attach/paste, mic, model dial, mode
- * selector, Send/Stop. Enter sends; Shift+Enter breaks lines.
+ * Composer row (left→right): model · attach · mic · research · effort · send.
+ * Model switching = dial/⌘K only. Research toggle = 🔍 only. No duplicates.
  */
 export function Composer() {
   const [text, setText] = useState('');
@@ -192,7 +131,7 @@ export function Composer() {
             🔍
           </button>
 
-          <ModeSelector />
+          <EffortPill />
 
           {streaming ? (
             <button className="btn btn-danger" onClick={() => stopStream()} aria-label="Stop generating">
