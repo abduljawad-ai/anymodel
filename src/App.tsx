@@ -1,7 +1,85 @@
+import { useEffect } from 'react';
+import './styles/tokens.css';
+import './styles/app.css';
+import { useUiStore } from './state/uiStore';
+import { useSessionStore } from './state/sessionStore';
+import { useVaultStore } from './vault/vaultStore';
+import { Rail } from './features/shell/Rail';
+import { TopBar } from './features/shell/TopBar';
+import { Wizard } from './features/shell/Wizard';
+import { ToastStack } from './features/shell/ToastStack';
+
+/**
+ * Shell: vault gate → rail + topbar + active view.
+ * Owns global keyboard shortcuts and vault auto-lock.
+ */
 export default function App() {
+  const vaultStatus = useVaultStore((s) => s.status);
+  const view = useUiStore((s) => s.view);
+  const railOpen = useUiStore((s) => s.railOpen);
+  const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
+  const setRailOpen = useUiStore((s) => s.setRailOpen);
+
+  // Boot stores once.
+  useEffect(() => {
+    useVaultStore.getState().init();
+    useSessionStore.getState().init();
+  }, []);
+
+  // Global shortcuts: ⌘K/Ctrl+K palette, Esc closes overlays.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+      if (e.key === 'Escape') {
+        setPaletteOpen(false);
+        setRailOpen(false);
+      }
+      useVaultStore.getState().touch();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [setPaletteOpen, setRailOpen]);
+
+  // Vault auto-lock after configured idle minutes.
+  useEffect(() => {
+    const iv = setInterval(() => {
+      const v = useVaultStore.getState();
+      if (v.status !== 'unlocked') return;
+      const { autoLockMin } = JSON.parse(localStorage.getItem('relay.settings.v1') ?? '{"autoLockMin":15}');
+      if (Date.now() - v.lastActivity > autoLockMin * 60_000) v.lock();
+    }, 30_000);
+    return () => clearInterval(iv);
+  }, []);
+
+  if (vaultStatus !== 'unlocked') {
+    return (
+      <>
+        <Wizard />
+        <ToastStack />
+      </>
+    );
+  }
+
   return (
-    <div data-testid="app-root">
-      Relay
+    <div data-testid="app-root" className="shell">
+      <Rail />
+      <div
+        className={`scrim ${railOpen ? 'show' : ''}`}
+        onClick={() => setRailOpen(false)}
+        aria-hidden
+      />
+      <div className="shell-main">
+        <TopBar />
+        <main className="view-area" aria-live="polite">
+          {view === 'thread' && <div id="thread-view" />}
+          {view === 'compare' && <div id="compare-view" />}
+          {view === 'lab' && <div id="lab-view" />}
+        </main>
+      </div>
+      <ToastStack />
     </div>
   );
 }

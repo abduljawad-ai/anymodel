@@ -33,6 +33,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
   keys: {},
   lastActivity: Date.now(),
   init() {
+    if (get().status === 'unlocked') return; // never downgrade a live session
     passRef = null;
     const raw = localStorage.getItem(LS_VAULT);
     set({ status: raw ? 'locked' : 'empty', keys: {} });
