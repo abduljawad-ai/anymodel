@@ -9,6 +9,7 @@ import { loadSettings, saveSettings } from '../../state/settings';
 import { useUiStore } from '../../state/uiStore';
 import { useVaultStore } from '../../vault/vaultStore';
 import { toast } from '../../lib/toast';
+import { onModelsChanged } from './autoLoad';
 
 /** Compact single-line provider row — expands on click into full controls. */
 function ProviderRow({ meta }: { meta: ProviderMeta }) {
@@ -26,9 +27,20 @@ function ProviderRow({ meta }: { meta: ProviderMeta }) {
     await useVaultStore.getState().setKey(meta.id, draft);
     setDraft('');
     setEditingKey(false);
-    toast(`${meta.name} key saved`);
+    toast(`${meta.name} key saved — loading models…`);
     force((n) => n + 1);
+    // Auto-discover models immediately; no manual "Load models" needed.
+    try {
+      setModels(await ensureModels(meta.id));
+      setOpen(true);
+      toast(`${meta.name}: ${cachedModels(meta.id).length} models ready`);
+    } catch {
+      toast(`${meta.name}: could not fetch models — check key, use Refresh later`);
+    }
   }
+
+  // Keep row data fresh when models load from anywhere else.
+  useEffect(() => onModelsChanged(() => setModels(cachedModels(meta.id))), [meta.id]);
 
   async function test() {
     toast(`Testing ${meta.name}…`);

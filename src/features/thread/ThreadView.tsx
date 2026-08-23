@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useSessionStore } from '../../state/sessionStore';
+import { useUiStore } from '../../state/uiStore';
 import { BatonTrail } from './BatonTrail';
 import { MessageBubble } from './MessageBubble';
 
@@ -35,6 +36,12 @@ export function ThreadView() {
             <br />
             Press <span className="kbd">⌘K</span> to pick a model, then just start typing.
           </p>
+          <button
+            className="btn btn-primary"
+            onClick={() => useUiStore.getState().setView('providers')}
+          >
+            ⟐ Set up providers & models
+          </button>
         </div>
       </div>
     );

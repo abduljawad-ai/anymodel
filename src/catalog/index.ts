@@ -41,6 +41,8 @@ export async function ensureModels(providerId: ProviderId): Promise<ModelInfo[]>
   try {
     const ids = await adapter.listModels();
     cache.set(providerId, { at: Date.now(), models: ids.map((id) => normalizeModel(providerId, id)) });
+    // Notify UI surfaces (palette, provider rows) wherever this is called from.
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('relay-models-changed'));
   } catch (e) {
     if (!hit) throw e;
   }

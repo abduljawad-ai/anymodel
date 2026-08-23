@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { cachedModels, isChatCapable } from '../../catalog';
+import { cachedModels, isChatCapable, ensureModels } from '../../catalog';
+import { toast } from '../../lib/toast';
+import { onModelsChanged, keyedButUnloaded } from '../providers/autoLoad';
 import type { Capability, ModelInfo, ProviderId } from '../../catalog/types';
 import { getProviderMeta, listProviders } from '../../catalog/providers';
 import { useUiStore } from '../../state/uiStore';
@@ -37,6 +39,7 @@ export function Palette() {
   const setActiveModel = useUiStore((s) => s.setActiveModel);
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
   const [q, setQ] = useState('');
+  const [tick, setTick] = useState(0);
   const [sel, setSel] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -49,10 +52,22 @@ export function Palette() {
   }, []);
 
   const filtered = useMemo(() => {
+    void tick; // recomputes when model lists load
     const needle = q.trim().toLowerCase();
     if (!needle) return entries.filter((e) => isChatCapable(e));
     return entries.filter((e) => needle.split(/\s+/).every((w) => e.haystack.includes(w)));
-  }, [entries, q]);
+  }, [entries, q, tick]);
+
+  // Dead-end fix: keyed providers whose models aren't loaded appear as
+  // one-click "load" rows (also matched by search text).
+  const loadables = useMemo(() => {
+    void tick;
+    const needle = q.trim().toLowerCase();
+    return keyedButUnloaded()
+      .map((pid) => getProviderMeta(pid))
+      .filter((p): p is NonNullable<typeof p> => !!p)
+      .filter((p) => !needle || `${p.name} ${p.id}`.toLowerCase().includes(needle));
+  }, [q, tick]);
 
   // Reset + focus on open.
   useEffect(() => {
@@ -60,6 +75,9 @@ export function Palette() {
     setSel(0);
     inputRef.current?.focus();
   }, []);
+
+  // Live-refresh when any provider's models finish loading.
+  useEffect(() => onModelsChanged(() => setTick((t) => t + 1)), []);
 
   // Keep selection visible.
   useEffect(() => {
@@ -122,8 +140,32 @@ export function Palette() {
           aria-label="Search models"
         />
         <div className="palette-list" ref={listRef}>
-          {filtered.length === 0 && (
-            <p style={{ padding: 14, color: 'var(--muted)' }}>No models match “{q}”.</p>
+          {loadables.length > 0 && (
+            <>
+              <div className="palette-group">LOAD MODELS</div>
+              {loadables.map((p) => (
+                <button
+                  key={`load-${p.id}`}
+                  className="palette-item"
+                  onClick={() =>
+                    void ensureModels(p.id)
+                      .then((ms) => toast(`${p.name}: ${ms.length} models loaded`))
+                      .catch((e) => toast(e instanceof Error ? e.message : 'load failed'))
+                  }
+                >
+                  <span className="tint-dot" style={{ ['--tint' as string]: p.tint }} />
+                  <span>⇩ Load {p.name} models</span>
+                  <span className="caps">
+                    <span className="cap-chip">has key</span>
+                  </span>
+                </button>
+              ))}
+            </>
+          )}
+          {filtered.length === 0 && loadables.length === 0 && (
+            <p style={{ padding: 14, color: 'var(--muted)' }}>
+              No models yet — add a key on the Providers page, models load automatically.
+            </p>
           )}
           {groups.map((g) => (
             <div key={g.providerId}>

@@ -39,6 +39,9 @@ export function Wizard() {
     });
     const res = await adapter.testConnection();
     setTestState((s) => ({ ...s, [p]: res.ok ? `✓ ${res.detail}` : `✗ ${res.detail}` }));
+    // Models for this provider are now one click away everywhere — preload.
+    const { ensureModels } = await import('../../catalog');
+    await ensureModels(p).catch(() => {});
   }
 
   return (

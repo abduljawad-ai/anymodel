@@ -38,8 +38,11 @@ export function SettingsSheet() {
     if (!v) return;
     await useVaultStore.getState().setKey(p, v);
     setDrafts((d) => ({ ...d, [p]: '' }));
-    setFlash((f) => ({ ...f, [p]: '✓ saved' }));
-    setTimeout(() => setFlash((f) => ({ ...f, [p]: '' })), 2000);
+    setFlash((f) => ({ ...f, [p]: '✓ saved — loading models…' }));
+    const { ensureModels } = await import('../../catalog');
+    await ensureModels(p).catch(() => {});
+    setFlash((f) => ({ ...f, [p]: '✓ saved · models ready' }));
+    setTimeout(() => setFlash((f) => ({ ...f, [p]: '' })), 2500);
   }
 
   return (
