@@ -153,12 +153,14 @@ function AssistantActions({ turn }: { turn: Turn }) {
     }
     try {
       setSpeaking(true);
-      const blob = await createAdapter('openai', resolveDeps('openai')).speak(turn.content, 'tts-1');
+      // Use the turn's provider if it's OpenAI (TTS-capable), otherwise fallback to OpenAI.
+      const ttsProvider = turn.providerId === 'openai' ? 'openai' : 'openai';
+      const blob = await createAdapter(ttsProvider, resolveDeps(ttsProvider)).speak(turn.content, 'tts-1');
       await playBlob(blob);
       setSpeaking(false);
     } catch (e) {
       setSpeaking(false);
-      toast(e instanceof Error ? e.message : 'Speech failed');
+      toast(e instanceof Error ? e.message : 'Speech failed — check your OpenAI key');
     }
   }
 
@@ -245,8 +247,7 @@ export const MessageBubble = memo(function MessageBubble({ turn }: { turn: Turn 
   const tint = turn.providerId ? getProviderMeta(turn.providerId)?.tint : undefined;
 
   // Kimi-style think box: live while reasoning streams, collapsed once prose starts.
-  const showThinkBox =
-    !!turn.reasoning && (!turn.streaming || !turn.content || turn.reasoning.length > 0);
+  const showThinkBox = !!turn.reasoning;
   const thinkLive = !!turn.streaming && !turn.content;
 
   if (turn.role === 'user') {
@@ -303,7 +304,7 @@ export const MessageBubble = memo(function MessageBubble({ turn }: { turn: Turn 
         </>
       )}
 
-      {!!turn.tokensEst && !turn.streaming && (
+      {!!turn.tokensEst && turn.tokensEst > 50 && !turn.streaming && (
         <div className="msg-meta">
           <span>~{turn.tokensEst} tok</span>
         </div>
