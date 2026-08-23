@@ -1,15 +1,9 @@
-import { useUiStore, type View } from '../../state/uiStore';
+import { useUiStore } from '../../state/uiStore';
 import { useVaultStore } from '../../vault/vaultStore';
-
-const TABS: Array<{ id: View; label: string }> = [
-  { id: 'thread', label: 'Thread' },
-  { id: 'compare', label: 'Compare' },
-  { id: 'lab', label: 'Lab' },
-];
 
 /** Top navigation — view tabs, theme toggle, settings. */
 export function TopBar() {
-  const { view, theme, toggleTheme, setView, setSettingsOpen, setRailOpen } = useUiStore();
+  const { theme, toggleTheme, setSettingsOpen, setRailOpen } = useUiStore();
   const vaultStatus = useVaultStore((s) => s.status);
 
   return (
@@ -18,17 +12,7 @@ export function TopBar() {
         <button className="icon-btn menu-btn" aria-label="Open sessions" onClick={() => setRailOpen(true)}>
           ☰
         </button>
-        <nav className="top-tabs" aria-label="Views">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              className={`tab-btn ${view === t.id ? 'active' : ''}`}
-              onClick={() => setView(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </nav>
+        <div className="rail-brand" style={{ fontSize: 14 }}><span className="glyph">⟐</span> harness</div>
       </div>
 
       <div className="top-actions">

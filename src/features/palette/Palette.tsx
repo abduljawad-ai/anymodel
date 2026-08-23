@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { isChatCapable, listModels } from '../../catalog';
 import type { Capability, ModelInfo, ProviderId } from '../../catalog/types';
 import { PROVIDERS, PROVIDER_IDS } from '../../catalog/providers';
-import { useUiStore, type ModelRef } from '../../state/uiStore';
+import { useUiStore } from '../../state/uiStore';
 
 /** Search synonyms so "vision", "voice" etc. find the right models. */
 const CAP_SYNONYMS: Record<Capability, string[]> = {
@@ -36,8 +36,6 @@ function allEntries(): Entry[] {
 export function Palette() {
   const setActiveModel = useUiStore((s) => s.setActiveModel);
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
-  const compareMode = useUiStore((s) => s.view === 'compare');
-  const toggleCompareModel = useUiStore((s) => s.toggleCompareModel);
   const [q, setQ] = useState('');
   const [sel, setSel] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -70,12 +68,7 @@ export function Palette() {
   }, [sel, filtered.length]);
 
   function choose(e: Entry) {
-    const ref: ModelRef = { providerId: e.providerId as ProviderId, modelId: e.id };
-    if (compareMode && isChatCapable(e)) {
-      toggleCompareModel(ref);
-    } else {
-      setActiveModel(ref);
-    }
+    setActiveModel({ providerId: e.providerId as ProviderId, modelId: e.id });
     setPaletteOpen(false);
   }
 
@@ -120,9 +113,7 @@ export function Palette() {
         <input
           ref={inputRef}
           value={q}
-          placeholder={
-            compareMode ? 'Pick models to compare (up to 3)…' : 'Search models, providers, capabilities…'
-          }
+          placeholder={'Search models, providers, capabilities…'}
           onChange={(e) => {
             setQ(e.target.value);
             setSel(0);

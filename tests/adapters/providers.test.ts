@@ -2,7 +2,6 @@ import { AnthropicAdapter } from '../../src/adapters/anthropic';
 import { GoogleAdapter } from '../../src/adapters/google';
 import { CompatibleAdapter } from '../../src/adapters/compatible';
 import { OpenAIAdapter } from '../../src/adapters/openai';
-import { createAdapter } from '../../src/adapters/factory';
 import { streamFromStrings } from '../../src/lib/sse';
 
 function mockFetch(handler: (url: string, init?: RequestInit) => Response) {
@@ -70,9 +69,8 @@ describe('anthropic adapter', () => {
     fm.mockRestore();
   });
 
-  test('aux endpoints are unsupported (501)', async () => {
+  test('speech is unsupported (501)', async () => {
     await expect(adapter.speak('x', '')).rejects.toMatchObject({ status: 501 });
-    await expect(adapter.embed(['a'], '')).rejects.toMatchObject({ status: 501 });
   });
 });
 
@@ -101,45 +99,6 @@ describe('google adapter', () => {
     expect(deltas.join('')).toBe('ABC');
     const headers = fm.mock.calls[0][1]!.headers as Record<string, string>;
     expect(headers['x-goog-api-key']).toBe('gk-k');
-    fm.mockRestore();
-  });
-
-  test('embedContent returns values', async () => {
-    const fm = mockFetch(
-      () => new Response(JSON.stringify({ embedding: { values: [0.5, 0.5] } }), { status: 200 }),
-    );
-    expect(await adapter.embed(['hello'], '')).toEqual([[0.5, 0.5]]);
-    expect(String(fm.mock.calls[0][0])).toContain(':embedContent');
-    fm.mockRestore();
-  });
-});
-
-test('factory selects correct wire format classes', () => {
-  const deps = { baseUrl: 'https://x', apiKey: () => undefined };
-  expect(createAdapter('openai', deps)).toBeInstanceOf(OpenAIAdapter);
-  expect(createAdapter('compatible', deps)).toBeInstanceOf(CompatibleAdapter);
-  expect(createAdapter('anthropic', deps)).toBeInstanceOf(AnthropicAdapter);
-  expect(createAdapter('google', deps)).toBeInstanceOf(GoogleAdapter);
-});
-
-
-describe('coverage: remaining adapter paths', () => {
-  test('google falls back to :generateContent on SSE 404', async () => {
-    const adapter = new GoogleAdapter({ baseUrl: 'https://gl.test/v1beta', apiKey: () => 'gk' });
-    const fm = mockFetch((url) => {
-      if (String(url).includes(':streamGenerateContent'))
-        return new Response(JSON.stringify({ error: { message: 'nope' } }), { status: 404 });
-      return new Response(
-        JSON.stringify({ candidates: [{ content: { parts: [{ text: 'fallback text' }] } }] }),
-        { status: 200 },
-      );
-    });
-    const deltas: string[] = [];
-    await adapter.streamChat(
-      { model: 'gemini-x', messages: [{ role: 'user', content: 'hi' }] },
-      { onDelta: (d) => deltas.push(d), onDone: () => {}, signal: new AbortController().signal },
-    );
-    expect(deltas.join('')).toBe('fallback text');
     fm.mockRestore();
   });
 

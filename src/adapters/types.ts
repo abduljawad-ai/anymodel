@@ -19,11 +19,6 @@ export interface StreamSignals {
   signal: AbortSignal;
 }
 
-export interface ModerationResult {
-  flagged: boolean;
-  categories: Record<string, boolean>;
-}
-
 export interface ConnectionResult {
   ok: boolean;
   detail: string;
@@ -36,11 +31,11 @@ export interface AdapterDeps {
 
 /** One contract, four wire formats. */
 export interface ProviderAdapter {
+  /** Live model ids from the provider's own API (implemented per adapter). */
+  listModels(): Promise<string[]>;
   streamChat(req: ChatRequest, signals: StreamSignals): Promise<void>;
   transcribe(audio: Blob, modelId: string): Promise<string>;
   speak(text: string, modelId: string): Promise<Blob>;
-  embed(inputs: string[], modelId: string): Promise<number[][]>;
-  moderate(input: string, modelId: string): Promise<ModerationResult>;
   testConnection(): Promise<ConnectionResult>;
 }
 

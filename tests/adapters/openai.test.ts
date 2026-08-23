@@ -80,23 +80,3 @@ test('transcribe posts FormData and returns text', async () => {
   fm.mockRestore();
 });
 
-test('embed + moderate + testConnection shapes', async () => {
-  const fm = mockFetch((url) => {
-    if (String(url).endsWith('/embeddings'))
-      return new Response(JSON.stringify({ data: [{ embedding: [1, 0] }, { embedding: [0, 1] }] }), {
-        status: 200,
-      });
-    if (String(url).endsWith('/moderations'))
-      return new Response(JSON.stringify({ results: [{ flagged: true, categories: { hate: true } }] }), {
-        status: 200,
-      });
-    return new Response(JSON.stringify({ data: [] }), { status: 200 }); // /models
-  });
-  expect(await adapter.embed(['a', 'b'], 'text-embedding-3-small')).toEqual([
-    [1, 0],
-    [0, 1],
-  ]);
-  expect((await adapter.moderate('x', '')).flagged).toBe(true);
-  expect((await adapter.testConnection()).ok).toBe(true);
-  fm.mockRestore();
-});

@@ -30,7 +30,6 @@ export function Rail() {
         className="btn btn-primary rail-new"
         onClick={() => {
           useSessionStore.getState().createSession(activeModel);
-          useUiStore.getState().setView('thread');
           useUiStore.getState().setRailOpen(false);
         }}
       >
@@ -45,7 +44,6 @@ export function Rail() {
               style={{ all: 'unset', cursor: 'pointer', flex: 1 }}
               onClick={() => {
                 setActive(s.id);
-                useUiStore.getState().setView('thread');
                 useUiStore.getState().setRailOpen(false);
               }}
               title={s.title}

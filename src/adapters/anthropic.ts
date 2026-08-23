@@ -6,7 +6,6 @@ import {
   type AdapterDeps,
   type ChatRequest,
   type ConnectionResult,
-  type ModerationResult,
   type ProviderAdapter,
   type StreamSignals,
 } from './types';
@@ -83,6 +82,9 @@ export class AnthropicAdapter implements ProviderAdapter {
   private unsupported(op: string): never {
     throw new ApiError(501, `Anthropic does not expose ${op} — use an OpenAI or compatible provider.`);
   }
+  async listModels(): Promise<string[]> {
+    return [];
+  }
   async transcribe(_audio?: Blob, _modelId?: string): Promise<string> {
     this.unsupported('transcription');
   }
@@ -92,9 +94,7 @@ export class AnthropicAdapter implements ProviderAdapter {
   async embed(_inputs?: string[], _modelId?: string): Promise<number[][]> {
     this.unsupported('embeddings');
   }
-  async moderate(_input?: string, _modelId?: string): Promise<ModerationResult> {
-    this.unsupported('moderation');
-  }
+
 
   async testConnection(): Promise<ConnectionResult> {
     try {

@@ -6,7 +6,6 @@ import {
   type AdapterDeps,
   type ChatRequest,
   type ConnectionResult,
-  type ModerationResult,
   type ProviderAdapter,
   type StreamSignals,
 } from './types';
@@ -93,29 +92,17 @@ export class GoogleAdapter implements ProviderAdapter {
   private unsupported(op: string): never {
     throw new ApiError(501, `Google does not expose ${op} via this endpoint.`);
   }
+  async listModels(): Promise<string[]> {
+    return [];
+  }
   async transcribe(_audio?: Blob, _modelId?: string): Promise<string> {
     this.unsupported('transcription');
   }
   async speak(_text?: string, _modelId?: string): Promise<Blob> {
     this.unsupported('speech');
   }
-  async moderate(_input?: string, _modelId?: string): Promise<ModerationResult> {
-    this.unsupported('moderation');
-  }
 
-  async embed(inputs: string[], modelId: string): Promise<number[][]> {
-    const out: number[][] = [];
-    for (const text of inputs) {
-      const res = await fetch(`${this.base}/models/${modelId || 'text-embedding-004'}:embedContent`, {
-        method: 'POST',
-        headers: this.headers(),
-        body: JSON.stringify({ content: { parts: [{ text }] } }),
-      });
-      await assertOk(res);
-      out.push(((await res.json()).embedding as { values: number[] }).values);
-    }
-    return out;
-  }
+
 
   async testConnection(): Promise<ConnectionResult> {
     try {

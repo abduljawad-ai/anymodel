@@ -3,7 +3,6 @@ import type {
   AdapterDeps,
   ChatRequest,
   ConnectionResult,
-  ModerationResult,
   ProviderAdapter,
   StreamSignals,
 } from './types';
@@ -23,6 +22,10 @@ export class OpenAIAdapter implements ProviderAdapter {
     const k = this.deps.apiKey();
     if (k) h.Authorization = `Bearer ${k}`;
     return h;
+  }
+
+  async listModels(): Promise<string[]> {
+    return []; // live discovery lands with catalog rewrite
   }
 
   async streamChat(req: ChatRequest, signals: StreamSignals): Promise<void> {
@@ -89,27 +92,7 @@ export class OpenAIAdapter implements ProviderAdapter {
     return res.blob();
   }
 
-  async embed(inputs: string[], modelId: string): Promise<number[][]> {
-    const res = await fetch(`${this.base}/embeddings`, {
-      method: 'POST',
-      headers: this.headers(),
-      body: JSON.stringify({ model: modelId || 'text-embedding-3-small', input: inputs }),
-    });
-    await assertOk(res);
-    return ((await res.json()).data as Array<{ embedding: number[] }>).map((d) => d.embedding);
-  }
 
-  async moderate(input: string, _modelId: string): Promise<ModerationResult> {
-    void _modelId; // OpenAI moderation uses its own default model
-    const res = await fetch(`${this.base}/moderations`, {
-      method: 'POST',
-      headers: this.headers(),
-      body: JSON.stringify({ input }),
-    });
-    await assertOk(res);
-    const r = ((await res.json()).results as ModerationResult[])[0];
-    return { flagged: !!r?.flagged, categories: r?.categories ?? {} };
-  }
 
   async testConnection(): Promise<ConnectionResult> {
     try {

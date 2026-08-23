@@ -12,8 +12,6 @@ import { ThreadView } from './features/thread/ThreadView';
 import { Composer } from './features/composer/Composer';
 import { Palette } from './features/palette/Palette';
 import { SettingsSheet } from './features/settings/SettingsSheet';
-import { CompareView } from './features/compare/CompareView';
-import { LabView } from './features/lab/LabView';
 
 /**
  * Shell: vault gate → rail + topbar + active view.
@@ -21,7 +19,6 @@ import { LabView } from './features/lab/LabView';
  */
 export default function App() {
   const vaultStatus = useVaultStore((s) => s.status);
-  const view = useUiStore((s) => s.view);
   const railOpen = useUiStore((s) => s.railOpen);
   const paletteOpen = useUiStore((s) => s.paletteOpen);
   const settingsOpen = useUiStore((s) => s.settingsOpen);
@@ -82,14 +79,8 @@ export default function App() {
       <div className="shell-main">
         <TopBar />
         <main className="view-area" aria-live="polite">
-          {view === 'thread' && (
-            <>
-              <ThreadView />
-              <Composer />
-            </>
-          )}
-          {view === 'compare' && <CompareView />}
-          {view === 'lab' && <LabView />}
+          <ThreadView />
+          <Composer />
         </main>
         <div id="aria-announcer" className="sr-only" aria-live="polite" />
       </div>
