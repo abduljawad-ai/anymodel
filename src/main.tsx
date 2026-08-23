@@ -1,12 +1,14 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import { ErrorBoundary } from './features/shell/ErrorBoundary';
 
-// Apply saved theme before first paint (no-flash).
-document.documentElement.dataset.theme = 'light';
+// Theme is now applied by inline script in index.html before React loads (no FOUC).
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );
