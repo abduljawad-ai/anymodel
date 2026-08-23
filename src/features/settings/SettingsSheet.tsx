@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ProviderId } from '../../catalog/types';
 import { useUiStore } from '../../state/uiStore';
-import { PROVIDERS, PROVIDER_IDS } from '../../catalog/providers';
+import { listProviders, PROVIDERS, PROVIDER_IDS } from '../../catalog/providers';
 import { createAdapter } from '../../adapters/factory';
 import { effectiveBase, isAllowedBase } from '../../adapters/base';
 import { loadSettings, saveSettings } from '../../state/settings';
@@ -72,10 +72,13 @@ export function SettingsSheet() {
         <h2>Settings</h2>
 
         <section aria-label="API keys">
-          {PROVIDER_IDS.map((p) => (
+          {listProviders().map((pm) => {
+            const p = pm.id;
+            return (
             <div className="field" key={p}>
               <label htmlFor={`set-${p}`}>
-                {PROVIDERS[p].name} key {keys[p] ? '· stored' : '· not set'}
+                <a href={pm.keyUrl} target="_blank" rel="noreferrer">{pm.name} ↗</a>
+                {' '}· {keys[p] ? 'stored' : 'not set'}
               </label>
               <div style={{ display: 'flex', gap: 6 }}>
                 <input
@@ -108,7 +111,8 @@ export function SettingsSheet() {
                 </span>
               )}
             </div>
-          ))}
+            );
+          })}
         </section>
 
         <hr style={{ border: 'none', borderTop: '1px solid var(--hairline)', margin: '18px 0' }} />
@@ -214,7 +218,7 @@ function CustodySection() {
           Enrolled providers send only a pairing key to your gate; the real API key never touches this browser again. Local copy is kept as fallback.
         </span>
       </div>
-      {PROVIDER_IDS.map((p) => {
+      {PROVIDER_IDS.filter((p) => custodyOf(p) !== 'none').map((p) => {
         const mode = custodyOf(p);
         return (
           <div key={`c-${p}`} className="field">

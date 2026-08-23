@@ -8,12 +8,16 @@ export interface ModelRef {
   modelId: string;
 }
 
+export type View = 'chat' | 'providers';
+
 interface UiState {
+  view: View;
   theme: 'light' | 'dark';
   paletteOpen: boolean;
   settingsOpen: boolean;
   railOpen: boolean;
   activeModel: ModelRef;
+  setView(v: View): void;
   toggleTheme(): void;
   setTheme(t: 'light' | 'dark'): void;
   setPaletteOpen(b: boolean): void;
@@ -27,6 +31,7 @@ function applyTheme(theme: 'light' | 'dark'): void {
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
+  view: 'chat',
   theme: loadSettings().theme,
   paletteOpen: false,
   settingsOpen: false,
@@ -36,6 +41,9 @@ export const useUiStore = create<UiState>((set, get) => ({
     applyTheme(t);
     saveSettings({ theme: t });
     set({ theme: t });
+  },
+  setView(v) {
+    set({ view: v });
   },
   toggleTheme() {
     get().setTheme(get().theme === 'light' ? 'dark' : 'light');

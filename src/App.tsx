@@ -10,6 +10,7 @@ import { Wizard } from './features/shell/Wizard';
 import { ToastStack } from './features/shell/ToastStack';
 import { ThreadView } from './features/thread/ThreadView';
 import { Composer } from './features/composer/Composer';
+import { ProvidersPage } from './features/providers/ProvidersPage';
 import { Palette } from './features/palette/Palette';
 import { SettingsSheet } from './features/settings/SettingsSheet';
 
@@ -19,6 +20,7 @@ import { SettingsSheet } from './features/settings/SettingsSheet';
  */
 export default function App() {
   const vaultStatus = useVaultStore((s) => s.status);
+  const view = useUiStore((s) => s.view);
   const railOpen = useUiStore((s) => s.railOpen);
   const paletteOpen = useUiStore((s) => s.paletteOpen);
   const settingsOpen = useUiStore((s) => s.settingsOpen);
@@ -79,8 +81,14 @@ export default function App() {
       <div className="shell-main">
         <TopBar />
         <main className="view-area" aria-live="polite">
-          <ThreadView />
-          <Composer />
+          {view === 'providers' ? (
+            <ProvidersPage />
+          ) : (
+            <>
+              <ThreadView />
+              <Composer />
+            </>
+          )}
         </main>
         <div id="aria-announcer" className="sr-only" aria-live="polite" />
       </div>

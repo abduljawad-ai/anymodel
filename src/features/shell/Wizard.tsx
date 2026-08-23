@@ -3,7 +3,9 @@ import { useVaultStore } from '../../vault/vaultStore';
 import { createAdapter } from '../../adapters/factory';
 import { effectiveBase } from '../../adapters/base';
 import type { ProviderId } from '../../catalog/types';
-import { PROVIDERS, PROVIDER_IDS } from '../../catalog/providers';
+import { PROVIDERS } from '../../catalog/providers';
+const QUICK = ['openai', 'anthropic', 'google', 'groq', 'deepseek', 'openrouter'] as const;
+const QUICK_IDS = [...QUICK];
 
 /**
  * First-run gate: create passphrase → optionally add keys (with live
@@ -79,14 +81,16 @@ export function Wizard() {
         {step === 2 && (
           <>
             <div className="wizard-step">STEP 2 / 2 — ADD KEYS (ANY OR ALL)</div>
-            {PROVIDER_IDS.map((p) => (
+            {QUICK_IDS.map((p) => (
               <div className="field" key={p}>
-                <label htmlFor={`k-${p}`}>{PROVIDERS[p].name} API key</label>
+                <label htmlFor={`k-${p}`}>
+                  <a href={PROVIDERS[p].keyUrl} target="_blank" rel="noreferrer">{PROVIDERS[p].name} API key ↗</a>
+                </label>
                 <div style={{ display: 'flex', gap: 6 }}>
                   <input
                     id={`k-${p}`}
                     type="password"
-                    placeholder={p === 'compatible' ? 'optional for local servers' : 'paste key…'}
+                    placeholder={PROVIDERS[p].local ? 'optional for local servers' : 'paste key…'}
                     value={keyDrafts[p] ?? ''}
                     onChange={(e) => setKeyDrafts((s) => ({ ...s, [p]: e.target.value }))}
                   />
