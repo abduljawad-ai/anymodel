@@ -98,6 +98,42 @@ export function SettingsSheet() {
           </div>
         ))}
 
+        {/* EXA — powers the 🔍 deep-research loop */}
+        <div className="field">
+          <label htmlFor="set-exa">
+            <a href="https://exa.ai" target="_blank" rel="noreferrer">
+              Exa (web search) ↗
+            </a>
+            <span style={{ opacity: 0.55 }}> · {keys.exa ? 'stored' : 'not set'} — free tier works</span>
+          </label>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input
+              id="set-exa"
+              type="password"
+              placeholder={keys.exa ? '••••••••••••' : 'paste Exa key…'}
+              value={drafts.exa ?? ''}
+              onChange={(e) => setDrafts((d) => ({ ...d, exa: e.target.value }))}
+              onKeyDown={(e) => e.key === 'Enter' && void saveKey('exa')}
+            />
+            <button className="btn" onClick={() => void saveKey('exa')} disabled={!drafts.exa?.trim()}>
+              Save
+            </button>
+            <button
+              className="btn btn-danger"
+              onClick={() => {
+                void useVaultStore.getState().removeKey('exa');
+                toast('Exa key removed');
+              }}
+              disabled={!keys.exa}
+            >
+              ✕
+            </button>
+          </div>
+          <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+            Used by 🔍 Deep research — any model reasons → searches the web → synthesizes a cited answer.
+          </span>
+        </div>
+
         <hr className="sec-div" />
 
         {/* 2 · CUSTODY --------------------------------------------------------- */}
