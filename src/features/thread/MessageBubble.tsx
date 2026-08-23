@@ -1,9 +1,13 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { PROVIDERS } from '../../catalog/providers';
 import { listModels, isChatCapable } from '../../catalog';
 import type { ModelInfo } from '../../catalog/types';
 import { renderMarkdown } from '../../lib/markdown';
 import { toast } from '../../lib/toast';
+import { playBlob, stopAudio } from '../../lib/audioBus';
+import { createAdapter } from '../../adapters/factory';
+import { effectiveBase } from '../../adapters/base';
+import { useVaultStore } from '../../vault/vaultStore';
 import { useSessionStore, type Turn } from '../../state/sessionStore';
 import { useUiStore, type ModelRef } from '../../state/uiStore';
 import { regenerate } from './useSend';
@@ -62,8 +66,34 @@ function HandoffMenu({ onClose }: { onClose: () => void }) {
 
 export const MessageBubble = memo(function MessageBubble({ turn }: { turn: Turn }) {
   const [handoffOpen, setHandoffOpen] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
   const md = useMemo(() => renderMarkdown(turn.content), [turn.content]);
   const tint = turn.providerId ? PROVIDERS[turn.providerId].tint : undefined;
+  const hasTtsKey = useVaultStore((s) => !!s.keys.openai);
+
+  useEffect(() => () => speaking && stopAudio(), [speaking]);
+
+  async function speak() {
+    if (!turn.providerId) return;
+    if (speaking) {
+      stopAudio();
+      setSpeaking(false);
+      return;
+    }
+    const adapter = createAdapter('openai', {
+      baseUrl: effectiveBase('openai'),
+      apiKey: () => useVaultStore.getState().keys.openai,
+    });
+    try {
+      setSpeaking(true);
+      const blob = await adapter.speak(turn.content, 'tts-1');
+      await playBlob(blob);
+      setSpeaking(false);
+    } catch (e) {
+      setSpeaking(false);
+      toast(e instanceof Error ? e.message : 'Speech failed');
+    }
+  }
 
   if (turn.role === 'user') {
     return (
@@ -86,6 +116,15 @@ export const MessageBubble = memo(function MessageBubble({ turn }: { turn: Turn 
           </span>
         )}
         {turn.streaming && <span className="chip">streaming…</span>}
+        {!turn.streaming && !turn.error && turn.content && hasTtsKey && (
+          <button
+            className={`tts-chip ${speaking ? 'playing' : ''}`}
+            onClick={() => void speak()}
+            title="Read aloud (OpenAI TTS)"
+          >
+            {speaking ? '◼ stop' : '▶ listen'}
+          </button>
+        )}
         <span style={{ position: 'relative', marginLeft: 'auto', display: 'flex', gap: 6 }}>
           {!turn.streaming && !turn.error && turn.content && (
             <>

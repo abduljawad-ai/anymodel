@@ -3,6 +3,7 @@ import { toast } from '../../lib/toast';
 import { anyActive, stopStream } from '../../state/streamRegistry';
 import { sendTurn } from '../thread/useSend';
 import { ImageAttach, fileToDataUrl } from './ImageAttach';
+import { MicRecorder } from './MicRecorder';
 import { ModelDial } from './ModelDial';
 
 /**
@@ -70,6 +71,7 @@ export function Composer() {
         <div className="composer-row">
           <ModelDial />
           <ImageAttach image={image} setImage={setImage} />
+          <MicRecorder onTranscript={(t) => setText((cur) => (cur ? `${cur} ${t}` : t))} />
 
           <span className="send-hint">Enter ↵ send · Shift+Enter newline</span>
 
