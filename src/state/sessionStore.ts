@@ -112,6 +112,14 @@ export const useSessionStore = create<SessionsState>((set, get) => ({
   },
   setActive(id) {
     set({ activeId: id });
+    // Sync with URL hash for deep-linking
+    if (typeof window !== 'undefined') {
+      const view = 'chat';
+      const hash = `#/${view}/${id}`;
+      if (window.location.hash !== hash) {
+        window.history.pushState(null, '', hash);
+      }
+    }
   },
   setModelKey(id, mk) {
     set((st) => ({ sessions: touch(st.sessions, id, (s) => ({ ...s, modelKey: mk })) }));

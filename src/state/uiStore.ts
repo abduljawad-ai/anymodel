@@ -30,6 +30,37 @@ function applyTheme(theme: 'light' | 'dark'): void {
   document.documentElement.dataset.theme = theme;
 }
 
+// --- Hash routing helpers ---
+function parseHash(): { view: View; sessionId?: string } {
+  const hash = window.location.hash.replace(/^#\/?/, '');
+  const parts = hash.split('/');
+  const view = parts[0] === 'providers' ? 'providers' : 'chat';
+  const sessionId = parts[1] || undefined;
+  return { view, sessionId };
+}
+
+function writeHash(view: View, sessionId?: string): void {
+  const path = sessionId ? `/${view}/${sessionId}` : `/${view}`;
+  if (window.location.hash !== `#${path}`) {
+    window.history.pushState(null, '', `#${path}`);
+  }
+}
+
+/** Initialize routing: read hash → store, listen for popstate. */
+function initRouting(): void {
+  const { view, sessionId } = parseHash();
+  useUiStore.setState({ view });
+  if (sessionId) {
+    useSessionStore.getState().setActive(sessionId);
+  }
+
+  window.addEventListener('popstate', () => {
+    const { view: v, sessionId: sid } = parseHash();
+    useUiStore.setState({ view: v });
+    if (sid) useSessionStore.getState().setActive(sid);
+  });
+}
+
 export const useUiStore = create<UiState>((set, get) => ({
   view: 'chat',
   theme: loadSettings().theme,
@@ -44,6 +75,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   },
   setView(v) {
     set({ view: v });
+    writeHash(v, useSessionStore.getState().activeId ?? undefined);
   },
   toggleTheme() {
     get().setTheme(get().theme === 'light' ? 'dark' : 'light');
@@ -59,5 +91,6 @@ export const useUiStore = create<UiState>((set, get) => ({
   },
 }));
 
-/** Initialize theme on boot. */
+/** Initialize theme + routing on boot. */
 applyTheme(useUiStore.getState().theme);
+if (typeof window !== 'undefined') initRouting();
