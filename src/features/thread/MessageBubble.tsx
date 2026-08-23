@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useState } from 'react';
-import { PROVIDERS } from '../../catalog/providers';
-import { listModels, isChatCapable } from '../../catalog';
+import { listProviders, getProviderMeta } from '../../catalog/providers';
+import { cachedModels, isChatCapable } from '../../catalog';
 import type { ModelInfo } from '../../catalog/types';
 import { renderMarkdown } from '../../lib/markdown';
 import { toast } from '../../lib/toast';
@@ -38,13 +38,13 @@ function HandoffMenu({ onClose }: { onClose: () => void }) {
     s.sessions.find((x) => x.id === s.activeId),
   )?.modelKey.providerId;
   const candidates: ModelInfo[] = [];
-  for (const p of Object.keys(PROVIDERS) as Array<keyof typeof PROVIDERS>) {
-    for (const m of listModels(p)) if (isChatCapable(m)) candidates.push(m);
+  for (const p of listProviders()) {
+    for (const m of cachedModels(p.id)) if (isChatCapable(m)) candidates.push(m);
   }
   return (
     <div className="handoff-menu" role="menu">
       {candidates
-        .filter((m) => m.providerId !== activeProvider || m.id !== '')
+        .filter((m) => m.providerId !== activeProvider)
         .slice(0, 12)
         .map((m) => (
           <button
@@ -56,7 +56,7 @@ function HandoffMenu({ onClose }: { onClose: () => void }) {
               onClose();
             }}
           >
-            <span className="tint-dot" style={{ ['--tint' as string]: PROVIDERS[m.providerId].tint, marginRight: 6 }} />
+            <span className="tint-dot" style={{ ['--tint' as string]: getProviderMeta(m.providerId)?.tint, marginRight: 6 }} />
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{m.label}</span>
           </button>
         ))}
@@ -68,7 +68,7 @@ export const MessageBubble = memo(function MessageBubble({ turn }: { turn: Turn 
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const md = useMemo(() => renderMarkdown(turn.content), [turn.content]);
-  const tint = turn.providerId ? PROVIDERS[turn.providerId].tint : undefined;
+  const tint = turn.providerId ? getProviderMeta(turn.providerId)?.tint : undefined;
   const hasTtsKey = useVaultStore((s) => !!s.keys.openai);
 
   useEffect(
@@ -165,14 +165,24 @@ export const MessageBubble = memo(function MessageBubble({ turn }: { turn: Turn 
             Retry
           </button>
         </div>
+      ) : turn.streaming && !turn.content ? (
+        <span className="shimmer">{turn.reasoning ? 'Thinking…' : 'Connecting…'}</span>
       ) : (
-        <div
-          className={`msg-content ${turn.streaming ? 'caret' : ''}`}
-          ref={(el) => {
-            if (el && turn.content) enhance(el);
-          }}
-          dangerouslySetInnerHTML={{ __html: md }}
-        />
+        <>
+          {turn.reasoning && (
+            <details className="reason">
+              <summary>🧠 Reasoning</summary>
+              <div className="r-body">{turn.reasoning}</div>
+            </details>
+          )}
+          <div
+            className={`msg-content ${turn.streaming ? 'caret' : ''}`}
+            ref={(el) => {
+              if (el && turn.content) enhance(el);
+            }}
+            dangerouslySetInnerHTML={{ __html: md }}
+          />
+        </>
       )}
 
       {!!turn.tokensEst && !turn.streaming && (

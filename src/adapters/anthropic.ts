@@ -1,4 +1,5 @@
 import { readSSE } from '../lib/sse';
+import { fetchWithRetry } from '../lib/net';
 import { parseDataUrl } from '../lib/dataurl';
 import { assertOk } from './http';
 import {
@@ -48,7 +49,7 @@ export class AnthropicAdapter implements ProviderAdapter {
         return { role: m.role, content };
       });
 
-    const res = await fetch(`${this.base}/messages`, {
+    const res = await fetchWithRetry(`${this.base}/messages`, {
       method: 'POST',
       headers: this.headers(),
       body: JSON.stringify({
@@ -64,7 +65,9 @@ export class AnthropicAdapter implements ProviderAdapter {
     for await (const ev of readSSE(res.body!)) {
       try {
         const j = JSON.parse(ev.data);
-        if (j.type === 'content_block_delta' && typeof j.delta?.text === 'string') {
+        if (j.type === 'content_block_delta' && j.delta?.type === 'thinking_delta') {
+          signals.onReasoning?.(String(j.delta.thinking ?? ''));
+        } else if (j.type === 'content_block_delta' && typeof j.delta?.text === 'string') {
           signals.onDelta(j.delta.text);
         } else if (j.type === 'message_stop') {
           break;
@@ -83,7 +86,10 @@ export class AnthropicAdapter implements ProviderAdapter {
     throw new ApiError(501, `Anthropic does not expose ${op} — use an OpenAI or compatible provider.`);
   }
   async listModels(): Promise<string[]> {
-    return [];
+    const res = await fetchWithRetry(`${this.base}/models?limit=1000`, { headers: this.headers(false) });
+    await assertOk(res);
+    const ids = ((await res.json()).data as Array<{ id: string }>).map((m) => m.id);
+    return [...new Set(ids)].sort();
   }
   async transcribe(_audio?: Blob, _modelId?: string): Promise<string> {
     this.unsupported('transcription');
@@ -98,7 +104,7 @@ export class AnthropicAdapter implements ProviderAdapter {
 
   async testConnection(): Promise<ConnectionResult> {
     try {
-      const res = await fetch(`${this.base}/messages`, {
+      const res = await fetchWithRetry(`${this.base}/messages`, {
         method: 'POST',
         headers: this.headers(),
         body: JSON.stringify({

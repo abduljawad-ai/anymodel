@@ -1,11 +1,12 @@
 import type { ProviderId } from '../catalog/types';
-import { PROVIDERS } from '../catalog/providers';
+import { PROVIDERS, getProviderMeta } from '../catalog/providers';
 import { loadSettings } from '../state/settings';
 
 /** Resolve the effective base URL for a provider (custom if set, else default). */
 export function effectiveBase(providerId: ProviderId): string {
-  const custom = loadSettings().bases[providerId]?.trim();
-  return custom || PROVIDERS[providerId].defaultBase;
+  const override = loadSettings().bases[providerId]?.trim();
+  if (override) return override;
+  return getProviderMeta(providerId)?.defaultBase ?? PROVIDERS.openai.defaultBase;
 }
 
 /** https required everywhere except localhost development bases. */

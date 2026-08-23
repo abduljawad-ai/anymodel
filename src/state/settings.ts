@@ -7,6 +7,8 @@ export interface RelaySettings {
   autoLockMin: number;
   /** History token budget before compaction kicks in. */
   contextBudgetTokens: number;
+  /** User-registered OpenAI-compatible providers (nothing about models is hardcoded). */
+  customProviders: Array<{ id: string; name: string; baseUrl: string }>;
   /** Custom base URL per provider ('' or missing → PROVIDERS.defaultBase). */
   bases: Partial<Record<ProviderId, string>>;
   lastModel: { providerId: ProviderId; modelId: string };
@@ -16,6 +18,7 @@ export const DEFAULT_SETTINGS: RelaySettings = {
   theme: 'light',
   autoLockMin: 15,
   contextBudgetTokens: 12000,
+  customProviders: [],
   bases: {},
   lastModel: { providerId: 'openai', modelId: 'gpt-4o' },
 };

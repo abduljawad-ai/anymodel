@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { PROVIDERS } from '../../catalog/providers';
+import { getProviderMeta } from '../../catalog/providers';
 import type { Turn } from '../../state/sessionStore';
 
 /** Ordered unique models that have carried the baton in this thread. */
@@ -12,7 +12,7 @@ export function BatonTrail({ turns }: { turns: Turn[] }) {
       const k = `${t.providerId}/${t.modelId}`;
       if (seen.has(k)) continue;
       seen.add(k);
-      out.push({ key: k, label: t.modelId, tint: PROVIDERS[t.providerId].tint });
+      out.push({ key: k, label: t.modelId, tint: getProviderMeta(t.providerId)?.tint ?? '#8A94A0' });
     }
     return out;
   }, [turns]);

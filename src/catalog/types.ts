@@ -1,4 +1,6 @@
-export type ProviderId = 'openai' | 'anthropic' | 'google' | 'compatible';
+export type BuiltinProviderId = 'openai' | 'anthropic' | 'google' | 'compatible';
+/** Any string — custom OpenAI-compatible providers register their own ids. */
+export type ProviderId = string;
 export type Capability = 'vision' | 'stt' | 'tts' | 'reasoning' | 'tools';
 
 export interface ModelInfo {

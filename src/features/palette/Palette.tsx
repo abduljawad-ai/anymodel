@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { isChatCapable, listModels } from '../../catalog';
+import { cachedModels, isChatCapable } from '../../catalog';
 import type { Capability, ModelInfo, ProviderId } from '../../catalog/types';
-import { PROVIDERS, PROVIDER_IDS } from '../../catalog/providers';
+import { getProviderMeta, listProviders } from '../../catalog/providers';
 import { useUiStore } from '../../state/uiStore';
 
 /** Search synonyms so "vision", "voice" etc. find the right models. */
@@ -19,10 +19,10 @@ interface Entry extends ModelInfo {
 
 function allEntries(): Entry[] {
   const out: Entry[] = [];
-  for (const pid of PROVIDER_IDS) {
-    const providerName = PROVIDERS[pid].name.toLowerCase();
-    for (const m of listModels(pid)) {
-      const capWords = m.caps.flatMap((c) => [c, ...CAP_SYNONYMS[c]]);
+  for (const p of listProviders()) {
+    const providerName = p.name.toLowerCase();
+    for (const m of cachedModels(p.id)) {
+      const capWords = m.caps.flatMap((c) => [c, ...(CAP_SYNONYMS[c as keyof typeof CAP_SYNONYMS] ?? [])]);
       out.push({
         ...m,
         haystack: `${m.label} ${m.id} ${providerName} ${capWords.join(' ')}`.toLowerCase(),
@@ -127,7 +127,7 @@ export function Palette() {
           )}
           {groups.map((g) => (
             <div key={g.providerId}>
-              <div className="palette-group">{PROVIDERS[g.providerId].name}</div>
+              <div className="palette-group">{getProviderMeta(g.providerId)?.name ?? g.providerId}</div>
               {g.models.map((e) => {
                 const i = flat.indexOf(e);
                 return (
@@ -140,7 +140,7 @@ export function Palette() {
                   >
                     <span
                       className="tint-dot"
-                      style={{ ['--tint' as string]: PROVIDERS[e.providerId].tint }}
+                      style={{ ['--tint' as string]: getProviderMeta(e.providerId)?.tint }}
                     />
                     <span>{e.label}</span>
                     <span className="caps">

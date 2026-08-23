@@ -91,6 +91,7 @@ async function runAssistantTurn(sid: string, forceCompact = false): Promise<void
       {
         signal: ac.signal,
         onDelta: (d) => useSessionStore.getState().appendDelta(sid, aid, d),
+        onReasoning: (r) => useSessionStore.getState().appendReasoning(sid, aid, r),
         onDone: () => {},
       },
     );

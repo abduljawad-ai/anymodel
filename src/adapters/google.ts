@@ -1,4 +1,5 @@
 import { readSSE } from '../lib/sse';
+import { fetchWithRetry } from '../lib/net';
 import { parseDataUrl } from '../lib/dataurl';
 import { assertOk } from './http';
 import {
@@ -49,7 +50,7 @@ export class GoogleAdapter implements ProviderAdapter {
     const body = this.toBody(req);
     let res: Response;
     try {
-      res = await fetch(`${this.base}/models/${req.model}:streamGenerateContent?alt=sse`, {
+      res = await fetchWithRetry(`${this.base}/models/${req.model}:streamGenerateContent?alt=sse`, {
         method: 'POST',
         headers: this.headers(),
         body,
@@ -75,7 +76,7 @@ export class GoogleAdapter implements ProviderAdapter {
     }
 
     // Non-stream fallback — single delta.
-    const res2 = await fetch(`${this.base}/models/${req.model}:generateContent`, {
+    const res2 = await fetchWithRetry(`${this.base}/models/${req.model}:generateContent`, {
       method: 'POST',
       headers: this.headers(),
       body,
@@ -93,7 +94,15 @@ export class GoogleAdapter implements ProviderAdapter {
     throw new ApiError(501, `Google does not expose ${op} via this endpoint.`);
   }
   async listModels(): Promise<string[]> {
-    return [];
+    const res = await fetchWithRetry(`${this.base}/models`, { headers: this.headers(false) });
+    await assertOk(res);
+    const models = (await res.json()).models as Array<{
+      name: string;
+      supportedGenerationMethods?: string[];
+    }>;
+    return models
+      .filter((m) => !m.supportedGenerationMethods || m.supportedGenerationMethods.includes('generateContent'))
+      .map((m) => m.name.replace(/^models\//, ''));
   }
   async transcribe(_audio?: Blob, _modelId?: string): Promise<string> {
     this.unsupported('transcription');
@@ -106,7 +115,7 @@ export class GoogleAdapter implements ProviderAdapter {
 
   async testConnection(): Promise<ConnectionResult> {
     try {
-      const res = await fetch(`${this.base}/models`, { headers: this.headers(false) });
+      const res = await fetchWithRetry(`${this.base}/models`, { headers: this.headers(false) });
       await assertOk(res);
       return { ok: true, detail: 'connected' };
     } catch (e) {

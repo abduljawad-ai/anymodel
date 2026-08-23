@@ -15,6 +15,8 @@ export interface ChatRequest {
 
 export interface StreamSignals {
   onDelta(text: string): void;
+  /** Optional reasoning/thinking stream (o-series, DeepSeek-style, Claude thinking). */
+  onReasoning?(text: string): void;
   onDone(): void;
   signal: AbortSignal;
 }

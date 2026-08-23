@@ -7,6 +7,7 @@ import type {
   StreamSignals,
 } from './types';
 import { assertOk } from './http';
+import { fetchWithRetry } from '../lib/net';
 
 /** OpenAI wire format — also the base for OpenAI-compatible endpoints. */
 export class OpenAIAdapter implements ProviderAdapter {
@@ -25,7 +26,10 @@ export class OpenAIAdapter implements ProviderAdapter {
   }
 
   async listModels(): Promise<string[]> {
-    return []; // live discovery lands with catalog rewrite
+    const res = await fetchWithRetry(`${this.base}/models`, { headers: this.headers(false) });
+    await assertOk(res);
+    const ids = ((await res.json()).data as Array<{ id: string }>).map((m) => m.id);
+    return [...new Set(ids)].sort();
   }
 
   async streamChat(req: ChatRequest, signals: StreamSignals): Promise<void> {
@@ -40,7 +44,7 @@ export class OpenAIAdapter implements ProviderAdapter {
           }
         : { role: m.role, content: m.content },
     );
-    const res = await fetch(`${this.base}/chat/completions`, {
+    const res = await fetchWithRetry(`${this.base}/chat/completions`, {
       method: 'POST',
       headers: this.headers(),
       body: JSON.stringify({
@@ -55,8 +59,10 @@ export class OpenAIAdapter implements ProviderAdapter {
     for await (const ev of readSSE(res.body!)) {
       if (ev.data === '[DONE]') break;
       try {
-        const delta = JSON.parse(ev.data)?.choices?.[0]?.delta?.content;
-        if (typeof delta === 'string' && delta) signals.onDelta(delta);
+        const d = JSON.parse(ev.data)?.choices?.[0]?.delta;
+        const rc = d?.reasoning_content ?? d?.reasoning;
+        if (typeof rc === 'string' && rc) signals.onReasoning?.(rc);
+        if (typeof d?.content === 'string' && d.content) signals.onDelta(d.content);
       } catch {
         /* skip malformed frame */
       }
@@ -68,7 +74,7 @@ export class OpenAIAdapter implements ProviderAdapter {
     const form = new FormData();
     form.append('file', audio, 'audio.webm');
     form.append('model', modelId || 'whisper-1');
-    const res = await fetch(`${this.base}/audio/transcriptions`, {
+    const res = await fetchWithRetry(`${this.base}/audio/transcriptions`, {
       method: 'POST',
       headers: this.headers(false),
       body: form,
@@ -78,7 +84,7 @@ export class OpenAIAdapter implements ProviderAdapter {
   }
 
   async speak(text: string, modelId: string): Promise<Blob> {
-    const res = await fetch(`${this.base}/audio/speech`, {
+    const res = await fetchWithRetry(`${this.base}/audio/speech`, {
       method: 'POST',
       headers: this.headers(),
       body: JSON.stringify({
@@ -96,7 +102,7 @@ export class OpenAIAdapter implements ProviderAdapter {
 
   async testConnection(): Promise<ConnectionResult> {
     try {
-      const res = await fetch(`${this.base}/models`, { headers: this.headers(false) });
+      const res = await fetchWithRetry(`${this.base}/models`, { headers: this.headers(false) });
       await assertOk(res);
       return { ok: true, detail: 'connected' };
     } catch (e) {

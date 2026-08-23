@@ -14,6 +14,7 @@ export interface Turn {
   tokensEst?: number;
   error?: { status?: number; message: string };
   streaming?: boolean;
+  reasoning?: string;
 }
 
 export interface SessionMemory {
@@ -50,6 +51,7 @@ interface SessionsState {
   setMemory(sid: string, m: Session['memory']): void;
   /** Streaming fast-path — updates content without persisting. */
   appendDelta(sid: string, tid: string, text: string): void;
+  appendReasoning(sid: string, tid: string, text: string): void;
   active(): Session | undefined;
   exportJson(): string;
   importJson(text: string): 'ok' | 'invalid';
@@ -149,6 +151,11 @@ export const useSessionStore = create<SessionsState>((set, get) => ({
           : { ...s, turns: s.turns.map((t) => (t.id !== tid ? t : { ...t, content: t.content + text })) },
       ),
     }));
+  },
+  appendReasoning(sid, tid, text) {
+    set((st) => ({ sessions: st.sessions.map((x) =>
+      x.id !== sid ? x : { ...x, turns: x.turns.map((t) => (t.id !== tid ? t : { ...t, reasoning: (t.reasoning ?? '') + text })) },
+    ) }));
   },
   active() {
     return get().sessions.find((s) => s.id === get().activeId);
