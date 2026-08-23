@@ -10,6 +10,7 @@ import { Wizard } from './features/shell/Wizard';
 import { ToastStack } from './features/shell/ToastStack';
 import { ThreadView } from './features/thread/ThreadView';
 import { Composer } from './features/composer/Composer';
+import { Palette } from './features/palette/Palette';
 
 /**
  * Shell: vault gate → rail + topbar + active view.
@@ -19,6 +20,7 @@ export default function App() {
   const vaultStatus = useVaultStore((s) => s.status);
   const view = useUiStore((s) => s.view);
   const railOpen = useUiStore((s) => s.railOpen);
+  const paletteOpen = useUiStore((s) => s.paletteOpen);
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
   const setRailOpen = useUiStore((s) => s.setRailOpen);
 
@@ -88,6 +90,7 @@ export default function App() {
         <div id="aria-announcer" className="sr-only" aria-live="polite" />
       </div>
       <ToastStack />
+      {paletteOpen && <Palette />}
     </div>
   );
 }
