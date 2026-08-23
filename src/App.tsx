@@ -14,6 +14,7 @@ import { ProvidersPage } from './features/providers/ProvidersPage';
 import { autoLoadKeyedModels, ensureSaneActiveModel } from './features/providers/autoLoad';
 import { Palette } from './features/palette/Palette';
 import { SettingsSheet } from './features/settings/SettingsSheet';
+import { loadSettings } from './state/settings';
 
 /**
  * Shell: vault gate → rail + topbar + active view.
@@ -21,6 +22,7 @@ import { SettingsSheet } from './features/settings/SettingsSheet';
  */
 export default function App() {
   const vaultStatus = useVaultStore((s) => s.status);
+  const booting = useVaultStore((s) => s.booting);
   const view = useUiStore((s) => s.view);
   const railOpen = useUiStore((s) => s.railOpen);
   const paletteOpen = useUiStore((s) => s.paletteOpen);
@@ -44,13 +46,34 @@ export default function App() {
   // Global shortcuts: ⌘K/Ctrl+K palette, Esc closes overlays.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Cmd+K / Ctrl+K: open model palette
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setPaletteOpen(true);
       }
+      // Escape: close overlays
       if (e.key === 'Escape') {
         setPaletteOpen(false);
         setRailOpen(false);
+        useUiStore.getState().setSettingsOpen(false);
+      }
+      // Cmd+L / Ctrl+L: focus composer
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'l') {
+        e.preventDefault();
+        const ta = document.querySelector('.composer textarea') as HTMLTextAreaElement | null;
+        if (ta) ta.focus();
+      }
+      // Cmd+N / Ctrl+N: new thread
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        const { activeModel, setView } = useUiStore.getState();
+        useSessionStore.getState().createSession(activeModel);
+        setView('chat');
+      }
+      // Cmd+, / Ctrl+,: open settings
+      if ((e.metaKey || e.ctrlKey) && e.key === ',') {
+        e.preventDefault();
+        useUiStore.getState().setSettingsOpen(true);
       }
       useVaultStore.getState().touch();
     };
@@ -63,15 +86,26 @@ export default function App() {
     const iv = setInterval(() => {
       const v = useVaultStore.getState();
       if (v.status !== 'unlocked') return;
-      const { autoLockMin } = JSON.parse(localStorage.getItem('relay.settings.v1') ?? '{"autoLockMin":15}');
+      const { autoLockMin } = loadSettings();
       if (Date.now() - v.lastActivity > autoLockMin * 60_000) v.lock();
     }, 30_000);
     return () => clearInterval(iv);
   }, []);
 
-  // Gate: locked vault OR unlocked-but-empty (force the key-setup step).
-  const hasAnyKey = useVaultStore((s) => Object.keys(s.keys).length > 0);
-  if (vaultStatus !== 'unlocked' || !hasAnyKey) {
+  // Loading state while vault initializes.
+  if (booting) {
+    return (
+      <div style={{ display: 'grid', placeItems: 'center', height: '100dvh', background: 'var(--paper)' }}>
+        <div style={{ textAlign: 'center', color: 'var(--muted)' }}>
+          <div style={{ fontSize: 28, marginBottom: 8, color: 'var(--accent)' }}>⟐</div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>Loading Relay…</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Gate: locked vault → show wizard. Unlocked vault (even with no keys) → show app.
+  if (vaultStatus !== 'unlocked') {
     return (
       <>
         <Wizard />
