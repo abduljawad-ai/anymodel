@@ -1,4 +1,6 @@
 node_modules/
 dist/
+.playwright-mcp/
+coverage/
 *.local
 .DS_Store
