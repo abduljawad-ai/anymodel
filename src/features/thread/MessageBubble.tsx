@@ -71,7 +71,12 @@ export const MessageBubble = memo(function MessageBubble({ turn }: { turn: Turn 
   const tint = turn.providerId ? PROVIDERS[turn.providerId].tint : undefined;
   const hasTtsKey = useVaultStore((s) => !!s.keys.openai);
 
-  useEffect(() => () => speaking && stopAudio(), [speaking]);
+  useEffect(
+    () => () => {
+      if (speaking) stopAudio();
+    },
+    [speaking],
+  );
 
   async function speak() {
     if (!turn.providerId) return;
