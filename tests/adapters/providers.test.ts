@@ -121,3 +121,65 @@ test('factory selects correct wire format classes', () => {
   expect(createAdapter('anthropic', deps)).toBeInstanceOf(AnthropicAdapter);
   expect(createAdapter('google', deps)).toBeInstanceOf(GoogleAdapter);
 });
+
+
+describe('coverage: remaining adapter paths', () => {
+  test('google falls back to :generateContent on SSE 404', async () => {
+    const adapter = new GoogleAdapter({ baseUrl: 'https://gl.test/v1beta', apiKey: () => 'gk' });
+    const fm = mockFetch((url) => {
+      if (String(url).includes(':streamGenerateContent'))
+        return new Response(JSON.stringify({ error: { message: 'nope' } }), { status: 404 });
+      return new Response(
+        JSON.stringify({ candidates: [{ content: { parts: [{ text: 'fallback text' }] } }] }),
+        { status: 200 },
+      );
+    });
+    const deltas: string[] = [];
+    await adapter.streamChat(
+      { model: 'gemini-x', messages: [{ role: 'user', content: 'hi' }] },
+      { onDelta: (d) => deltas.push(d), onDone: () => {}, signal: new AbortController().signal },
+    );
+    expect(deltas.join('')).toBe('fallback text');
+    fm.mockRestore();
+  });
+
+  test('openai speak returns an audio blob', async () => {
+    const adapter = new OpenAIAdapter({ baseUrl: 'https://api.openai.test/v1', apiKey: () => 'sk' });
+    const fm = mockFetch(
+      (url, init) => {
+        const body = JSON.parse(String(init!.body));
+        expect(body.voice).toBe('alloy');
+        return new Response('MP3DATA', { status: 200 });
+      },
+    );
+    const blob = await adapter.speak('hello', 'tts-1');
+    expect(blob.size).toBeGreaterThan(0);
+    fm.mockRestore();
+  });
+
+  test('anthropic + google testConnection report failures gracefully', async () => {
+    const a = new AnthropicAdapter({ baseUrl: 'https://a.test/v1', apiKey: () => 'k' });
+    const g = new GoogleAdapter({ baseUrl: 'https://g.test/v1beta', apiKey: () => 'k' });
+    const fm = mockFetch(() => new Response('{}', { status: 401 }));
+    expect((await a.testConnection()).ok).toBe(false);
+    expect((await g.testConnection()).ok).toBe(false);
+    fm.mockRestore();
+  });
+
+  test('compatible adapter streams like openai', async () => {
+    const c = new CompatibleAdapter({ baseUrl: 'http://localhost:11434/v1', apiKey: () => undefined });
+    const fm = mockFetch(
+      (url) =>
+        new Response(streamFromStrings(['data: [DONE]\n\n']) as unknown as ReadableStream<Uint8Array>, {
+          status: 200,
+        }),
+    );
+    let done = false;
+    await c.streamChat(
+      { model: 'llama3', messages: [{ role: 'user', content: 'hey' }] },
+      { onDelta: () => {}, onDone: () => (done = true), signal: new AbortController().signal },
+    );
+    expect(done).toBe(true);
+    fm.mockRestore();
+  });
+});
