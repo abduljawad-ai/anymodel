@@ -1091,3 +1091,66 @@ details.reason .r-body { font-family: var(--font-mono); font-size: 12px; white-s
 details.reason summary {
   text-transform: uppercase; letter-spacing: .07em; font-size: 10.5px;
 }
+
+/* ---- message hover toolbars & action rows ---- */
+.turn-user-group { align-self: flex-end; max-width: 82%; position: relative; display: flex; flex-direction: column; align-items: flex-end; }
+.turn-user-group .turn-user { width: 100%; }
+.msg-actions {
+  display: flex; gap: 2px; opacity: 0; transition: opacity .15s var(--ease);
+  font-size: 12px; color: var(--muted);
+}
+.msg-actions button {
+  border: none; background: none; cursor: pointer; color: var(--muted);
+  padding: 3px 7px; border-radius: 6px; font-size: 12.5px;
+}
+.msg-actions button:hover { background: var(--surface); color: var(--ink); }
+.msg-actions button.active { color: var(--accent); }
+.user-actions {
+  margin-bottom: 4px; justify-content: flex-end; gap: 8px;
+}
+.user-actions button { display: inline-flex; gap: 4px; align-items: center; }
+.turn-user-group:hover .user-actions, .turn-assistant:hover .msg-actions.row,
+.msg-actions.row:last-child:hover { opacity: 1; }
+/* keep assistant row visible on touch (no hover) */
+@media (hover: none) { .msg-actions { opacity: 1; } }
+.msg-actions.row { margin-top: 6px; }
+
+.user-edit { width: 100%; display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
+.user-edit textarea {
+  width: 100%; min-height: 60px; border: 1px solid var(--accent); border-radius: var(--r);
+  padding: 9px 11px; background: var(--surface); resize: vertical; font: inherit;
+}
+
+/* ---- think box (Kimi-style) ---- */
+.think-box {
+  border: 1px solid var(--hairline); border-radius: var(--r);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  margin-bottom: 10px; overflow: hidden;
+}
+.think-box.live { border-color: color-mix(in srgb, var(--accent) 45%, var(--hairline)); }
+.think-head {
+  width: 100%; display: flex; justify-content: space-between; align-items: center;
+  background: none; border: none; cursor: pointer; color: var(--muted);
+  padding: 8px 12px; font-size: 13px;
+}
+.think-head .chev { font-family: var(--font-mono); }
+.think-box.live .think-head { color: var(--accent); animation: thinkpulse 1.6s infinite ease-in-out; }
+@keyframes thinkpulse { 50% { opacity: .55; } }
+.think-box .r-body { padding: 0 14px 12px; max-height: 260px; overflow-y: auto; }
+
+/* ---- composer mode popover ---- */
+.mode-pop {
+  position: absolute; bottom: calc(100% + 10px); right: 0; z-index: 55;
+  width: 300px; background: var(--surface); border: 1px solid var(--hairline);
+  border-radius: 10px; box-shadow: 0 14px 44px rgba(25,23,20,.18); padding: 6px;
+  animation: slideUp .18s var(--ease);
+}
+.pop-sec { font-size: 10.5px; font-family: var(--font-mono); color: var(--muted); padding: 8px 10px 4px; letter-spacing: .06em; }
+.pop-row {
+  display: flex; width: 100%; align-items: center; gap: 8px; text-align: left;
+  border: none; background: none; padding: 8px 10px; border-radius: var(--r);
+  cursor: pointer; font-size: 13.5px; color: var(--ink);
+}
+.pop-row:hover { background: var(--accent-soft); }
+.pop-div { height: 1px; background: var(--hairline); margin: 5px 8px; }
+.icon-btn.research-on { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }

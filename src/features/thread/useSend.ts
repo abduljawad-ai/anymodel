@@ -12,6 +12,7 @@ import { useUiStore } from '../../state/uiStore';
 import { useVaultStore } from '../../vault/vaultStore';
 import { loadSettings } from '../../state/settings';
 import { memoryPrompt, splitForCompaction, textTokens, truncationNotice, HOT_TAIL } from '../../lib/memory';
+import { deepResearch } from '../../lib/research';
 
 /** Map stored turns → wire messages (skip errors/empty; cap context). */
 export function buildHistory(turns: Turn[], cap = 20): ChatMessage[] {
@@ -79,6 +80,18 @@ async function runAssistantTurn(sid: string, forceCompact = false): Promise<void
   if (mem?.text.trim()) {
     history = [{ role: 'system', content: `Conversation memory so far (older turns were compacted):\n${mem.text}\nContinue seamlessly.` }, ...history];
   }
+  // Thinking-effort directive applies to EVERY model via forced reasoning.
+  const cfg = loadSettings();
+  if (cfg.effort === 'high') {
+    history = [
+      {
+        role: 'system',
+        content:
+          'Reasoning mode HIGH: before answering, silently work through the problem step by step — consider alternatives, check edge cases, verify facts — then give the answer.',
+      },
+      ...history,
+    ];
+  }
   const ac = startStream(aid);
   const adapter = createAdapter(providerId, resolveDeps(providerId));
 
@@ -103,21 +116,34 @@ async function runAssistantTurn(sid: string, forceCompact = false): Promise<void
   };
 
   try {
-    await adapter.streamChat(
-      { model: modelId, messages: history },
-      {
-        signal: ac.signal,
-        onDelta: (d) => {
-          dBuf += d;
-          schedule();
-        },
-        onReasoning: (r) => {
-          rBuf += r;
-          schedule();
-        },
-        onDone: () => {},
+    const signals = {
+      signal: ac.signal,
+      onDelta: (d: string) => {
+        dBuf += d;
+        schedule();
       },
-    );
+      onReasoning: (r: string) => {
+        rBuf += r;
+        schedule();
+      },
+      onDone: () => {},
+    };
+    if (cfg.researchMode) {
+      // Reason→search→synthesize loop; plan/findings stream as reasoning,
+      // final synthesis streams as the answer. Works with any model.
+      await deepResearch({
+        adapter,
+        modelId,
+        history,
+        question: liveTurns.filter((t) => t.role === 'user').at(-1)?.content ?? '',
+        exaKey: useVaultStore.getState().keys.exa,
+        signal: ac.signal,
+        onDelta: signals.onDelta,
+        onReasoning: signals.onReasoning,
+      });
+    } else {
+      await adapter.streamChat({ model: modelId, messages: history }, signals);
+    }
     flush();
     const done = useSessionStore.getState().active()!.turns.find((t) => t.id === aid);
     useSessionStore.getState().patchTurn(sid, aid, {
@@ -251,4 +277,21 @@ function announce(modelId: string): void {
 
 function useVaultKeys() {
   return useVaultStore.getState().keys;
+}
+
+/** User edited a past message: update it, drop everything after, re-answer. */
+export async function editAndResend(sid: string, userTurnId: string, newContent: string): Promise<void> {
+  const st = useSessionStore.getState();
+  const s = st.active();
+  if (!s) return;
+  const idx = s.turns.findIndex((t) => t.id === userTurnId);
+  if (idx === -1) return;
+  st.patchTurn(sid, userTurnId, { content: newContent });
+  useSessionStore.setState({
+    sessions: st.sessions.map((x) =>
+      x.id === sid ? { ...x, turns: x.turns.slice(0, idx + 1) } : x,
+    ),
+  });
+  stopStream();
+  await runAssistantTurn(sid);
 }

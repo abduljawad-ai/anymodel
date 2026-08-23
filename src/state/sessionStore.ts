@@ -15,6 +15,7 @@ export interface Turn {
   error?: { status?: number; message: string };
   streaming?: boolean;
   reasoning?: string;
+  feedback?: 'up' | 'down';
 }
 
 export interface SessionMemory {
