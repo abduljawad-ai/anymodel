@@ -36,6 +36,7 @@ function allEntries(): Entry[] {
 
 /** ⌘K cross-provider model switcher with type-to-filter + keyboard nav. */
 export function Palette() {
+  const activeModel = useUiStore((s) => s.activeModel);
   const setActiveModel = useUiStore((s) => s.setActiveModel);
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
   const [q, setQ] = useState('');
@@ -44,10 +45,8 @@ export function Palette() {
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Only show a provider's models when its key exists — except compatible (local).
+  // Show all chat-capable models from all providers.
   const entries = useMemo(() => {
-    const keys = JSON.parse(localStorage.getItem('relay.vault.v1') ?? '{}');
-    void keys; // key *presence* isn't enough post-encryption; we show everything instead
     return allEntries();
   }, []);
 
@@ -172,10 +171,11 @@ export function Palette() {
               <div className="palette-group">{getProviderMeta(g.providerId)?.name ?? g.providerId}</div>
               {g.models.map((e) => {
                 const i = flat.indexOf(e);
+                const isActive = e.providerId === activeModel.providerId && e.id === activeModel.modelId;
                 return (
                   <button
                     key={`${e.providerId}/${e.id}`}
-                    className="palette-item"
+                    className={`palette-item ${isActive ? 'active' : ''}`}
                     data-selected={i === sel}
                     onMouseEnter={() => setSel(i)}
                     onClick={() => choose(e)}
@@ -185,6 +185,7 @@ export function Palette() {
                       style={{ ['--tint' as string]: getProviderMeta(e.providerId)?.tint }}
                     />
                     <span>{e.label}</span>
+                    {isActive && <span style={{ marginLeft: 'auto', color: 'var(--accent)', fontSize: 12 }}>✓ current</span>}
                     <span className="caps">
                       {e.caps.map((c) => (
                         <span key={c} className="cap-chip">
