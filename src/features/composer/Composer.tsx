@@ -5,12 +5,17 @@ import { sendTurn } from '../thread/useSend';
 import { ImageAttach, fileToDataUrl } from './ImageAttach';
 import { MicRecorder } from './MicRecorder';
 import { ModelDial } from './ModelDial';
+import { LivePanel } from '../voice/LivePanel';
+import { useUiStore } from '../../state/uiStore';
 
 /**
  * The composer: autosize textarea, image attach/paste, model dial,
  * Send/Stop. Enter sends; Shift+Enter breaks lines.
  */
 export function Composer() {
+  const activeModel = useUiStore((s) => s.activeModel);
+  const isRealtime = /realtime|live/i.test(activeModel.modelId);
+  const [liveOpen, setLiveOpen] = useState(false);
   const [text, setText] = useState('');
   const [image, setImage] = useState<string | null>(null);
   const [streaming, setStreaming] = useState(false);
@@ -73,6 +78,11 @@ export function Composer() {
           <ImageAttach image={image} setImage={setImage} />
           <MicRecorder onTranscript={(t) => setText((cur) => (cur ? `${cur} ${t}` : t))} />
 
+          {isRealtime && (
+            <button className="btn" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }} onClick={() => setLiveOpen(true)}>
+              ● Live voice
+            </button>
+          )}
           <span className="send-hint">Enter ↵ send · Shift+Enter newline</span>
 
           {streaming ? (
@@ -95,6 +105,7 @@ export function Composer() {
           )}
         </div>
       </div>
+      {liveOpen && <LivePanel onClose={() => setLiveOpen(false)} />}
     </div>
   );
 }
