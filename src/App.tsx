@@ -61,7 +61,9 @@ export default function App() {
     return () => clearInterval(iv);
   }, []);
 
-  if (vaultStatus !== 'unlocked') {
+  // Gate: locked vault OR unlocked-but-empty (force the key-setup step).
+  const hasAnyKey = useVaultStore((s) => Object.keys(s.keys).length > 0);
+  if (vaultStatus !== 'unlocked' || !hasAnyKey) {
     return (
       <>
         <Wizard />
@@ -81,15 +83,9 @@ export default function App() {
       <div className="shell-main">
         <TopBar />
         <main className="view-area" aria-live="polite">
-          {view === 'providers' ? (
-            <ProvidersPage />
-          ) : (
-            <>
-              <ThreadView />
-              <Composer />
-            </>
-          )}
+          {view === 'providers' ? <ProvidersPage /> : <ThreadView />}
         </main>
+        {view === 'chat' && <Composer />}
         <div id="aria-announcer" className="sr-only" aria-live="polite" />
       </div>
       <ToastStack />

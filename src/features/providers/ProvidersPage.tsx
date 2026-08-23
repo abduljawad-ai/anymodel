@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { cachedModels, ensureModels, invalidate, isChatCapable, isLoaded } from '../../catalog';
-import { listProviders } from '../../catalog/providers';
 import type { ModelInfo, ProviderMeta } from '../../catalog/types';
+import { listProviders } from '../../catalog/providers';
 import { createAdapter } from '../../adapters/factory';
 import { resolveDeps, custodyOf } from '../../vault/gate';
 import { isAllowedBase } from '../../adapters/base';
@@ -10,24 +10,16 @@ import { useUiStore } from '../../state/uiStore';
 import { useVaultStore } from '../../vault/vaultStore';
 import { toast } from '../../lib/toast';
 
-type Status = 'idle' | 'loading' | 'error';
-
-function statusChip(pid: string) {
-  const mode = custodyOf(pid);
-  if (mode === 'gate') return <span className="chip" title="Split-key custody via relay-gate">🔒 gate</span>;
-  if (mode === 'local') return <span className="chip">🔑 local key</span>;
-  return <span className="chip" style={{ opacity: 0.6 }}>no key</span>;
-}
-
-/** One provider card: key management + live model discovery + selection. */
-function ProviderCard({ meta }: { meta: ProviderMeta }) {
+/** Compact single-line provider row — expands on click into full controls. */
+function ProviderRow({ meta }: { meta: ProviderMeta }) {
+  const [open, setOpen] = useState(false);
   const [, force] = useState(0);
   const [editingKey, setEditingKey] = useState(false);
   const [draft, setDraft] = useState('');
-  const [open, setOpen] = useState(false);
   const [models, setModels] = useState<ModelInfo[]>(cachedModels(meta.id));
-  const [status, setStatus] = useState<Status>('idle');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const hasKey = !!useVaultStore((s) => s.keys[meta.id]);
+  const mode = custodyOf(meta.id);
 
   async function saveKey() {
     if (!draft.trim()) return;
@@ -39,14 +31,12 @@ function ProviderCard({ meta }: { meta: ProviderMeta }) {
   }
 
   async function test() {
-    const adapter = createAdapter(meta.id, resolveDeps(meta.id));
     toast(`Testing ${meta.name}…`);
-    const r = await adapter.testConnection();
+    const r = await createAdapter(meta.id, resolveDeps(meta.id)).testConnection();
     toast(r.ok ? `✓ ${meta.name}: ${r.detail}` : `✗ ${meta.name}: ${r.detail}`);
   }
 
   async function load() {
-    setOpen(true);
     setStatus('loading');
     try {
       setModels(await ensureModels(meta.id));
@@ -60,107 +50,123 @@ function ProviderCard({ meta }: { meta: ProviderMeta }) {
   function pick(m: ModelInfo) {
     useUiStore.getState().setActiveModel({ providerId: meta.id, modelId: m.id });
     useUiStore.getState().setView('chat');
-    toast(`${m.label} ready — back to chat`);
+    toast(`${m.label} ready`);
   }
 
-  const suggested = (meta.popular ?? []).map((id) => ({ id, info: undefined as ModelInfo | undefined }));
-
   return (
-    <div className="prov-card">
-      <div className="prov-head">
+    <div>
+      <button className="prov-row-line" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
         <span className="tint-dot" style={{ ['--tint' as string]: meta.tint }} />
         <strong>{meta.name}</strong>
-        <span className="chip">{meta.kind === 'compatible' ? 'OpenAI-compatible' : meta.kind}</span>
-        {statusChip(meta.id)}
-        {meta.local && <span className="chip">local</span>}
-      </div>
+        <span className="chip">{meta.kind === 'compatible' ? 'compat' : meta.kind}</span>
+        {mode === 'gate' && <span className="chip">🔒 gate</span>}
+        {mode === 'local' && <span className="chip">🔑</span>}
+        {!hasKey && !meta.local && <span className="chip" style={{ opacity: 0.55 }}>no key</span>}
+        <span className="grow" />
+        <span className="chev">{open ? '▾' : '▸'}</span>
+      </button>
 
-      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--muted)', wordBreak: 'break-all' }}>
-        {meta.defaultBase}
-      </div>
-      {meta.keyUrl && (
-        <a href={meta.keyUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>
-          get a key ↗
-        </a>
-      )}
-
-      <div className="prov-actions">
-        {!hasKey ? (
-          editingKey ? (
-            <>
-              <input
-                type="password"
-                autoFocus
-                placeholder={`${meta.name} API key${meta.local ? ' (often optional)' : ''}`}
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && void saveKey()}
-              />
-              <button className="btn btn-primary" onClick={() => void saveKey()}>
-                Save
-              </button>
-              <button className="btn" onClick={() => setEditingKey(false)}>
-                ✕
-              </button>
-            </>
-          ) : (
-            <button className="btn btn-primary" onClick={() => setEditingKey(true)}>
-              Set key
-            </button>
-          )
-        ) : (
-          <>
-            <button className="btn" onClick={() => void test()}>
-              Test
-            </button>
-            <button
-              className="btn btn-danger"
-              title="Remove stored key"
-              onClick={() =>
-                void useVaultStore.getState().removeKey(meta.id).then(() => force((n) => n + 1))
-              }
-            >
-              Remove key
-            </button>
-          </>
-        )}
-
-        <button
-          className="btn"
-          disabled={!useVaultStore.getState().keys[meta.id] && !meta.local}
-          onClick={() => void load()}
-        >
-          {isLoaded(meta.id) ? 'Refresh models' : 'Load models'}
-        </button>
-      </div>
-
-      {(open || isLoaded(meta.id)) && (
-        <div className="prov-models">
-          {status === 'loading' && (
-            <span className="dots" aria-label="loading models">
-              <i />
-              <i />
-              <i />
+      {open && (
+        <div className="prov-detail">
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--muted)', wordBreak: 'break-all' }}>
+              {meta.defaultBase}
             </span>
-          )}
-          {status !== 'loading' &&
-            models.map((m) => (
-              <button key={m.id} className={`chip model-chip ${isChatCapable(m) ? '' : 'aux'}`} onClick={() => pick(m)} title={[m.id, ...m.caps].join(' · ')}>
-                {m.label}
-              </button>
-            ))}
-          {status === 'error' && <span style={{ color: 'var(--err)', fontSize: 12.5 }}>fetch failed — check key/base URL, then retry</span>}
-        </div>
-      )}
+            {meta.keyUrl && (
+              <a href={meta.keyUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>
+                get key ↗
+              </a>
+            )}
+            {meta.local && <span className="chip">local</span>}
+          </div>
 
-      {!isLoaded(meta.id) && (suggested.length > 0 || models.length === 0) && (
-        <div className="prov-suggested">
-          <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--muted)' }}>SUGGESTED</span>
-          {suggested.map((s) => (
-            <button key={s.id} className="chip" onClick={() => pick({ id: s.id, providerId: meta.id, label: s.id.replace(/[-_/.]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()), caps: [] })}>
-              {s.id}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {editingKey ? (
+              <>
+                <input
+                  type="password"
+                  autoFocus
+                  placeholder={`${meta.name} API key${meta.local ? ' (often optional)' : ''}`}
+                  value={draft}
+                  style={{ flex: 1, minWidth: 160 }}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && void saveKey()}
+                />
+                <button className="btn btn-primary" onClick={() => void saveKey()}>
+                  Save
+                </button>
+                <button className="btn" onClick={() => setEditingKey(false)}>
+                  Cancel
+                </button>
+              </>
+            ) : hasKey ? (
+              <>
+                <button className="btn" onClick={() => void test()}>
+                  Test
+                </button>
+                <button
+                  className="btn btn-danger"
+                  onClick={() => void useVaultStore.getState().removeKey(meta.id).then(() => force((n) => n + 1))}
+                >
+                  Remove key
+                </button>
+              </>
+            ) : (
+              <button className="btn btn-primary" onClick={() => setEditingKey(true)}>
+                Set API key
+              </button>
+            )}
+
+            <button
+              className="btn"
+              disabled={!useVaultStore.getState().keys[meta.id] && !meta.local}
+              onClick={() => void load()}
+            >
+              {isLoaded(meta.id) ? 'Refresh models' : 'Load models'}
             </button>
-          ))}
+          </div>
+
+          {(isLoaded(meta.id) || status !== 'idle') && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+              {status === 'loading' && (
+                <span className="dots" aria-label="loading">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+              )}
+              {status === 'error' && <span style={{ color: 'var(--err)', fontSize: 12.5 }}>fetch failed — check key / base URL</span>}
+              {models.map((m) => (
+                <button key={m.id} className={`chip model-chip ${isChatCapable(m) ? '' : 'aux'}`} title={[m.id, ...m.caps].join(' · ')} onClick={() => pick(m)}>
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {!isLoaded(meta.id) && status === 'idle' && (meta.popular?.length ?? 0) > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center' }}>
+              <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--muted)' }}>SUGGESTED</span>
+              {meta.popular!.map((id) =>
+                pick === null ? null : (
+                  <button
+                    key={id}
+                    className="chip model-chip"
+                    onClick={() =>
+                      pick({
+                        id,
+                        providerId: meta.id,
+                        label: id.replace(/[-_/.]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+                        caps: [],
+                      })
+                    }
+                  >
+                    {id}
+                  </button>
+                ),
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -168,7 +174,7 @@ function ProviderCard({ meta }: { meta: ProviderMeta }) {
 }
 
 /** Add any OpenAI-compatible endpoint as a first-class provider. */
-function AddProviderCard({ onAdded }: { onAdded: () => void }) {
+function AddProviderRow({ onAdded }: { onAdded: () => void }) {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
   const [base, setBase] = useState('');
@@ -196,20 +202,17 @@ function AddProviderCard({ onAdded }: { onAdded: () => void }) {
 
   if (!adding)
     return (
-      <button className="btn prov-add" onClick={() => setAdding(true)}>
+      <button className="prov-row-line" style={{ borderStyle: 'dashed', color: 'var(--muted)' }} onClick={() => setAdding(true)}>
         ＋ Add custom provider
       </button>
     );
 
   return (
-    <div className="prov-card">
+    <div className="prov-detail" style={{ borderTop: '1px solid var(--hairline)', marginTop: 6 }}>
       <strong>Add custom provider</strong>
-      <p style={{ margin: '4px 0', fontSize: 12.5, color: 'var(--muted)' }}>
-        Any OpenAI-compatible endpoint (vLLM, LiteLLM, proxies, gateways…). Models are fetched live from its /models.
-      </p>
       <input placeholder="Display name" value={name} onChange={(e) => setName(e.target.value)} />
       <input placeholder="https://host/v1" value={base} onChange={(e) => setBase(e.target.value)} />
-      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+      <div style={{ display: 'flex', gap: 8 }}>
         <button className="btn btn-primary" onClick={save}>
           Save provider
         </button>
@@ -221,8 +224,8 @@ function AddProviderCard({ onAdded }: { onAdded: () => void }) {
   );
 }
 
-/** Full providers page: directory + customs + add flow. */
 export function ProvidersPage() {
+  const [q, setQ] = useState('');
   const [, tick] = useState(0);
 
   useEffect(() => {
@@ -231,19 +234,33 @@ export function ProvidersPage() {
     return () => window.removeEventListener('relay-providers-changed', h);
   }, []);
 
-  const providers = listProviders();
+  // Live search across provider names and ids ("groq", "grove", "ollama"…).
+  const providers = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    const all = listProviders();
+    if (!needle) return all;
+    return all.filter((p) => `${p.name} ${p.id}`.toLowerCase().includes(needle));
+  }, [q]);
 
   return (
     <div className="providers-page">
-      <header className="prov-page-head">
-        <h2>Providers</h2>
-        <p>Pick a famous provider or add any custom endpoint. Keys stay encrypted in your vault (or gate-held). Models are fetched live — nothing here is hardcoded.</p>
-      </header>
-      <div className="prov-grid">
+      <h2 style={{ margin: 0 }}>Providers & models</h2>
+      <input
+        className="prov-search"
+        placeholder="Search providers… (e.g. groq, openrouter, ollama)"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        aria-label="Search providers"
+        autoFocus
+      />
+      <div className="prov-list">
         {providers.map((p) => (
-          <ProviderCard key={p.id} meta={p} />
+          <ProviderRow key={p.id} meta={p} />
         ))}
-        <AddProviderCard onAdded={() => tick((t) => t + 1)} />
+        {providers.length === 0 && (
+          <p style={{ color: 'var(--muted)', padding: 12 }}>No providers match “{q}”.</p>
+        )}
+        <AddProviderRow onAdded={() => tick((t) => t + 1)} />
       </div>
     </div>
   );

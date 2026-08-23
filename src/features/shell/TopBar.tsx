@@ -1,33 +1,24 @@
-import { useUiStore, type View } from '../../state/uiStore';
+import { useUiStore } from '../../state/uiStore';
 import { useVaultStore } from '../../vault/vaultStore';
 
-const TABS: Array<{ id: View; label: string }> = [
-  { id: 'chat', label: 'Chat' },
-  { id: 'providers', label: 'Providers' },
-];
-
-/** Top navigation — Chat / Providers tabs, theme toggle, settings. */
+/** Slim top bar: menu toggle + vault status + theme + settings. Navigation lives in the rail. */
 export function TopBar() {
-  const { view, theme, toggleTheme, setView, setSettingsOpen, setRailOpen } = useUiStore();
+  const { theme, toggleTheme, setSettingsOpen, setRailOpen } = useUiStore();
   const vaultStatus = useVaultStore((s) => s.status);
 
   return (
     <header className="topbar">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <button className="icon-btn menu-btn" aria-label="Open sessions" onClick={() => setRailOpen(true)}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <button
+          className="icon-btn"
+          aria-label="Open menu"
+          onClick={() => setRailOpen(true)}
+        >
           ☰
         </button>
-        <nav className="top-tabs" aria-label="Views">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              className={`tab-btn ${view === t.id ? 'active' : ''}`}
-              onClick={() => setView(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </nav>
+        <span className="rail-brand" style={{ fontSize: 15 }}>
+          <span className="glyph">⟐</span> Relay
+        </span>
       </div>
 
       <div className="top-actions">
@@ -38,12 +29,7 @@ export function TopBar() {
         <button className="icon-btn" onClick={toggleTheme} aria-label="Toggle theme" title="Toggle theme">
           {theme === 'light' ? '☾' : '☀'}
         </button>
-        <button
-          className="icon-btn"
-          onClick={() => setSettingsOpen(true)}
-          aria-label="Settings"
-          title="Settings"
-        >
+        <button className="icon-btn" onClick={() => setSettingsOpen(true)} aria-label="Settings" title="Settings">
           ⚙
         </button>
       </div>

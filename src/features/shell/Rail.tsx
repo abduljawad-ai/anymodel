@@ -43,6 +43,24 @@ export function Rail() {
         + New thread
       </button>
 
+      <nav aria-label="Navigation" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {([['chat', '💬 Chat'], ['providers', '⟐ Providers & models']] as const).map(([v, label]) => (
+          <button
+            key={v}
+            className="session-item"
+            style={{ color: 'var(--ink)' }}
+            onClick={() => {
+              useUiStore.getState().setView(v);
+              useUiStore.getState().setRailOpen(false);
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--muted)', marginTop: 6 }}>THREADS</div>
+
       <nav className="rail-sessions">
         {sessions.map((s) => (
           <div key={s.id} className={`session-item ${s.id === activeId ? 'active' : ''}`}>
@@ -79,18 +97,7 @@ export function Rail() {
         {sessions.length === 0 && <p style={{ color: 'var(--muted)', fontSize: 13 }}>No threads yet.</p>}
       </nav>
 
-      <div className="rail-footer">
-        <button
-          className="btn"
-          style={{ width: '100%' }}
-          onClick={() => {
-            useUiStore.getState().setView('providers');
-            useUiStore.getState().setRailOpen(false);
-          }}
-        >
-          ⟐ Providers & models
-        </button>
-      </div>
+
     </aside>
   );
 }

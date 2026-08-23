@@ -12,7 +12,8 @@ const QUICK_IDS = [...QUICK];
  * connection test) → enter the app.
  */
 export function Wizard() {
-  const [step, setStep] = useState<1 | 2>(1);
+  // An unlocked-but-keyless vault lands directly on the key-setup step.
+  const [step, setStep] = useState<1 | 2>(useVaultStore.getState().status === 'unlocked' ? 2 : 1);
   const [pass, setPass] = useState('');
   const [pass2, setPass2] = useState('');
   const [err, setErr] = useState('');

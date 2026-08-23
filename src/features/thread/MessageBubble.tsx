@@ -1,7 +1,8 @@
 import { memo, useEffect, useMemo, useState } from 'react';
-import { listProviders, getProviderMeta } from '../../catalog/providers';
-import { cachedModels, isChatCapable } from '../../catalog';
+import hljs from 'highlight.js/lib/common';
+import { isChatCapable } from '../../catalog';
 import type { ModelInfo } from '../../catalog/types';
+import { getProviderMeta, listProviders } from '../../catalog/providers';
 import { renderMarkdown } from '../../lib/markdown';
 import { toast } from '../../lib/toast';
 import { playBlob, stopAudio } from '../../lib/audioBus';
@@ -12,15 +13,32 @@ import { useSessionStore, type Turn } from '../../state/sessionStore';
 import { useUiStore, type ModelRef } from '../../state/uiStore';
 import { regenerate } from './useSend';
 
+/** Post-process rendered markdown: highlight code + add language header + copy. */
 function enhance(container: HTMLDivElement): void {
   container.querySelectorAll('pre').forEach((pre) => {
     if (pre.parentElement?.classList.contains('code-wrap')) return;
+    const code = pre.querySelector('code');
+    let lang = '';
+    if (code && !code.dataset.hlzed) {
+      code.dataset.hlzed = '1';
+      try {
+        hljs.highlightElement(code as HTMLElement);
+      } catch {
+        /* unknown language — stays plain */
+      }
+      lang = ([...code.classList].find((c) => c.startsWith('language-')) ?? '').slice(9).toUpperCase();
+    }
     const wrap = document.createElement('div');
     wrap.className = 'code-wrap';
     pre.replaceWith(wrap);
-    wrap.appendChild(pre);
+
+    const head = document.createElement('div');
+    head.className = 'code-head';
+    const label = document.createElement('span');
+    label.textContent = lang || 'CODE';
     const btn = document.createElement('button');
     btn.className = 'btn code-copy';
+    btn.style.position = 'static';
     btn.textContent = 'copy';
     btn.addEventListener('click', () => {
       navigator.clipboard.writeText(pre.textContent ?? '').then(
@@ -28,18 +46,19 @@ function enhance(container: HTMLDivElement): void {
         () => toast('Copy failed'),
       );
     });
-    wrap.appendChild(btn);
+    head.append(label, btn);
+
+    wrap.append(head, pre);
   });
 }
 
 /** Handoff: continue this thread's context with a different model. */
 function HandoffMenu({ onClose }: { onClose: () => void }) {
-  const activeProvider = useSessionStore((s) =>
-    s.sessions.find((x) => x.id === s.activeId),
-  )?.modelKey.providerId;
+  const activeProvider = useSessionStore((s) => s.sessions.find((x) => x.id === s.activeId))
+    ?.modelKey.providerId;
   const candidates: ModelInfo[] = [];
   for (const p of listProviders()) {
-    for (const m of cachedModels(p.id)) if (isChatCapable(m)) candidates.push(m);
+    for (const m of cachedHandoffModels(p.id)) if (isChatCapable(m)) candidates.push(m);
   }
   return (
     <div className="handoff-menu" role="menu">
@@ -56,12 +75,21 @@ function HandoffMenu({ onClose }: { onClose: () => void }) {
               onClose();
             }}
           >
-            <span className="tint-dot" style={{ ['--tint' as string]: getProviderMeta(m.providerId)?.tint, marginRight: 6 }} />
+            <span
+              className="tint-dot"
+              style={{ ['--tint' as string]: getProviderMeta(m.providerId)?.tint, marginRight: 6 }}
+            />
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{m.label}</span>
           </button>
         ))}
     </div>
   );
+}
+
+// Local import indirection keeps handoff limited to already-loaded catalogs.
+import { cachedModels } from '../../catalog';
+function cachedHandoffModels(pid: string) {
+  return cachedModels(pid);
 }
 
 export const MessageBubble = memo(function MessageBubble({ turn }: { turn: Turn }) {
@@ -109,7 +137,7 @@ export const MessageBubble = memo(function MessageBubble({ turn }: { turn: Turn 
   }
 
   return (
-    <div className="turn-assistant" style={tint ? ({ ['--tint' as string]: tint }) : undefined}>
+    <div className="turn-assistant" style={tint ? ({ ['--tint' as string]: tint } as React.CSSProperties) : undefined}>
       <div className="msg-badge-row">
         {turn.modelId && turn.providerId && (
           <span className="chip">
@@ -130,12 +158,7 @@ export const MessageBubble = memo(function MessageBubble({ turn }: { turn: Turn 
         <span style={{ position: 'relative', marginLeft: 'auto', display: 'flex', gap: 6 }}>
           {!turn.streaming && !turn.error && turn.content && (
             <>
-              <button
-                className="icon-btn"
-                title="Regenerate"
-                aria-label="Regenerate reply"
-                onClick={() => void regenerate()}
-              >
+              <button className="icon-btn" title="Regenerate" aria-label="Regenerate reply" onClick={() => void regenerate()}>
                 ↻
               </button>
               <button
