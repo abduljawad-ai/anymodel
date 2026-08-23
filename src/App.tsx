@@ -12,6 +12,8 @@ import { ThreadView } from './features/thread/ThreadView';
 import { Composer } from './features/composer/Composer';
 import { Palette } from './features/palette/Palette';
 import { SettingsSheet } from './features/settings/SettingsSheet';
+import { CompareView } from './features/compare/CompareView';
+import { LabView } from './features/lab/LabView';
 
 /**
  * Shell: vault gate → rail + topbar + active view.
@@ -86,8 +88,8 @@ export default function App() {
               <Composer />
             </>
           )}
-          {view === 'compare' && <div id="compare-view" />}
-          {view === 'lab' && <div id="lab-view" />}
+          {view === 'compare' && <CompareView />}
+          {view === 'lab' && <LabView />}
         </main>
         <div id="aria-announcer" className="sr-only" aria-live="polite" />
       </div>
