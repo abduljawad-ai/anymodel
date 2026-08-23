@@ -252,13 +252,13 @@ export const MessageBubble = memo(function MessageBubble({ turn }: { turn: Turn 
   if (turn.role === 'user') {
     return (
       <div className="turn-user-group">
-        <UserActions turn={turn} />
         <div className="turn-user">
           {turn.imageUrl && <img className="msg-img" src={turn.imageUrl} alt="attachment" />}
           <div className="msg-content" style={{ whiteSpace: 'pre-wrap' }}>
             {turn.content}
           </div>
         </div>
+        <UserActions turn={turn} />
       </div>
     );
   }

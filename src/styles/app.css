@@ -1106,8 +1106,9 @@ details.reason summary {
 .msg-actions button:hover { background: var(--surface); color: var(--ink); }
 .msg-actions button.active { color: var(--accent); }
 .user-actions {
-  margin-bottom: 4px; justify-content: flex-end; gap: 8px;
+  margin-top: 5px; justify-content: flex-end; gap: 8px;
 }
+.user-edit { margin-top: 6px; }
 .user-actions button { display: inline-flex; gap: 4px; align-items: center; }
 .turn-user-group:hover .user-actions, .turn-assistant:hover .msg-actions.row,
 .msg-actions.row:last-child:hover { opacity: 1; }
