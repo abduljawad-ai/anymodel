@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSessionStore } from '../../state/sessionStore';
 import { useUiStore } from '../../state/uiStore';
+import { useVaultStore } from '../../vault/vaultStore';
 
 function relTime(ts: number): string {
   const mins = Math.round((Date.now() - ts) / 60000);
@@ -17,7 +18,10 @@ export function Rail() {
   const activeId = useSessionStore((s) => s.activeId);
   const activeModel = useUiStore((s) => s.activeModel);
   const railOpen = useUiStore((s) => s.railOpen);
+  const theme = useUiStore((s) => s.theme);
+  const vaultStatus = useVaultStore((s) => s.status);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   const [, forceTick] = useState(0);
   // Keep relative timestamps fresh.
@@ -69,8 +73,21 @@ export function Rail() {
 
       <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--muted)', marginTop: 6 }}>THREADS</div>
 
+      {sessions.length > 0 && (
+        <input
+          className="prov-search"
+          placeholder="Search threads…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          aria-label="Search threads"
+          style={{ fontSize: 13, padding: '6px 10px' }}
+        />
+      )}
+
       <nav className="rail-sessions">
-        {sessions.map((s) => (
+        {sessions
+          .filter((s) => !search || s.title.toLowerCase().includes(search.toLowerCase()))
+          .map((s) => (
           <div key={s.id} className={`session-item ${s.id === activeId ? 'active' : ''}`}>
             <button
               className="session-title"
@@ -94,7 +111,6 @@ export function Rail() {
                   setConfirmId(null);
                 } else {
                   setConfirmId(s.id);
-                  setTimeout(() => setConfirmId((c) => (c === s.id ? null : c)), 2500);
                 }
               }}
             >
@@ -103,8 +119,47 @@ export function Rail() {
           </div>
         ))}
         {sessions.length === 0 && <p style={{ color: 'var(--muted)', fontSize: 13 }}>No threads yet.</p>}
+        {sessions.length > 0 && sessions.filter((s) => !search || s.title.toLowerCase().includes(search.toLowerCase())).length === 0 && (
+          <p style={{ color: 'var(--muted)', fontSize: 13 }}>No threads match "{search}".</p>
+        )}
       </nav>
 
+      {/* Footer: vault status, settings, theme toggle, lock */}
+      <div className="rail-footer">
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className={`vault-dot ${vaultStatus === 'unlocked' ? 'unlocked' : ''}`} />
+          <span style={{ fontSize: 12 }}>Vault</span>
+        </span>
+        <span style={{ display: 'flex', gap: 4 }}>
+          <button
+            className="icon-btn"
+            title="Settings"
+            aria-label="Settings"
+            onClick={() => {
+              useUiStore.getState().setSettingsOpen(true);
+              useUiStore.getState().setRailOpen(false);
+            }}
+          >
+            ⚙
+          </button>
+          <button
+            className="icon-btn"
+            title={theme === 'light' ? 'Switch to dark' : 'Switch to light'}
+            aria-label="Toggle theme"
+            onClick={() => useUiStore.getState().toggleTheme()}
+          >
+            {theme === 'light' ? '🌙' : '☀️'}
+          </button>
+          <button
+            className="icon-btn"
+            title="Lock vault"
+            aria-label="Lock vault"
+            onClick={() => useVaultStore.getState().lock()}
+          >
+            🔒
+          </button>
+        </span>
+      </div>
 
     </aside>
   );
