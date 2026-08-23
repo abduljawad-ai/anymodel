@@ -145,3 +145,8 @@ Opposite of violet-dark-pill aesthetics:
 3. Kill network mid-stream → clean error card + retry works.
 4. Reload page → sessions persist, vault locked, unlock restores function.
 5. Export → wipe → import → identical threads.
+
+---
+
+## v2 Addendum (2026-08-23)
+Pivot to harness form factor per user direction: compare/lab removed; live provider-driven model discovery (zero hardcoded models, lazy fetch + TTL cache); custom providers stored locally; rate-limit-aware networking; CSP hardening; OpenAI Realtime WebRTC live voice; thinking/reasoning UI phases; research-backed session compaction (see docs/research/session-compaction.md). Deferred: Phase P split-key proxy custody, Phase G GitHub-native auth/storage.

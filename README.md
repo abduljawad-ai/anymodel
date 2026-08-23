@@ -2,7 +2,9 @@
 
 **One thread. Every model.**
 
-Relay is a zero-backend, bring-your-own-key AI chat app for people who hold API keys across several providers. One clean interface, every model, and the hero interaction is **swapping models mid-conversation** — every answer carries its maker's badge, and the *baton trail* shows who carried the thread so far.
+Relay is a **zero-backend BYOK AI harness**: a production chat interface where *nothing about models is hardcoded*. Pick any provider (built-in wire formats or your own OpenAI-compatible endpoints via **+ Add provider**), click it once — Relay fetches its **live model list straight from that provider's API** using your key, on demand, cached 10 minutes. Page load makes zero provider calls.
+
+The hero interaction is still **swapping models mid-conversation** — every answer carries its maker's badge, the *baton trail* shows who carried the thread so far, and ⚡ handoff continues any reply's context with a different model.
 
 Reimagined from scratch as a "paper workbench": warm paper light theme, espresso dark theme, signal-orange accent, sharp 8px radii, Space Grotesk + JetBrains Mono.
 
@@ -15,6 +17,10 @@ Reimagined from scratch as a "paper workbench": warm paper light theme, espresso
 - **Voice** — record → provider transcription fills the composer; ▶ listen chips read replies aloud (OpenAI TTS).
 - **Lab benches** — embeddings cosine-similarity tester and moderation screener.
 - **Vision input** — attach or paste images for multimodal models (client-side downscale).
+- **Session compaction (research-backed)** — when history nears the context budget (Settings → adjustable), oldest turns fold into a rolling AI-written memory (Claude-Code-style structured delta summaries; MemGPT-style FIFO-head). Hot recent turns stay verbatim; reactive emergency compaction catches provider "context too long" errors and retries once. Long chats stay cheap on **every** model. See `docs/research/session-compaction.md`.
+- **Live voice (realtime)** — select any `/realtime` model (e.g. `gpt-4o-realtime-preview`) and hit **● Live voice**: WebRTC session with ephemeral tokens, pulsing orb, live two-way transcript, mute/end.
+- **Thinking & reasoning visuals** — shimmer "Connecting…→Thinking…" phases, collapsible 🧠 Reasoning panels for reasoning models (`reasoning_content` / Claude thinking deltas), language-labeled code headers.
+- **Hardened networking** — every request runs through timeout+Retry-After backoff (429/503 auto-retry once), strict CSP, sanitized markdown, https-only bases (localhost exempt).
 - **Data portability** — export/import JSON backups (never keys) and export any thread as Markdown.
 
 ## Run it
@@ -33,6 +39,10 @@ npm run build      # type-check + production bundle
 - Custom base URLs must be https (localhost exempt for local models).
 - Backups contain conversations + settings only — never key material.
 - Markdown is rendered through an escape-first sanitize pipeline; links restricted to http(s).
+
+## Security notes
+
+Strict Content-Security-Policy (no inline scripts, no framing), keys AES-GCM at rest with auto-lock, no telemetry anywhere. Roadmap (in `docs/superpowers/plans/2026-08-23-harness-pivot.md`): **Phase P** split-key proxy custody (server-held encrypted provider keys + client pairing keys) and **Phase G** GitHub-native auth/storage (your own repo = your account and database).
 
 ## Provider notes
 
