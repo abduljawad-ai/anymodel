@@ -103,3 +103,57 @@ Commit `test: coverage sweep + qa fixes`.
 ### Task H9 — Docs truth-out
 
 Update `README.md` (harness identity, discovery model, voice, security), append v2 addendum to spec doc. Final commit `docs: harness v2`.
+
+---
+
+# DEFERRED PHASES (approved direction — build AFTER harness v2 completes)
+
+## Phase P — Split-key secure proxy ("relay-gate", two-key custody)
+
+**Threat model solved:** today the provider API key lives in the user's browser vault. Even though it's AES-GCM encrypted at rest and never leaves except to the provider, a compromised device can exfiltrate the plaintext while unlocked. Split-key custody means **no single location ever holds a usable provider key.**
+
+### Architecture
+- **relay-gate**: tiny stateless HTTPS service (one Docker container or free edge-worker). Holds provider keys, encrypted at rest with a server master secret (env/KMS). Never returns a provider key to anyone, ever — it only *uses* it server-side to forward calls.
+- **Enrollment (once per provider key):**
+  1. Client generates `pairingKey` = 32 random bytes (base64url), stores it ONLY in the local vault.
+  2. `POST /enroll {provider, apiKey}` over TLS → gate persists `{recordId, salt, iv, ciphertext=AES-GCM(masterSecret-derived, apiKey)}` → responds `{recordId, pairingCheck}` where `pairingCheck = HKDF(pairingKey, salt)` truncated — proof-of-pairing, not a secret.
+- **Every request:** browser → gate: `{recordId}` + `X-Pairing-Key: <pairingKey>` + payload. Gate: derive wrap key `HKDF(pairingKey, salt)` → verify check → decrypt provider key **in memory** → inject upstream auth → stream SSE back → zeroize. Plaintext never logged, never cached.
+- **Leak analysis:** DB dump ⇒ ciphertext only (needs pairingKey). Stolen pairingKey ⇒ useless without matching server record, instantly revocable. Both stolen ⇒ scoped to ONE record, revocable, auditable. Local vault stays as-is for users who prefer full-local custody — custody becomes a setting.
+
+### Tasks
+- [ ] P1 `gate/` service (~200 LOC): enroll/proxy/revoke endpoints, master-secret envelope encryption, SSE pipe-through, in-memory zeroize, no persistent logs (hash-only audit counters)
+- [ ] P2 Hardening: per-record token-bucket rate limit, body size caps, timeout+retry policy identical to client's, TLS-only, CORS locked to Pages origin, health endpoint
+- [ ] P3 Client: Settings → "Key custody: Local vault | relay-gate"; enrollment flow; adapter transport swap (gate base URL + pairing headers instead of direct provider auth)
+- [ ] P4 Revocation UX (revoke from either side), re-enrollment, multi-provider records
+- [ ] P5 Tests: crypto roundtrip, wrong pairing rejected, rate-limit trip, SSE integrity; load smoke
+
+## Phase G — GitHub-native platform (own auth + storage, zero paid services)
+
+**Principle:** the entire product is static (already true). So identity and storage move into infrastructure every user already controls — **their own GitHub account** — making Relay the first BYOK harness with BYO-backend. No central user DB exists anywhere; there is nothing to breach.
+
+### Identity (own system — no Google/OAuth dependency)
+- Username + password chosen in-app. Password → **loginKey** = PBKDF2-SHA256(password, salt=username, 600k). From loginKey derive, via HKDF: `encKey` (data encryption) and `authHash` (verification, different info-string) — password never stored or sent anywhere.
+- First run creates a private repo `<username>.relay` in the user's GitHub account using a **fine-grained PAT the user pastes once** (scope: Contents R/W on that single repo only — least privilege, revocable from GitHub UI anytime).
+- `profile.json` in the repo stores `{username, authHash, kdf params, created}` — login = fetch profile, derive authHash, constant-time compare. Wrong password fails before any decryption attempt.
+- **Recovery kit:** printable code = XOR-split of a random data key wrapped by loginKey (so password reset ≠ data loss without weakening security).
+
+### Storage
+- Everything (sessions, rolling memory, settings, vault blob) syncs as AES-GCM blobs (key = encKey) written through GitHub Contents API; each save is a commit → **free versioned backup/history** built into git itself.
+- Optional mirror target: user's own Google Drive via its free REST API (OAuth token they generate) — same encrypted-blob format, same code path behind a `StorageTarget` interface.
+- Conflict rule: last-writer-wins per file with timestamp vector; export/import remains the universal escape hatch.
+
+### "Runs 24/7 for everyone"
+- Serving: GitHub Pages CDN (unlimited, free). Compute: none needed for chat (browser→provider/gate direct). Anything that truly needs a cron (e.g., scheduled memory snapshots) = GitHub Actions on `repository_dispatch`/schedule in the user's own repo, scoped secrets, documented cold-start limits. Real-time paths stay serverless by design.
+
+### Reverse-engineering notes to implement against
+- Constant-time compare pattern (crypto.timingSafeEqual equivalent via double-HMAC) · Argon2id vs PBKDF2 tradeoff (PBKDF2 via WebCrypto now, Argon2 WASM later) · PAT scope minimization · Contents-API etag optimistic concurrency · rate-limit headers respect (reuse lib/net.ts) · audit trail = local ring buffer, exportable, zero telemetry.
+
+### Tasks
+- [ ] G1 `platform/kdf.ts`: loginKey/HKDF split, constant-time compare, recovery-kit XOR-split
+- [ ] G2 `platform/githubStore.ts`: PAT bootstrap (create private repo if missing), get/put/delete encrypted blobs w/ etag retries, profile login flow
+- [ ] G3 Login/Signup screens replacing wizard entry when cloud mode chosen (local mode stays default)
+- [ ] G4 Sync engine: debounced push, pull-on-focus, conflict timestamps; DriveTarget behind StorageTarget interface
+- [ ] G5 Security suite extensions: no plaintext at rest in repo (stringify scans), authHash independence from encKey, replay-safe etags
+- [ ] G6 Docs: threat model, recovery procedure, self-host checklist
+
+Build order: P1→P5, then G1→G6. Each phase ships independently usable.
