@@ -10,6 +10,8 @@ import { startStream, stopStream } from '../../state/streamRegistry';
 import { useSessionStore, type Turn } from '../../state/sessionStore';
 import { useUiStore } from '../../state/uiStore';
 import { useVaultStore } from '../../vault/vaultStore';
+import { loadSettings } from '../../state/settings';
+import { memoryPrompt, splitForCompaction, textTokens, truncationNotice, HOT_TAIL } from '../../lib/memory';
 
 /** Map stored turns → wire messages (skip errors/empty; cap context). */
 export function buildHistory(turns: Turn[], cap = 20): ChatMessage[] {
@@ -56,10 +58,10 @@ export async function sendTurn(text: string, imageUrl?: string): Promise<void> {
 }
 
 /** Create + stream an assistant turn for the session's current model slot. */
-async function runAssistantTurn(sid: string): Promise<void> {
+async function runAssistantTurn(sid: string, forceCompact = false): Promise<void> {
   const st = useSessionStore.getState();
-  const s = st.active()!;
-  const { providerId, modelId } = s.modelKey;
+  const s0 = st.active()!;
+  const { providerId, modelId } = s0.modelKey;
 
   if (!useVaultKeys()[providerId]) {
     toast(`Add a ${PROVIDERS[providerId].name} key first — Settings → Keys.`);
@@ -69,7 +71,14 @@ async function runAssistantTurn(sid: string): Promise<void> {
   const aid = uid('a_');
   st.addTurn(sid, { id: aid, role: 'assistant', content: '', modelId, providerId, streaming: true });
 
-  const history = buildHistory(useSessionStore.getState().active()!.turns.filter((t) => t.id !== aid));
+  await ensureMemory(sid, modelId, providerId, forceCompact);
+  const s = useSessionStore.getState().active()!;
+  const mem = s.memory;
+  const liveTurns = mem ? s.turns.slice(mem.upto + 1).filter((t) => t.id !== aid) : s.turns.filter((t) => t.id !== aid);
+  let history = buildHistory(liveTurns);
+  if (mem?.text.trim()) {
+    history = [{ role: 'system', content: `Conversation memory so far (older turns were compacted):\n${mem.text}\nContinue seamlessly.` }, ...history];
+  }
   const ac = startStream(aid);
   const adapter = createAdapter(providerId, {
     baseUrl: effectiveBase(providerId),
@@ -95,15 +104,97 @@ async function runAssistantTurn(sid: string): Promise<void> {
     if ((e as Error).name === 'AbortError') {
       useSessionStore.getState().patchTurn(sid, aid, { streaming: false });
     } else {
+      const msg = e instanceof Error ? e.message : String(e);
+      const status = e instanceof ApiError ? e.status : undefined;
+      if (!forceCompact && status !== undefined && status <= 413 && /context|too long|maximum|length/i.test(msg)) {
+        // Reactive tier (Claude Code tier-5): emergency compact, retry once.
+        useSessionStore.setState({
+          sessions: useSessionStore.getState().sessions.map((x) =>
+            x.id === sid ? { ...x, turns: x.turns.filter((t) => t.id !== aid) } : x,
+          ),
+        });
+        await emergencyTruncate(sid);
+        return runAssistantTurn(sid, true);
+      }
       useSessionStore.getState().patchTurn(sid, aid, {
         streaming: false,
-        error: {
-          status: e instanceof ApiError ? e.status : undefined,
-          message: e instanceof Error ? e.message : String(e),
-        },
+        error: { status, message: msg },
       });
     }
   }
+}
+
+type StreamFn = (req: { model: string; messages: { role: string; content: string }[]; maxTokens?: number }) => Promise<string>;
+/** Test seam: override the summarizer transport. */
+let memoryStreamOverride: StreamFn | undefined;
+export function _setMemoryStreamFn(fn: StreamFn | undefined): void {
+  memoryStreamOverride = fn;
+}
+
+/**
+ * Delta summarization (MemGPT FIFO-head + Claude Code contract).
+ * Recursion-safe: the summarizer call bypasses compaction.
+ */
+export async function ensureMemory(sid: string, modelId: string, providerId: ProviderId, force = false): Promise<void> {
+  const st = useSessionStore.getState();
+  const s = st.active();
+  if (!s) return;
+  const mem = s.memory;
+  const live = s.turns.slice(mem ? mem.upto + 1 : 0);
+  const budget = loadSettings().contextBudgetTokens - textTokens(mem?.text ?? '');
+  const split = force ? forceSplit(live) : splitForCompaction(live, budget);
+  if (!split) return;
+
+  const segment = split.evicted.map((t) => `${t.role}: ${t.content}`).join('\n\n').slice(-12_000);
+  const upto = (mem ? mem.upto : -1) + split.keptFrom;
+  const built: StreamFn = async (req) => {
+    const adapter = createAdapter(providerId, {
+      baseUrl: effectiveBase(providerId),
+      apiKey: () => useVaultStore.getState().keys[providerId],
+    });
+    let out = '';
+    await adapter.streamChat(
+      { model: modelId, messages: req.messages as never, maxTokens: 480 },
+      { onDelta: (d) => (out += d), onDone: () => {}, signal: new AbortController().signal },
+    );
+    return out;
+  };
+  const streamFn = memoryStreamOverride ?? built;
+  try {
+    const text = (await streamFn({ model: modelId, messages: [{ role: 'user', content: memoryPrompt(mem?.text ?? '', segment) }] })).trim() ||
+      truncationNotice(split.evicted.length, segment.length);
+    st.setMemory(sid, { text, upto, compactions: (mem?.compactions ?? 0) + 1, at: Date.now() });
+  } catch {
+    // Circuit breaker fallback: hard truncation, never loop.
+    st.setMemory(sid, {
+      text: ((mem?.text ? mem.text + '\n' : '') + truncationNotice(split.evicted.length, segment.length)).trim(),
+      upto,
+      compactions: (mem?.compactions ?? 0) + 1,
+      at: Date.now(),
+    });
+  }
+}
+
+type SlimTurn = { role: 'user' | 'assistant'; content: string };
+function forceSplit(turns: readonly SlimTurn[]): { evicted: Array<{ index: number; role: 'user' | 'assistant'; content: string }>; keptFrom: number } | null {
+  if (turns.length <= HOT_TAIL) return null;
+  const cut = turns.length - HOT_TAIL;
+  return { evicted: turns.slice(0, cut).map((t, i) => ({ index: i, role: t.role, content: t.content })), keptFrom: cut };
+}
+
+async function emergencyTruncate(sid: string): Promise<void> {
+  const st = useSessionStore.getState();
+  const s = st.active();
+  if (!s) return;
+  const split = forceSplit(s.turns);
+  if (!split) return;
+  const note = truncationNotice(split.evicted.length, split.evicted.reduce((n, t) => n + t.content.length, 0));
+  st.setMemory(sid, {
+    text: ((s.memory?.text ? s.memory.text + '\n' : '') + note).trim(),
+    upto: (s.memory?.upto ?? -1) + split.keptFrom,
+    compactions: (s.memory?.compactions ?? 0) + 1,
+    at: Date.now(),
+  });
 }
 
 /** Drop the trailing assistant turn and generate a fresh one over the same history. */

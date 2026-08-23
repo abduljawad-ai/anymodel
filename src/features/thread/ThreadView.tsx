@@ -42,7 +42,14 @@ export function ThreadView() {
 
   return (
     <div className="thread-wrap">
-      <BatonTrail turns={turns} />
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <BatonTrail turns={turns} />
+        {session.memory && (
+          <span className="chip" title={session.memory.text}>
+            🗜 memory ×{session.memory.compactions}
+          </span>
+        )}
+      </div>
       {turns.map((t) => (
         <MessageBubble key={t.id} turn={t} />
       ))}

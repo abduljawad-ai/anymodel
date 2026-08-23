@@ -16,6 +16,14 @@ export interface Turn {
   streaming?: boolean;
 }
 
+export interface SessionMemory {
+  /** Rolling structured summary of turns [0..upto]. */
+  text: string;
+  upto: number;
+  compactions: number;
+  at: number;
+}
+
 export interface Session {
   id: string;
   title: string;
@@ -23,6 +31,7 @@ export interface Session {
   updatedAt: number;
   modelKey: { providerId: ProviderId; modelId: string };
   turns: Turn[];
+  memory?: SessionMemory;
 }
 
 type ModelKey = Session['modelKey'];
@@ -38,6 +47,7 @@ interface SessionsState {
   setModelKey(id: string, mk: ModelKey): void;
   addTurn(sid: string, turn: Turn): void;
   patchTurn(sid: string, tid: string, patch: Partial<Turn>): void;
+  setMemory(sid: string, m: Session['memory']): void;
   /** Streaming fast-path — updates content without persisting. */
   appendDelta(sid: string, tid: string, text: string): void;
   active(): Session | undefined;
@@ -125,6 +135,10 @@ export const useSessionStore = create<SessionsState>((set, get) => ({
         turns: s.turns.map((t) => (t.id === tid ? { ...t, ...patch } : t)),
       })),
     }));
+    persistSoon(get);
+  },
+  setMemory(sid, m) {
+    set((st) => ({ sessions: touch(st.sessions, sid, (x) => ({ ...x, memory: m })) }));
     persistSoon(get);
   },
   appendDelta(sid, tid, text) {

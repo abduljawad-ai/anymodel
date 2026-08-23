@@ -17,6 +17,7 @@ export function SettingsSheet() {
   const [status, setStatus] = useState<Partial<Record<ProviderId, string>>>({});
   const [bases, setBases] = useState(loadSettings().bases);
   const [autoLockMin, setAutoLockMin] = useState(loadSettings().autoLockMin);
+  const [budget, setBudget] = useState(loadSettings().contextBudgetTokens);
 
   useEffect(() => {
     const onEsc = (e: KeyboardEvent) => {
@@ -147,6 +148,27 @@ export function SettingsSheet() {
               saveSettings({ autoLockMin: v });
             }}
           />
+        </div>
+
+        <div className="field">
+          <label htmlFor="budget">Context budget — compact history beyond (~tokens)</label>
+          <input
+            id="budget"
+            type="number"
+            min={2000}
+            max={200000}
+            step={1000}
+            style={{ width: 130 }}
+            value={budget}
+            onChange={(e) => {
+              const v = Math.max(2000, Math.min(200000, Number(e.target.value) || 12000));
+              setBudget(v);
+              saveSettings({ contextBudgetTokens: v });
+            }}
+          />
+          <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+            Older turns fold into a rolling AI-written memory so long chats stay cheap on every model.
+          </span>
         </div>
 
         <DataPort />
