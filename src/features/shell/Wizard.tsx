@@ -28,6 +28,11 @@ export function Wizard() {
     setStep(2);
   }
 
+  function skipToApp() {
+    // Vault is already unlocked (created in step 1), just reload to enter the app.
+    window.location.reload();
+  }
+
   async function saveAndTest(p: ProviderId) {
     const key = keyDrafts[p]?.trim();
     if (!key) return;
@@ -113,19 +118,24 @@ export function Wizard() {
               <button className="btn" onClick={() => setStep(1)}>
                 ← Back
               </button>
-              <button
-                className="btn btn-primary"
-                onClick={() => {
-                  if (!useVaultStore.getState().hasAnyKey()) {
-                    setErr('Add at least one key to continue (or come back later via Settings).');
-                    return;
-                  }
-                  setErr('');
-                  window.location.reload();
-                }}
-              >
-                Start chatting →
-              </button>
+              <span style={{ display: 'flex', gap: 8 }}>
+                <button className="btn" onClick={skipToApp} title="Skip for now — add keys later via Settings">
+                  Skip for now
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => {
+                    if (!useVaultStore.getState().hasAnyKey()) {
+                      setErr('Add at least one key to continue (or skip for now).');
+                      return;
+                    }
+                    setErr('');
+                    window.location.reload();
+                  }}
+                >
+                  Start chatting →
+                </button>
+              </span>
             </div>
             {err && <p className="key-status err">{err}</p>}
           </>
