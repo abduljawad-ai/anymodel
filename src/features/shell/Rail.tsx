@@ -30,6 +30,14 @@ export function Rail() {
     <aside className={`rail ${railOpen ? 'open' : ''}`} aria-label="Sessions">
       <div className="rail-brand">
         <span className="glyph">⟐</span> Relay
+        <button
+          className="icon-btn"
+          style={{ marginLeft: 'auto' }}
+          aria-label="Close menu"
+          onClick={() => useUiStore.getState().setRailOpen(false)}
+        >
+          ✕
+        </button>
       </div>
 
       <button

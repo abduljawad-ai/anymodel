@@ -1079,3 +1079,15 @@ details.reason .r-body { font-family: var(--font-mono); font-size: 12px; white-s
   background: var(--surface); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;
   margin-top: -4px;
 }
+
+/* thinking capsule */
+.reason-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--hairline); background: var(--surface); color: var(--muted);
+  border-radius: 99px; padding: 3px 12px; cursor: pointer;
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+}
+.reason-pill.open, .reason-pill:hover { border-color: var(--accent); color: var(--accent); }
+details.reason summary {
+  text-transform: uppercase; letter-spacing: .07em; font-size: 10.5px;
+}

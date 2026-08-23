@@ -35,7 +35,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   theme: loadSettings().theme,
   paletteOpen: false,
   settingsOpen: false,
-  railOpen: false,
+  railOpen: typeof window !== 'undefined' && window.innerWidth >= 1024,
   activeModel: loadSettings().lastModel,
   setTheme(t) {
     applyTheme(t);

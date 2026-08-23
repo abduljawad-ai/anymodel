@@ -4,6 +4,7 @@ const s = () => useVaultStore.getState();
 
 test('vault lifecycle', async () => {
   localStorage.clear();
+  sessionStorage.clear();
   s().init();
   expect(s().status).toBe('empty');
   await s().createVault('pass123');
@@ -26,6 +27,7 @@ test('vault lifecycle', async () => {
 
 test('setKey requires unlock', async () => {
   localStorage.clear();
+  sessionStorage.clear();
   s().init();
   await s().createVault('p');
   s().lock();

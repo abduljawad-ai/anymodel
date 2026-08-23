@@ -19,6 +19,11 @@ export function stopStream(key?: string): void {
   map.clear();
 }
 
+/** Release a finished stream WITHOUT aborting (normal completion path). */
+export function endStream(key: string): void {
+  map.delete(key);
+}
+
 export function anyActive(): boolean {
   return map.size > 0;
 }

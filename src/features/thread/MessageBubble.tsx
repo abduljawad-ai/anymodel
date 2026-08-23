@@ -94,6 +94,7 @@ function cachedHandoffModels(pid: string) {
 
 export const MessageBubble = memo(function MessageBubble({ turn }: { turn: Turn }) {
   const [handoffOpen, setHandoffOpen] = useState(false);
+  const [thinkingOpen, setThinkingOpen] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const md = useMemo(() => renderMarkdown(turn.content), [turn.content]);
   const tint = turn.providerId ? getProviderMeta(turn.providerId)?.tint : undefined;
@@ -186,7 +187,20 @@ export const MessageBubble = memo(function MessageBubble({ turn }: { turn: Turn 
           </button>
         </div>
       ) : turn.streaming && !turn.content ? (
-        <span className="shimmer">{turn.reasoning ? 'Thinking…' : 'Connecting…'}</span>
+        <div>
+          <button
+            className={`reason-pill ${thinkingOpen ? 'open' : ''}`}
+            onClick={() => setThinkingOpen((o) => !o)}
+          >
+            🧠 {thinkingOpen ? 'THINKING' : 'THINKING…'}
+          </button>
+          {thinkingOpen && turn.reasoning && (
+            <div className="reason r-body" style={{ maxHeight: 200 }}>
+              {turn.reasoning}
+            </div>
+          )}
+          {!thinkingOpen && <div className="shimmer" style={{ marginLeft: 8 }}>working…</div>}
+        </div>
       ) : (
         <>
           {turn.reasoning && (

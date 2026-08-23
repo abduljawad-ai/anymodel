@@ -3,6 +3,7 @@ import { decryptJson, encryptJson, type VaultBlob } from './crypto';
 import type { ProviderId } from '../catalog/types';
 
 const LS_VAULT = 'relay.vault.v1';
+const SS_PASS = 'relay.session.pass'; // cleared when the browser closes or the user locks
 type Keys = Partial<Record<ProviderId, string>>;
 export interface GateRecord {
   recordId: string;
@@ -51,9 +52,19 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     passRef = null;
     const raw = localStorage.getItem(LS_VAULT);
     set({ status: raw ? 'locked' : 'empty', keys: {}, gateRecords: {} });
+    // Same-tab-session auto-unlock: skip the passphrase after refreshes.
+    const remembered = sessionStorage.getItem(SS_PASS);
+    if (raw && remembered) {
+      void get()
+        .unlock(remembered)
+        .then((ok) => {
+          if (!ok) sessionStorage.removeItem(SS_PASS);
+        });
+    }
   },
   async createVault(pass) {
     passRef = pass;
+    sessionStorage.setItem(SS_PASS, pass);
     await persist(seal(get));
     set({ status: 'unlocked', lastActivity: Date.now() });
   },
@@ -66,6 +77,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       // Legacy blobs sealed only the keys map.
       const sealed = 'keys' in payload ? (payload as SealedPayload) : { keys: payload as Keys };
       passRef = pass;
+      sessionStorage.setItem(SS_PASS, pass);
       set({ keys: sealed.keys ?? {}, gateRecords: sealed.gateRecords ?? {}, status: 'unlocked', lastActivity: Date.now() });
       return true;
     } catch {
@@ -74,6 +86,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
   },
   lock() {
     passRef = null;
+    sessionStorage.removeItem(SS_PASS);
     set((st) => ({ status: st.status === 'empty' ? 'empty' : 'locked', keys: {}, gateRecords: {} }));
   },
   async setKey(p, key) {

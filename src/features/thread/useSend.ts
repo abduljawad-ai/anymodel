@@ -6,7 +6,7 @@ import { PROVIDERS } from '../../catalog/providers';
 import { uid } from '../../lib/id';
 import { estimateTokens, estimateTurnTokens } from '../../lib/tokens';
 import { toast } from '../../lib/toast';
-import { startStream, stopStream } from '../../state/streamRegistry';
+import { startStream, endStream, stopStream } from '../../state/streamRegistry';
 import { useSessionStore, type Turn } from '../../state/sessionStore';
 import { useUiStore } from '../../state/uiStore';
 import { useVaultStore } from '../../vault/vaultStore';
@@ -82,16 +82,43 @@ async function runAssistantTurn(sid: string, forceCompact = false): Promise<void
   const ac = startStream(aid);
   const adapter = createAdapter(providerId, resolveDeps(providerId));
 
+  // Paint-smoothed streaming: batch store writes per animation frame so every
+  // chunk renders instantly without per-token re-render storms.
+  let dBuf = '';
+  let rBuf = '';
+  let raf = 0;
+  const flush = () => {
+    raf = 0;
+    if (dBuf) {
+      useSessionStore.getState().appendDelta(sid, aid, dBuf);
+      dBuf = '';
+    }
+    if (rBuf) {
+      useSessionStore.getState().appendReasoning(sid, aid, rBuf);
+      rBuf = '';
+    }
+  };
+  const schedule = () => {
+    if (!raf) raf = requestAnimationFrame(flush);
+  };
+
   try {
     await adapter.streamChat(
       { model: modelId, messages: history },
       {
         signal: ac.signal,
-        onDelta: (d) => useSessionStore.getState().appendDelta(sid, aid, d),
-        onReasoning: (r) => useSessionStore.getState().appendReasoning(sid, aid, r),
+        onDelta: (d) => {
+          dBuf += d;
+          schedule();
+        },
+        onReasoning: (r) => {
+          rBuf += r;
+          schedule();
+        },
         onDone: () => {},
       },
     );
+    flush();
     const done = useSessionStore.getState().active()!.turns.find((t) => t.id === aid);
     useSessionStore.getState().patchTurn(sid, aid, {
       streaming: false,
@@ -99,6 +126,8 @@ async function runAssistantTurn(sid: string, forceCompact = false): Promise<void
     });
     announce(modelId);
   } catch (e) {
+    if (raf) cancelAnimationFrame(raf);
+    flush();
     if ((e as Error).name === 'AbortError') {
       useSessionStore.getState().patchTurn(sid, aid, { streaming: false });
     } else {
@@ -119,6 +148,9 @@ async function runAssistantTurn(sid: string, forceCompact = false): Promise<void
         error: { status, message: msg },
       });
     }
+  } finally {
+    // ALWAYS release the registry slot — otherwise Send stays as Stop forever.
+    endStream(aid);
   }
 }
 
