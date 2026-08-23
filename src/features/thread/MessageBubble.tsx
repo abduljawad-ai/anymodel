@@ -1,6 +1,7 @@
 import { memo, useMemo, useState } from 'react';
 import { PROVIDERS } from '../../catalog/providers';
-import { listModels, isChatCapable, type ModelInfo } from '../../catalog';
+import { listModels, isChatCapable } from '../../catalog';
+import type { ModelInfo } from '../../catalog/types';
 import { renderMarkdown } from '../../lib/markdown';
 import { toast } from '../../lib/toast';
 import { useSessionStore, type Turn } from '../../state/sessionStore';
