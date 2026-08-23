@@ -177,8 +177,7 @@ function ProviderRow({ meta }: { meta: ProviderMeta }) {
           {!isLoaded(meta.id) && status === 'idle' && (meta.popular?.length ?? 0) > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center' }}>
               <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--muted)' }}>SUGGESTED</span>
-              {meta.popular!.map((id) =>
-                pick === null ? null : (
+              {meta.popular!.map((id) => (
                   <button
                     key={id}
                     className="chip model-chip"

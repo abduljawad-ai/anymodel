@@ -6,6 +6,7 @@ import { sendTurn } from '../thread/useSend';
 import { ImageAttach, fileToDataUrl } from './ImageAttach';
 import { MicRecorder } from './MicRecorder';
 import { ModelDial } from './ModelDial';
+import { LivePanel } from '../voice/LivePanel';
 
 
 
@@ -60,6 +61,7 @@ export function Composer() {
   const [text, setText] = useState('');
   const [image, setImage] = useState<string | null>(null);
   const [streaming, setStreaming] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   // Track global stream activity for the Stop affordance.
@@ -83,6 +85,8 @@ export function Composer() {
     setText('');
     setImage(null);
     void sendTurn(payloadText, payloadImage ?? undefined);
+    // Re-focus the textarea for the next message.
+    requestAnimationFrame(() => taRef.current?.focus());
   }
 
   return (
@@ -119,6 +123,14 @@ export function Composer() {
           <ImageAttach image={image} setImage={setImage} />
           <MicRecorder onTranscript={(t) => setText((cur) => (cur ? `${cur} ${t}` : t))} />
           <button
+            className="icon-btn"
+            title="Live voice mode (WebRTC)"
+            aria-label="Open live voice"
+            onClick={() => setVoiceOpen(true)}
+          >
+            🎙️
+          </button>
+          <button
             className={`icon-btn ${loadSettings().researchMode ? 'research-on' : ''}`}
             title="Deep research — reason → web search → synthesize (Exa)"
             aria-label="Toggle deep research"
@@ -149,6 +161,7 @@ export function Composer() {
           )}
         </div>
       </div>
+      {voiceOpen && <LivePanel onClose={() => setVoiceOpen(false)} />}
     </div>
   );
 }

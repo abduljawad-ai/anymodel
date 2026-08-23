@@ -23,7 +23,7 @@ export function ThreadView() {
   }, []);
 
   useEffect(() => {
-    if (stickToBottom.current) bottomRef.current?.scrollIntoView({ block: 'end' });
+    if (stickToBottom.current) bottomRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
   }, [turns]);
 
   if (!session || turns.length === 0) {

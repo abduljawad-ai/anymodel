@@ -911,6 +911,8 @@ select {
   padding: 6px;
   z-index: 40;
   min-width: 210px;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .handoff-menu button {
