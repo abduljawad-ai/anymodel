@@ -9,6 +9,8 @@ export interface RelaySettings {
   contextBudgetTokens: number;
   /** User-registered OpenAI-compatible providers (nothing about models is hardcoded). */
   customProviders: Array<{ id: string; name: string; baseUrl: string }>;
+  /** relay-gate base URL — when set + enrolled, traffic takes split-key custody. */
+  gateUrl: string;
   /** Custom base URL per provider ('' or missing → PROVIDERS.defaultBase). */
   bases: Partial<Record<ProviderId, string>>;
   lastModel: { providerId: ProviderId; modelId: string };
@@ -19,6 +21,7 @@ export const DEFAULT_SETTINGS: RelaySettings = {
   autoLockMin: 15,
   contextBudgetTokens: 12000,
   customProviders: [],
+  gateUrl: '',
   bases: {},
   lastModel: { providerId: 'openai', modelId: 'gpt-4o' },
 };

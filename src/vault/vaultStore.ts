@@ -4,10 +4,19 @@ import type { ProviderId } from '../catalog/types';
 
 const LS_VAULT = 'relay.vault.v1';
 type Keys = Partial<Record<ProviderId, string>>;
+export interface GateRecord {
+  recordId: string;
+  pairingKey: string;
+}
+interface SealedPayload {
+  keys: Keys;
+  gateRecords?: Record<string, GateRecord>;
+}
 
 interface VaultState {
   status: 'empty' | 'locked' | 'unlocked';
   keys: Keys;
+  gateRecords: Record<string, GateRecord>;
   lastActivity: number;
   init(): void;
   createVault(pass: string): Promise<void>;
@@ -17,30 +26,35 @@ interface VaultState {
   removeKey(p: ProviderId): Promise<void>;
   hasAnyKey(): boolean;
   touch(): void;
+  setGateRecord(p: ProviderId, rec: GateRecord): Promise<void>;
+  removeGateRecord(p: ProviderId): Promise<void>;
 }
 
 /** Passphrase lives ONLY here in memory — never persisted, never exported. */
 let passRef: string | null = null;
 
-async function persist(keys: Keys): Promise<void> {
+async function persist(payload: SealedPayload): Promise<void> {
   if (!passRef) return;
-  const blob = await encryptJson(keys, passRef);
+  const blob = await encryptJson(payload, passRef);
   localStorage.setItem(LS_VAULT, JSON.stringify(blob));
 }
+
+const seal = (get: () => VaultState): SealedPayload => ({ keys: get().keys, gateRecords: get().gateRecords });
 
 export const useVaultStore = create<VaultState>((set, get) => ({
   status: 'empty',
   keys: {},
+  gateRecords: {},
   lastActivity: Date.now(),
   init() {
     if (get().status === 'unlocked') return; // never downgrade a live session
     passRef = null;
     const raw = localStorage.getItem(LS_VAULT);
-    set({ status: raw ? 'locked' : 'empty', keys: {} });
+    set({ status: raw ? 'locked' : 'empty', keys: {}, gateRecords: {} });
   },
   async createVault(pass) {
     passRef = pass;
-    await persist(get().keys);
+    await persist(seal(get));
     set({ status: 'unlocked', lastActivity: Date.now() });
   },
   async unlock(pass) {
@@ -48,9 +62,11 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     if (!raw) return false;
     try {
       const blob = JSON.parse(raw) as VaultBlob;
-      const keys = await decryptJson<Keys>(blob, pass);
+      const payload = await decryptJson<SealedPayload | Keys>(blob, pass);
+      // Legacy blobs sealed only the keys map.
+      const sealed = 'keys' in payload ? (payload as SealedPayload) : { keys: payload as Keys };
       passRef = pass;
-      set({ keys, status: 'unlocked', lastActivity: Date.now() });
+      set({ keys: sealed.keys ?? {}, gateRecords: sealed.gateRecords ?? {}, status: 'unlocked', lastActivity: Date.now() });
       return true;
     } catch {
       return false;
@@ -58,20 +74,31 @@ export const useVaultStore = create<VaultState>((set, get) => ({
   },
   lock() {
     passRef = null;
-    set((st) => ({ status: st.status === 'empty' ? 'empty' : 'locked', keys: {} }));
+    set((st) => ({ status: st.status === 'empty' ? 'empty' : 'locked', keys: {}, gateRecords: {} }));
   },
   async setKey(p, key) {
     if (get().status !== 'unlocked' || !key.trim()) return;
-    const keys = { ...get().keys, [p]: key.trim() };
-    await persist(keys);
-    set({ keys });
+    set({ keys: { ...get().keys, [p]: key.trim() } });
+    await persist(seal(get));
   },
   async removeKey(p) {
     if (get().status !== 'unlocked') return;
     const keys = { ...get().keys };
     delete keys[p];
-    await persist(keys);
     set({ keys });
+    await persist(seal(get));
+  },
+  async setGateRecord(p, rec) {
+    if (get().status !== 'unlocked') return;
+    set({ gateRecords: { ...get().gateRecords, [p]: rec } });
+    await persist(seal(get));
+  },
+  async removeGateRecord(p) {
+    if (get().status !== 'unlocked') return;
+    const gateRecords = { ...get().gateRecords };
+    delete gateRecords[p];
+    set({ gateRecords });
+    await persist(seal(get));
   },
   hasAnyKey() {
     return Object.keys(get().keys).length > 0;

@@ -6,7 +6,7 @@ import { renderMarkdown } from '../../lib/markdown';
 import { toast } from '../../lib/toast';
 import { playBlob, stopAudio } from '../../lib/audioBus';
 import { createAdapter } from '../../adapters/factory';
-import { effectiveBase } from '../../adapters/base';
+import { resolveDeps } from '../../vault/gate';
 import { useVaultStore } from '../../vault/vaultStore';
 import { useSessionStore, type Turn } from '../../state/sessionStore';
 import { useUiStore, type ModelRef } from '../../state/uiStore';
@@ -85,10 +85,7 @@ export const MessageBubble = memo(function MessageBubble({ turn }: { turn: Turn 
       setSpeaking(false);
       return;
     }
-    const adapter = createAdapter('openai', {
-      baseUrl: effectiveBase('openai'),
-      apiKey: () => useVaultStore.getState().keys.openai,
-    });
+    const adapter = createAdapter('openai', resolveDeps('openai'));
     try {
       setSpeaking(true);
       const blob = await adapter.speak(turn.content, 'tts-1');

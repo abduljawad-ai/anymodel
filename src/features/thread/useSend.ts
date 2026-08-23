@@ -1,6 +1,6 @@
 import { ApiError, type ChatMessage } from '../../adapters/types';
 import { createAdapter } from '../../adapters/factory';
-import { effectiveBase } from '../../adapters/base';
+import { resolveDeps } from '../../vault/gate';
 import type { ProviderId } from '../../catalog/types';
 import { PROVIDERS } from '../../catalog/providers';
 import { uid } from '../../lib/id';
@@ -80,10 +80,7 @@ async function runAssistantTurn(sid: string, forceCompact = false): Promise<void
     history = [{ role: 'system', content: `Conversation memory so far (older turns were compacted):\n${mem.text}\nContinue seamlessly.` }, ...history];
   }
   const ac = startStream(aid);
-  const adapter = createAdapter(providerId, {
-    baseUrl: effectiveBase(providerId),
-    apiKey: () => vaultKey(providerId),
-  });
+  const adapter = createAdapter(providerId, resolveDeps(providerId));
 
   try {
     await adapter.streamChat(
@@ -149,10 +146,7 @@ export async function ensureMemory(sid: string, modelId: string, providerId: Pro
   const segment = split.evicted.map((t) => `${t.role}: ${t.content}`).join('\n\n').slice(-12_000);
   const upto = (mem ? mem.upto : -1) + split.keptFrom;
   const built: StreamFn = async (req) => {
-    const adapter = createAdapter(providerId, {
-      baseUrl: effectiveBase(providerId),
-      apiKey: () => useVaultStore.getState().keys[providerId],
-    });
+    const adapter = createAdapter(providerId, resolveDeps(providerId));
     let out = '';
     await adapter.streamChat(
       { model: modelId, messages: req.messages as never, maxTokens: 480 },
@@ -225,7 +219,4 @@ function announce(modelId: string): void {
 
 function useVaultKeys() {
   return useVaultStore.getState().keys;
-}
-function vaultKey(providerId: ProviderId) {
-  return useVaultStore.getState().keys[providerId];
 }

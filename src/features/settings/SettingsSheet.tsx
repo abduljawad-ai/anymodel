@@ -8,6 +8,7 @@ import { loadSettings, saveSettings } from '../../state/settings';
 import { toast } from '../../lib/toast';
 import { useVaultStore } from '../../vault/vaultStore';
 import { DataPort } from './DataPort';
+import { custodyOf, enrollToGate, revokeOnGate } from '../../vault/gate';
 
 /** Bottom sheet: keys, custom bases, auto-lock, theme, data port. */
 export function SettingsSheet() {
@@ -171,6 +172,8 @@ export function SettingsSheet() {
           </span>
         </div>
 
+        <CustodySection />
+
         <DataPort />
 
         <div className="wizard-actions">
@@ -183,5 +186,74 @@ export function SettingsSheet() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Split-key custody rows — enroll/revoke per builtin provider. */
+function CustodySection() {
+  const [gateUrl, setGateUrl] = useState(loadSettings().gateUrl);
+  const [, force] = useState(0);
+
+  function saveUrl(v: string) {
+    setGateUrl(v);
+    saveSettings({ gateUrl: v.trim() });
+  }
+
+  return (
+    <section aria-label="Split-key custody">
+      <div className="field">
+        <label htmlFor="gate">relay-gate URL — split-key custody (server holds encrypted keys)</label>
+        <input
+          id="gate"
+          placeholder="https://your-gate.example.com"
+          value={gateUrl}
+          onChange={(e) => setGateUrl(e.target.value)}
+          onBlur={(e) => saveUrl(e.target.value)}
+        />
+        <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+          Enrolled providers send only a pairing key to your gate; the real API key never touches this browser again. Local copy is kept as fallback.
+        </span>
+      </div>
+      {PROVIDER_IDS.map((p) => {
+        const mode = custodyOf(p);
+        return (
+          <div key={`c-${p}`} className="field">
+            <label>{PROVIDERS[p].name} custody</label>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <span className={`chip ${mode === 'gate' ? '' : ''}`}>
+                {mode === 'gate' ? '🔒 gate-held' : mode === 'local' ? 'local' : '—'}
+              </span>
+              {mode !== 'gate' && (
+                <button
+                  className="btn"
+                  disabled={!gateUrl.trim() || !useVaultStore.getState().keys[p]}
+                  onClick={() =>
+                    void enrollToGate(p, PROVIDERS[p].kind)
+                      .then(() => toast(`${PROVIDERS[p].name} enrolled — traffic now gate-held`))
+                      .catch((e) => toast(e.message))
+                      .finally(() => force((n) => n + 1))
+                  }
+                >
+                  Enroll
+                </button>
+              )}
+              {mode === 'gate' && (
+                <button
+                  className="btn btn-danger"
+                  onClick={() =>
+                    void revokeOnGate(p)
+                      .then(() => toast('Revoked on gate'))
+                      .catch((e) => toast(e.message))
+                      .finally(() => force((n) => n + 1))
+                  }
+                >
+                  Revoke
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </section>
   );
 }

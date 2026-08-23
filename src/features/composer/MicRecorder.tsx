@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createAdapter } from '../../adapters/factory';
-import { effectiveBase } from '../../adapters/base';
+import { resolveDeps } from '../../vault/gate';
 import type { ProviderId } from '../../catalog/types';
 import { toast } from '../../lib/toast';
 import { useVaultStore } from '../../vault/vaultStore';
@@ -53,10 +53,7 @@ export function MicRecorder({ onTranscript }: { onTranscript: (text: string) => 
         try {
           const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
           const p = pickSttProvider()!;
-          const adapter = createAdapter(p, {
-            baseUrl: effectiveBase(p),
-            apiKey: () => useVaultStore.getState().keys[p],
-          });
+          const adapter = createAdapter(p, resolveDeps(p));
           const text = await adapter.transcribe(blob, 'whisper-1');
           if (text.trim()) onTranscript(text.trim());
         } catch (e) {

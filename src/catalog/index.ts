@@ -33,15 +33,11 @@ export async function ensureModels(providerId: ProviderId): Promise<ModelInfo[]>
   const hit = cache.get(providerId);
   if (hit && Date.now() - hit.at < TTL) return hit.models;
   // Dynamic imports keep catalog decoupled from adapters at module-eval time.
-  const [{ createAdapter }, { effectiveBase }, { useVaultStore }] = await Promise.all([
+  const [{ createAdapter }, { resolveDeps }] = await Promise.all([
     import('../adapters/factory'),
-    import('../adapters/base'),
-    import('../vault/vaultStore'),
+    import('../vault/gate'),
   ]);
-  const adapter = createAdapter(providerId, {
-    baseUrl: effectiveBase(providerId),
-    apiKey: () => useVaultStore.getState().keys[providerId],
-  });
+  const adapter = createAdapter(providerId, resolveDeps(providerId));
   try {
     const ids = await adapter.listModels();
     cache.set(providerId, { at: Date.now(), models: ids.map((id) => normalizeModel(providerId, id)) });
