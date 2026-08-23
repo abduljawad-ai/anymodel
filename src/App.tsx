@@ -8,6 +8,8 @@ import { Rail } from './features/shell/Rail';
 import { TopBar } from './features/shell/TopBar';
 import { Wizard } from './features/shell/Wizard';
 import { ToastStack } from './features/shell/ToastStack';
+import { ThreadView } from './features/thread/ThreadView';
+import { Composer } from './features/composer/Composer';
 
 /**
  * Shell: vault gate → rail + topbar + active view.
@@ -74,10 +76,16 @@ export default function App() {
       <div className="shell-main">
         <TopBar />
         <main className="view-area" aria-live="polite">
-          {view === 'thread' && <div id="thread-view" />}
+          {view === 'thread' && (
+            <>
+              <ThreadView />
+              <Composer />
+            </>
+          )}
           {view === 'compare' && <div id="compare-view" />}
           {view === 'lab' && <div id="lab-view" />}
         </main>
+        <div id="aria-announcer" className="sr-only" aria-live="polite" />
       </div>
       <ToastStack />
     </div>
