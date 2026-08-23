@@ -32,7 +32,7 @@ test('streamChat emits deltas then done', async () => {
   const body = JSON.parse(String(fm.mock.calls[0][1]!.body));
   expect(body.messages[0].content).toBe('hi');
   expect(body.stream).toBe(true);
-  expect(fm.mock.calls[0][1]!.headers!.Authorization).toBe('Bearer sk-k');
+  expect((fm.mock.calls[0][1]!.headers as Record<string, string>).Authorization).toBe('Bearer sk-k');
   fm.mockRestore();
 });
 

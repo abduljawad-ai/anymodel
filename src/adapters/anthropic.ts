@@ -83,16 +83,16 @@ export class AnthropicAdapter implements ProviderAdapter {
   private unsupported(op: string): never {
     throw new ApiError(501, `Anthropic does not expose ${op} — use an OpenAI or compatible provider.`);
   }
-  async transcribe(): Promise<string> {
+  async transcribe(_audio?: Blob, _modelId?: string): Promise<string> {
     this.unsupported('transcription');
   }
-  async speak(): Promise<Blob> {
+  async speak(_text?: string, _modelId?: string): Promise<Blob> {
     this.unsupported('speech');
   }
-  async embed(): Promise<number[][]> {
+  async embed(_inputs?: string[], _modelId?: string): Promise<number[][]> {
     this.unsupported('embeddings');
   }
-  async moderate(): Promise<ModerationResult> {
+  async moderate(_input?: string, _modelId?: string): Promise<ModerationResult> {
     this.unsupported('moderation');
   }
 

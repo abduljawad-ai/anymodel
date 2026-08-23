@@ -93,13 +93,13 @@ export class GoogleAdapter implements ProviderAdapter {
   private unsupported(op: string): never {
     throw new ApiError(501, `Google does not expose ${op} via this endpoint.`);
   }
-  async transcribe(): Promise<string> {
+  async transcribe(_audio?: Blob, _modelId?: string): Promise<string> {
     this.unsupported('transcription');
   }
-  async speak(): Promise<Blob> {
+  async speak(_text?: string, _modelId?: string): Promise<Blob> {
     this.unsupported('speech');
   }
-  async moderate(): Promise<ModerationResult> {
+  async moderate(_input?: string, _modelId?: string): Promise<ModerationResult> {
     this.unsupported('moderation');
   }
 
