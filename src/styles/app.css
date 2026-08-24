@@ -176,6 +176,40 @@ select {
   color: var(--err);
 }
 
+.rail-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-4) 0;
+}
+
+.rail-nav-item {
+  justify-content: flex-start;
+  text-align: left;
+  padding-left: var(--space-3);
+}
+
+.rail-section-header {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--muted);
+  margin: var(--space-4) var(--space-4) var(--space-2);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.session-time {
+  margin-left: var(--space-2);
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.rail-empty {
+  color: var(--muted);
+  font-size: 13px;
+  padding: var(--space-2) var(--space-4);
+}
+
 .rail-footer {
   border-top: 1px solid var(--hairline);
   padding-top: 10px;
@@ -185,6 +219,17 @@ select {
   gap: 8px;
   font-size: 13px;
   color: var(--muted);
+}
+
+.rail-footer-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.rail-footer-right {
+  display: flex;
+  gap: var(--space-1);
 }
 
 .vault-dot {
@@ -212,55 +257,45 @@ select {
   background: var(--paper);
 }
 
-.top-tabs {
+.topbar-left {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: var(--space-2);
 }
 
-.tab-btn {
-  border: none;
-  background: none;
-  padding: 6px 14px;
-  border-radius: var(--r);
-  cursor: pointer;
-  color: var(--muted);
-  transition: all 0.15s var(--ease);
-}
-
-.tab-btn:hover {
-  color: var(--ink);
-}
-
-.tab-btn.active {
-  background: var(--ink);
-  color: var(--paper);
-}
-
-.top-actions {
-  display: flex;
-  gap: 6px;
-}
-
-.icon-btn {
-  border: 1px solid transparent;
-  background: none;
-  cursor: pointer;
-  padding: 6px 9px;
-  border-radius: var(--r);
-  color: var(--muted);
+.topbar-brand {
   font-size: 15px;
-  line-height: 1;
-  transition: all 0.15s var(--ease);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
 }
 
-.icon-btn:hover {
-  color: var(--ink);
-  border-color: var(--hairline);
-  background: var(--surface);
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
-.menu-btn {
-  display: none;
+.model-chip {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--r-md);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.model-chip-arrow {
+  opacity: 0.5;
+}
+
+.tint-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--tint);
 }
 
 /* ---------- buttons & chips ---------- */
@@ -1157,3 +1192,29 @@ details.reason summary {
 .pop-row:hover { background: var(--accent-soft); }
 .pop-div { height: 1px; background: var(--hairline); margin: 5px 8px; }
 .icon-btn.research-on { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+
+/* ---- studio page ---- */
+.studio-page { max-width: 1100px; margin: 0 auto; padding: 22px; display: flex; flex-direction: column; gap: 18px; }
+.studio-head h2 { margin: 0 0 2px; font-size: 22px; }
+.studio-head p { margin: 0; color: var(--muted); font-size: 13.5px; }
+.studio-empty {
+  border: 1px dashed var(--hairline); border-radius: var(--r-lg);
+  padding: 48px 24px; text-align: center; color: var(--muted);
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  background: var(--surface);
+}
+.studio-empty h3 { margin: 6px 0 0; color: var(--ink); font-size: 17px; }
+.studio-empty p { margin: 0; max-width: 440px; font-size: 13.5px; line-height: 1.6; }
+.studio-empty-icons { display: flex; gap: 10px; }
+.studio-icon-tile {
+  width: 44px; height: 44px; border-radius: var(--r-md);
+  border: 1px solid var(--hairline); background: var(--paper);
+  display: grid; place-items: center; color: var(--accent);
+}
+.studio-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.studio-card {
+  border: 1px solid var(--hairline); border-radius: var(--r-md); overflow: hidden;
+  background: var(--surface); display: flex; flex-direction: column;
+}
+.studio-card img, .studio-card video { width: 100%; display: block; aspect-ratio: 1; object-fit: cover; }
+.studio-card .meta { padding: 10px 12px; font-size: 12px; color: var(--muted); font-family: var(--font-mono); display: flex; justify-content: space-between; gap: 8px; }

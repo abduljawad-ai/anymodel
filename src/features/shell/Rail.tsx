@@ -1,4 +1,8 @@
 import { useEffect, useState } from 'react';
+import { Button } from '../../ui/Button';
+import { IconButton } from '../../ui/IconButton';
+import { Input } from '../../ui/Input';
+import { Chip } from '../../ui/Chip';
 import { useSessionStore } from '../../state/sessionStore';
 import { useUiStore } from '../../state/uiStore';
 import { useVaultStore } from '../../vault/vaultStore';
@@ -19,6 +23,7 @@ export function Rail() {
   const activeModel = useUiStore((s) => s.activeModel);
   const railOpen = useUiStore((s) => s.railOpen);
   const theme = useUiStore((s) => s.theme);
+  const view = useUiStore((s) => s.view);
   const vaultStatus = useVaultStore((s) => s.status);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -31,21 +36,20 @@ export function Rail() {
   }, []);
 
   return (
-    <aside className={`rail ${railOpen ? 'open' : ''}`} aria-label="Sessions">
+    <aside className={`rail ${railOpen ? 'open' : ''}`} aria-label="Navigation">
       <div className="rail-brand">
         <span className="glyph">⟐</span> Relay
-        <button
-          className="icon-btn"
-          style={{ marginLeft: 'auto' }}
+        <IconButton
+          icon="✕"
           aria-label="Close menu"
           onClick={() => useUiStore.getState().setRailOpen(false)}
-        >
-          ✕
-        </button>
+        />
       </div>
 
-      <button
-        className="btn btn-primary rail-new"
+      <Button
+        variant="primary"
+        size="md"
+        className="rail-new"
         onClick={() => {
           useSessionStore.getState().createSession(activeModel);
           useUiStore.getState().setView('chat');
@@ -53,34 +57,41 @@ export function Rail() {
         }}
       >
         + New thread
-      </button>
+      </Button>
 
-      <nav aria-label="Navigation" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {([['chat', '💬 Chat'], ['providers', '⟐ Providers & models']] as const).map(([v, label]) => (
-          <button
-            key={v}
-            className="session-item"
-            style={{ color: 'var(--ink)' }}
-            onClick={() => {
-              useUiStore.getState().setView(v);
-              useUiStore.getState().setRailOpen(false);
-            }}
-          >
-            {label}
-          </button>
-        ))}
+      <nav aria-label="Navigation" className="rail-nav">
+        {(['chat', 'providers', 'studio'] as const).map((v) => {
+          const labels: Record<string, string> = {
+            chat: '💬 Chat',
+            providers: '⟐ Providers & models',
+            studio: '✦ Studio'
+          };
+          
+          return (
+            <Button
+              key={v}
+              variant="ghost"
+              size="md"
+              className={`rail-nav-item ${view === v ? 'active' : ''}`}
+              onClick={() => {
+                useUiStore.getState().setView(v);
+                useUiStore.getState().setRailOpen(false);
+              }}
+            >
+              {labels[v]}
+            </Button>
+          );
+        })}
       </nav>
 
-      <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--muted)', marginTop: 6 }}>THREADS</div>
+      <div className="rail-section-header">THREADS</div>
 
       {sessions.length > 0 && (
-        <input
-          className="prov-search"
+        <Input
           placeholder="Search threads…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           aria-label="Search threads"
-          style={{ fontSize: 13, padding: '6px 10px' }}
         />
       )}
 
@@ -100,7 +111,7 @@ export function Rail() {
               title={s.title}
             >
               {s.title}
-              <span style={{ marginLeft: 6, fontSize: 11, opacity: 0.6 }}>{relTime(s.updatedAt)}</span>
+              <span className="session-time">{relTime(s.updatedAt)}</span>
             </button>
             <button
               className={`session-del ${confirmId === s.id ? 'confirm' : ''}`}
@@ -118,49 +129,40 @@ export function Rail() {
             </button>
           </div>
         ))}
-        {sessions.length === 0 && <p style={{ color: 'var(--muted)', fontSize: 13 }}>No threads yet.</p>}
+        {sessions.length === 0 && <p className="rail-empty">No threads yet.</p>}
         {sessions.length > 0 && sessions.filter((s) => !search || s.title.toLowerCase().includes(search.toLowerCase())).length === 0 && (
-          <p style={{ color: 'var(--muted)', fontSize: 13 }}>No threads match "{search}".</p>
+          <p className="rail-empty">No threads match "{search}".</p>
         )}
       </nav>
 
       {/* Footer: vault status, settings, theme toggle, lock */}
       <div className="rail-footer">
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span className={`vault-dot ${vaultStatus === 'unlocked' ? 'unlocked' : ''}`} />
-          <span style={{ fontSize: 12 }}>Vault</span>
-        </span>
-        <span style={{ display: 'flex', gap: 4 }}>
-          <button
-            className="icon-btn"
-            title="Settings"
+        <div className="rail-footer-left">
+          <Chip variant={vaultStatus === 'unlocked' ? 'accent' : 'default'}>
+            Vault
+          </Chip>
+        </div>
+        <div className="rail-footer-right">
+          <IconButton
+            icon="⚙"
             aria-label="Settings"
             onClick={() => {
               useUiStore.getState().setSettingsOpen(true);
               useUiStore.getState().setRailOpen(false);
             }}
-          >
-            ⚙
-          </button>
-          <button
-            className="icon-btn"
-            title={theme === 'light' ? 'Switch to dark' : 'Switch to light'}
+          />
+          <IconButton
+            icon={theme === 'light' ? '🌙' : '☀️'}
             aria-label="Toggle theme"
             onClick={() => useUiStore.getState().toggleTheme()}
-          >
-            {theme === 'light' ? '🌙' : '☀️'}
-          </button>
-          <button
-            className="icon-btn"
-            title="Lock vault"
+          />
+          <IconButton
+            icon="🔒"
             aria-label="Lock vault"
             onClick={() => useVaultStore.getState().lock()}
-          >
-            🔒
-          </button>
-        </span>
+          />
+        </div>
       </div>
-
     </aside>
   );
 }

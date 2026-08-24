@@ -1,3 +1,5 @@
+import { IconButton } from '../../ui/IconButton';
+import { Chip } from '../../ui/Chip';
 import { useUiStore } from '../../state/uiStore';
 import { getProviderMeta } from '../../catalog/providers';
 
@@ -14,50 +16,42 @@ export function TopBar() {
 
   return (
     <header className="topbar">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <button
-          className="icon-btn"
+      <div className="topbar-left">
+        <IconButton
+          icon={railOpen ? '✕' : '☰'}
           aria-label={railOpen ? 'Close menu' : 'Open menu'}
           onClick={() => setRailOpen(!railOpen)}
-        >
-          {railOpen ? '✕' : '☰'}
-        </button>
-        <span className="rail-brand" style={{ fontSize: 15 }}>
+        />
+        <span className="topbar-brand">
           <span className="glyph">⟐</span> Relay
         </span>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div className="topbar-right">
         {/* Current model chip */}
-        <button
-          className="dial-btn"
+        <Chip 
+          variant="default"
+          className="model-chip"
           onClick={() => setPaletteOpen(true)}
-          title="Switch model (⌘K)"
         >
           <span className="tint-dot" style={{ ['--tint' as string]: meta?.tint }} />
           {activeModel.modelId}
-          <span aria-hidden style={{ opacity: 0.5 }}>▾</span>
-        </button>
+          <span aria-hidden className="model-chip-arrow">▾</span>
+        </Chip>
 
         {/* Theme toggle */}
-        <button
-          className="icon-btn"
-          title={theme === 'light' ? 'Switch to dark' : 'Switch to light'}
+        <IconButton
+          icon={theme === 'light' ? '🌙' : '☀️'}
           aria-label="Toggle theme"
           onClick={() => useUiStore.getState().toggleTheme()}
-        >
-          {theme === 'light' ? '🌙' : '☀️'}
-        </button>
+        />
 
         {/* Settings */}
-        <button
-          className="icon-btn"
-          title="Settings"
+        <IconButton
+          icon="⚙"
           aria-label="Settings"
           onClick={() => setSettingsOpen(true)}
-        >
-          ⚙
-        </button>
+        />
       </div>
     </header>
   );

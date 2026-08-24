@@ -11,6 +11,7 @@ import { ToastStack } from './features/shell/ToastStack';
 import { ThreadView } from './features/thread/ThreadView';
 import { Composer } from './features/composer/Composer';
 import { ProvidersPage } from './features/providers/ProvidersPage';
+import { StudioPage } from './features/studio/StudioPage';
 import { autoLoadKeyedModels, ensureSaneActiveModel } from './features/providers/autoLoad';
 import { Palette } from './features/palette/Palette';
 import { SettingsSheet } from './features/settings/SettingsSheet';
@@ -125,7 +126,7 @@ export default function App() {
       <div className="shell-main">
         <TopBar />
         <main className="view-area" aria-live="polite">
-          {view === 'providers' ? <ProvidersPage /> : <ThreadView />}
+          {view === 'providers' ? <ProvidersPage /> : view === 'studio' ? <StudioPage /> : <ThreadView />}
         </main>
         {view === 'chat' && <Composer />}
         <div id="aria-announcer" className="sr-only" aria-live="polite" />
