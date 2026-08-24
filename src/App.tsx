@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import './styles/tokens.css';
 import './ui/ui.css';
 import './styles/app.css';
@@ -13,7 +13,10 @@ import { ThreadView } from './features/thread/ThreadView';
 import { Composer } from './features/composer/Composer';
 import { ProvidersPage } from './features/providers/ProvidersPage';
 import { StudioPage } from './features/studio/StudioPage';
-import { IDEPanel } from './ide/IDEPanel';
+// CodeMirror is heavy — the IDE loads only when a code artifact is opened.
+const IDEPanel = lazy(() =>
+  import('./ide/IDEPanel').then((m) => ({ default: m.IDEPanel })),
+);
 import { autoLoadKeyedModels, ensureSaneActiveModel } from './features/providers/autoLoad';
 import { Palette } from './features/palette/Palette';
 import { SettingsSheet } from './features/settings/SettingsSheet';
@@ -133,7 +136,9 @@ export default function App() {
         {view === 'chat' && <Composer />}
         <div id="aria-announcer" className="sr-only" aria-live="polite" />
       </div>
-      <IDEPanel />
+      <Suspense fallback={null}>
+        <IDEPanel />
+      </Suspense>
       <ToastStack />
       {paletteOpen && <Palette />}
       {settingsOpen && <SettingsSheet />}

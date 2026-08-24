@@ -13,7 +13,7 @@ import { useVaultStore } from '../../vault/vaultStore';
 import { useSessionStore, type Turn } from '../../state/sessionStore';
 import { useUiStore } from '../../state/uiStore';
 import { regenerate, editAndResend } from './useSend';
-import { openInIDE } from '../../ide/IDEPanel';
+import { openInIDE } from '../../ide/open';
 
 const IDE_LANGS = /html|css|js|jsx|javascript|ts|typescript|json/i;
 
