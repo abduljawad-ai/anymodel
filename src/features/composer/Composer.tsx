@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Zap, Search, AudioLines, Square, ArrowUp } from 'lucide-react';
 import { toast } from '../../lib/toast';
 import { anyActive, stopStream } from '../../state/streamRegistry';
@@ -8,6 +8,22 @@ import { ImageAttach, fileToDataUrl } from './ImageAttach';
 import { MicRecorder } from './MicRecorder';
 import { ModelDial } from './ModelDial';
 import { LivePanel } from '../voice/LivePanel';
+import { cachedModels } from '../../catalog';
+import { useUiStore } from '../../state/uiStore';
+import { useVaultStore } from '../../vault/vaultStore';
+
+/** Capability of the active model, or 'unknown' when its list isn't loaded yet. */
+function activeModelCaps(): { vision: boolean; realtime: boolean; known: boolean } {
+  const { providerId, modelId } = useUiStore.getState().activeModel;
+  const models = cachedModels(providerId);
+  const m = models.find((x) => x.id === modelId);
+  if (!m) return { vision: true, realtime: /realtime/i.test(modelId), known: models.length === 0 };
+  return {
+    vision: m.caps.includes('vision'),
+    realtime: /realtime/i.test(modelId),
+    known: true,
+  };
+}
 
 /** Effort pill — thinking effort applies to EVERY model. */
 function EffortPill() {
@@ -69,7 +85,18 @@ export function Composer() {
   const [streaming, setStreaming] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [researchOn, setResearchOn] = useState(() => loadSettings().researchMode);
+  const [capsTick, setCapsTick] = useState(0);
   const taRef = useRef<HTMLTextAreaElement>(null);
+
+  const activeModel = useUiStore((s) => s.activeModel);
+  const caps = useMemo(() => activeModelCaps(), [activeModel, capsTick]);
+
+  // Re-check caps when a provider's model list finishes loading.
+  useEffect(() => {
+    const onChange = () => setCapsTick((t) => t + 1);
+    window.addEventListener('relay-models-changed', onChange);
+    return () => window.removeEventListener('relay-models-changed', onChange);
+  }, []);
 
   // Track global stream activity for the Stop affordance.
   useEffect(() => {
@@ -127,16 +154,18 @@ export function Composer() {
         />
         <div className="composer-row">
           <ModelDial />
-          <ImageAttach image={image} setImage={setImage} />
+          {caps.vision && <ImageAttach image={image} setImage={setImage} />}
           <MicRecorder onTranscript={(t) => setText((cur) => (cur ? `${cur} ${t}` : t))} />
-          <button
-            className="icon-btn"
-            title="Live voice mode (WebRTC)"
-            aria-label="Open live voice"
-            onClick={() => setVoiceOpen(true)}
-          >
-            <AudioLines size={16} aria-hidden />
-          </button>
+          {caps.realtime && (
+            <button
+              className="icon-btn"
+              title="Live voice mode (WebRTC)"
+              aria-label="Open live voice"
+              onClick={() => setVoiceOpen(true)}
+            >
+              <AudioLines size={16} aria-hidden />
+            </button>
+          )}
           <button
             className={`icon-btn ${researchOn ? 'research-on' : ''}`}
             title="Deep research — reason → web search → synthesize (Exa)"
@@ -146,7 +175,11 @@ export function Composer() {
               const next = !researchOn;
               setResearchOn(next);
               saveSettings({ researchMode: next });
-              toast(next ? 'Deep research ON' : 'Deep research off');
+              if (next && !useVaultStore.getState().keys.exa) {
+                toast('No Exa key — research will reason without web results. Add one in Settings.');
+              } else {
+                toast(next ? 'Deep research ON' : 'Deep research off');
+              }
             }}
           >
             <Search size={16} aria-hidden />
