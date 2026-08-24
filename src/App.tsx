@@ -13,6 +13,7 @@ import { ThreadView } from './features/thread/ThreadView';
 import { Composer } from './features/composer/Composer';
 import { ProvidersPage } from './features/providers/ProvidersPage';
 import { StudioPage } from './features/studio/StudioPage';
+import { IDEPanel } from './ide/IDEPanel';
 import { autoLoadKeyedModels, ensureSaneActiveModel } from './features/providers/autoLoad';
 import { Palette } from './features/palette/Palette';
 import { SettingsSheet } from './features/settings/SettingsSheet';
@@ -132,6 +133,7 @@ export default function App() {
         {view === 'chat' && <Composer />}
         <div id="aria-announcer" className="sr-only" aria-live="polite" />
       </div>
+      <IDEPanel />
       <ToastStack />
       {paletteOpen && <Palette />}
       {settingsOpen && <SettingsSheet />}
