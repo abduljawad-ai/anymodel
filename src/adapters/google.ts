@@ -9,6 +9,9 @@ import {
   type ConnectionResult,
   type ProviderAdapter,
   type StreamSignals,
+  type VideoGenOpts,
+  type VideoJobHandle,
+  type VideoJobStatus,
 } from './types';
 
 /** Google Generative Language wire format (v1beta), SSE with non-stream fallback. */
@@ -122,4 +125,64 @@ export class GoogleAdapter implements ProviderAdapter {
       return { ok: false, detail: e instanceof Error ? e.message : String(e) };
     }
   }
+
+  /** Text-to-video via Veo predictLongRunning. Returns an operation handle. */
+  async generateVideo(opts: VideoGenOpts): Promise<VideoJobHandle> {
+    const model = opts.model || 'veo-3.0-generate-preview';
+    const res = await fetchWithRetry(`${this.base}/models/${model}:predictLongRunning`, {
+      method: 'POST',
+      headers: this.headers(),
+      body: JSON.stringify({
+        instances: [{ prompt: opts.prompt }],
+        parameters: {
+          aspectRatio: '16:9',
+          ...(opts.seconds ? { durationSeconds: opts.seconds } : {}),
+        },
+      }),
+    });
+    await assertOk(res);
+    const json = (await res.json()) as { name?: string };
+    if (!json.name) throw new Error('Provider returned no operation name');
+    return { jobId: json.name };
+  }
+
+  /** Poll a Veo operation until it resolves. */
+  async getVideoStatus(job: VideoJobHandle): Promise<VideoJobStatus> {
+    const res = await fetchWithRetry(`${this.base}/${job.jobId}`, {
+      headers: this.headers(false),
+    });
+    await assertOk(res);
+    const json = (await res.json()) as {
+      done?: boolean;
+      error?: { message?: string };
+      response?: {
+        generateVideoResponse?: {
+          generatedSamples?: Array<{ video?: { uri?: string } }>;
+        };
+      };
+    };
+    if (json.error) {
+      return { status: 'failed', error: json.error.message ?? 'Video generation failed' };
+    }
+    if (!json.done) {
+      return { status: 'processing' };
+    }
+    const uri = json.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri;
+    if (!uri) return { status: 'failed', error: 'Operation finished but returned no video' };
+    // Stash the URI on the handle for getVideoContent.
+    videoUris.set(job.jobId, uri);
+    return { status: 'completed', progress: 100 };
+  }
+
+  /** Download the finished Veo video (auth via API key header). */
+  async getVideoContent(job: VideoJobHandle): Promise<Blob> {
+    const uri = videoUris.get(job.jobId);
+    if (!uri) throw new Error('No video URI — poll the job to completion first');
+    const res = await fetchWithRetry(uri, { headers: this.headers(false) });
+    await assertOk(res);
+    return res.blob();
+  }
 }
+
+/** Operation id → finished video URI (memory-only, per session). */
+const videoUris = new Map<string, string>();

@@ -8,11 +8,13 @@ import { useUiStore } from '../../state/uiStore';
 
 /** Search synonyms so "vision", "voice" etc. find the right models. */
 const CAP_SYNONYMS: Record<Capability, string[]> = {
-  vision: ['vision', 'image', 'picture', 'photo'],
+  vision: ['vision', 'image in', 'picture', 'photo'],
   stt: ['stt', 'transcribe', 'transcription', 'whisper', 'audio in', 'dictation'],
   tts: ['tts', 'speak', 'speech', 'voice out', 'read aloud'],
   reasoning: ['reasoning', 'reason', 'think', 'smart', 'o1', 'o3'],
   tools: ['tools', 'function calling', 'agents'],
+  image: ['image gen', 'generate image', 'draw', 'dall-e', 'picture out'],
+  video: ['video gen', 'generate video', 'sora', 'veo', 'clip'],
 };
 
 interface Entry extends ModelInfo {
