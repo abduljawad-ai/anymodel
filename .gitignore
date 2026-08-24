@@ -6,3 +6,8 @@ coverage/
 .DS_Store
 docs/
 TODO.md
+.superpowers/
+
+# local QA artifacts
+*.png
+!public/*.png
