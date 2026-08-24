@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useState } from 'react';
+import { ThumbsUp, ThumbsDown, RefreshCw, Share, Zap } from 'lucide-react';
 import hljs from 'highlight.js/lib/common';
 import { isChatCapable, cachedModels } from '../../catalog';
 import type { ModelInfo } from '../../catalog/types';
@@ -184,29 +185,29 @@ function AssistantActions({ turn }: { turn: Turn }) {
         ⧉
       </button>
       <button title="Regenerate" onClick={() => void regenerate()}>
-        ↻
+        <RefreshCw size={13} aria-hidden />
       </button>
       <button title="Share (copy quote)" onClick={() => copyText(`"${turn.content.slice(0, 280)}"\n— ${turn.modelId} via Relay`)}>
-        ↗
+        <Share size={13} aria-hidden />
       </button>
       <button
         title="Good reply"
         className={turn.feedback === 'up' ? 'active' : ''}
         onClick={() => feedback('up')}
       >
-        👍
+        <ThumbsUp size={13} aria-hidden />
       </button>
       <button
         title="Bad reply"
         className={turn.feedback === 'down' ? 'active' : ''}
         onClick={() => feedback('down')}
       >
-        👎
+        <ThumbsDown size={13} aria-hidden />
       </button>
 
       <span style={{ position: 'relative' }}>
         <button title="Hand off to another model" onClick={() => setHandoffOpen((o) => !o)}>
-          ⚡
+          <Zap size={13} aria-hidden />
         </button>
         {handoffOpen && (
           <div className="handoff-menu" role="menu">

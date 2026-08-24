@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { MessageCircle, Boxes, Sparkles, Settings, Moon, Sun, Lock, X } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import { IconButton } from '../../ui/IconButton';
 import { Input } from '../../ui/Input';
@@ -40,7 +41,7 @@ export function Rail() {
       <div className="rail-brand">
         <span className="glyph">⟐</span> Relay
         <IconButton
-          icon="✕"
+          icon={<X size={16} aria-hidden />}
           aria-label="Close menu"
           onClick={() => useUiStore.getState().setRailOpen(false)}
         />
@@ -61,10 +62,10 @@ export function Rail() {
 
       <nav aria-label="Navigation" className="rail-nav">
         {(['chat', 'providers', 'studio'] as const).map((v) => {
-          const labels: Record<string, string> = {
-            chat: '💬 Chat',
-            providers: '⟐ Providers & models',
-            studio: '✦ Studio'
+          const items: Record<string, { label: string; icon: JSX.Element }> = {
+            chat: { label: 'Chat', icon: <MessageCircle size={15} aria-hidden /> },
+            providers: { label: 'Providers & models', icon: <Boxes size={15} aria-hidden /> },
+            studio: { label: 'Studio', icon: <Sparkles size={15} aria-hidden /> }
           };
           
           return (
@@ -78,7 +79,8 @@ export function Rail() {
                 useUiStore.getState().setRailOpen(false);
               }}
             >
-              {labels[v]}
+              {items[v].icon}
+              {items[v].label}
             </Button>
           );
         })}
@@ -125,7 +127,7 @@ export function Rail() {
                 }
               }}
             >
-              {confirmId === s.id ? 'sure?' : '✕'}
+              {confirmId === s.id ? 'sure?' : <X size={12} aria-hidden />}
             </button>
           </div>
         ))}
@@ -144,7 +146,7 @@ export function Rail() {
         </div>
         <div className="rail-footer-right">
           <IconButton
-            icon="⚙"
+            icon={<Settings size={16} aria-hidden />}
             aria-label="Settings"
             onClick={() => {
               useUiStore.getState().setSettingsOpen(true);
@@ -152,12 +154,12 @@ export function Rail() {
             }}
           />
           <IconButton
-            icon={theme === 'light' ? '🌙' : '☀️'}
+            icon={theme === 'light' ? <Moon size={16} aria-hidden /> : <Sun size={16} aria-hidden />}
             aria-label="Toggle theme"
             onClick={() => useUiStore.getState().toggleTheme()}
           />
           <IconButton
-            icon="🔒"
+            icon={<Lock size={16} aria-hidden />}
             aria-label="Lock vault"
             onClick={() => useVaultStore.getState().lock()}
           />

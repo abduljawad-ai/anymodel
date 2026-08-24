@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Paperclip, X } from 'lucide-react';
 import { estimateTurnTokens } from '../../lib/tokens';
 
 const MAX_EDGE = 1024;
@@ -58,7 +59,7 @@ export function ImageAttach({
         onClick={() => inputRef.current?.click()}
         disabled={busy}
       >
-        📎
+        <Paperclip size={16} aria-hidden />
       </button>
       <input
         ref={inputRef}
@@ -72,7 +73,7 @@ export function ImageAttach({
           <img src={image} alt="preview" />
           <span>~{estimateTurnTokens({ content: '', imageUrl: image })} tok</span>
           <button className="icon-btn" aria-label="Remove attachment" onClick={() => setImage(null)}>
-            ✕
+            <X size={14} aria-hidden />
           </button>
         </div>
       )}

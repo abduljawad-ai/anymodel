@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Mic, X, LoaderCircle } from 'lucide-react';
 import { createAdapter } from '../../adapters/factory';
 import { resolveDeps } from '../../vault/gate';
 import type { ProviderId } from '../../catalog/types';
@@ -93,8 +94,8 @@ export function MicRecorder({ onTranscript }: { onTranscript: (text: string) => 
         <>
           <span className="rec-dot" aria-hidden />
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{seconds}s</span>
-          <button className="icon-btn" onClick={cancel} title="Cancel recording">
-            ✕
+          <button className="icon-btn" onClick={cancel} title="Cancel recording" aria-label="Cancel recording">
+            <X size={14} aria-hidden />
           </button>
         </>
       ) : null}
@@ -106,7 +107,7 @@ export function MicRecorder({ onTranscript }: { onTranscript: (text: string) => 
         title={busy ? 'Transcribing…' : recording ? 'Stop & transcribe' : 'Record voice message'}
         aria-label={busy ? 'Transcribing' : recording ? 'Stop recording' : 'Record voice'}
       >
-        {busy ? '…' : '🎙'}
+        {busy ? <LoaderCircle size={16} className="spin" aria-hidden /> : <Mic size={16} aria-hidden />}
       </button>
     </span>
   );

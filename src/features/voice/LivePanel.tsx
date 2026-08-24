@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Mic, MicOff, Square } from 'lucide-react';
 import { startLive, type LiveHandle } from './realtime';
 import { useVaultStore } from '../../vault/vaultStore';
 import { useUiStore } from '../../state/uiStore';
@@ -81,7 +82,7 @@ export function LivePanel({ onClose }: { onClose: () => void }) {
             }
             disabled={!handle.current}
           >
-            {muted ? '🔇 Muted' : '🎙 Mute'}
+            {muted ? <><MicOff size={14} aria-hidden /> Muted</> : <><Mic size={14} aria-hidden /> Mute</>}
           </button>
           <span style={{ flex: 1 }} />
           <button
@@ -91,7 +92,7 @@ export function LivePanel({ onClose }: { onClose: () => void }) {
               onClose();
             }}
           >
-            ■ End
+            <Square size={13} aria-hidden /> End
           </button>
         </div>
       </div>

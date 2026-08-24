@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { X, Lock } from 'lucide-react';
 import type { ProviderId } from '../../catalog/types';
 import { useUiStore } from '../../state/uiStore';
 import { listProviders, PROVIDERS, PROVIDER_IDS } from '../../catalog/providers';
@@ -91,7 +92,7 @@ export function SettingsSheet() {
                 }}
                 disabled={!keys[pm.id]}
               >
-                ✕
+                <X size={13} aria-hidden />
               </button>
             </div>
             {flash[pm.id] && <span className="key-status ok">{flash[pm.id]}</span>}
@@ -126,11 +127,11 @@ export function SettingsSheet() {
               }}
               disabled={!keys.exa}
             >
-              ✕
+              <X size={13} aria-hidden />
             </button>
           </div>
           <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
-            Used by 🔍 Deep research — any model reasons → searches the web → synthesizes a cited answer.
+            Used by Deep research — any model reasons → searches the web → synthesizes a cited answer.
           </span>
         </div>
 
@@ -263,7 +264,7 @@ export function SettingsSheet() {
 
         <div className="wizard-actions">
           <button className="btn btn-danger" onClick={() => useVaultStore.getState().lock()}>
-            🔒 Lock vault
+            <Lock size={13} aria-hidden /> Lock vault
           </button>
           <button className="btn btn-primary" onClick={() => setSettingsOpen(false)}>
             Done

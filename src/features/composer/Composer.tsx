@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Zap, Search, AudioLines, Square, ArrowUp } from 'lucide-react';
 import { toast } from '../../lib/toast';
 import { anyActive, stopStream } from '../../state/streamRegistry';
 import { loadSettings, saveSettings } from '../../state/settings';
@@ -7,8 +8,6 @@ import { ImageAttach, fileToDataUrl } from './ImageAttach';
 import { MicRecorder } from './MicRecorder';
 import { ModelDial } from './ModelDial';
 import { LivePanel } from '../voice/LivePanel';
-
-
 
 /** Effort pill — thinking effort applies to EVERY model. */
 function EffortPill() {
@@ -26,9 +25,16 @@ function EffortPill() {
   }, [open]);
 
   return (
-    <span style={{ position: 'relative', marginLeft: 'auto' }} ref={ref}>
-      <button className="dial-btn" onClick={() => setOpen((o) => !o)} aria-label="Thinking effort">
-        ⚡ {cfg.effort === 'high' ? 'High' : 'Standard'} <span style={{ opacity: 0.5 }}>▾</span>
+    <span style={{ position: 'relative' }} ref={ref}>
+      <button
+        className={`dial-btn ${cfg.effort === 'high' ? 'effort-high' : ''}`}
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Thinking effort"
+        aria-expanded={open}
+      >
+        <Zap size={13} aria-hidden />
+        {cfg.effort === 'high' ? 'High' : 'Standard'}
+        <span className="chev" aria-hidden>▾</span>
       </button>
       {open && (
         <div className="mode-pop" role="menu">
@@ -44,7 +50,7 @@ function EffortPill() {
               }}
             >
               <span>{e === 'standard' ? 'Standard · fast chat' : 'High · forced reasoning'}</span>
-              {cfg.effort === e && <span style={{ marginLeft: 'auto', color: 'var(--accent)' }}>✓</span>}
+              {cfg.effort === e && <span style={{ marginLeft: 'auto', color: 'var(--accent)' }} aria-hidden>✓</span>}
             </button>
           ))}
         </div>
@@ -54,14 +60,15 @@ function EffortPill() {
 }
 
 /**
- * Composer row (left→right): model · attach · mic · research · effort · send.
- * Model switching = dial/⌘K only. Research toggle = 🔍 only. No duplicates.
+ * Composer row (left→right): model · attach · mic · live · research · effort · send.
+ * Model switching = dial/⌘K only. Research toggle = search icon only. No duplicates.
  */
 export function Composer() {
   const [text, setText] = useState('');
   const [image, setImage] = useState<string | null>(null);
   const [streaming, setStreaming] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
+  const [researchOn, setResearchOn] = useState(() => loadSettings().researchMode);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   // Track global stream activity for the Stop affordance.
@@ -128,35 +135,37 @@ export function Composer() {
             aria-label="Open live voice"
             onClick={() => setVoiceOpen(true)}
           >
-            🎙️
+            <AudioLines size={16} aria-hidden />
           </button>
           <button
-            className={`icon-btn ${loadSettings().researchMode ? 'research-on' : ''}`}
+            className={`icon-btn ${researchOn ? 'research-on' : ''}`}
             title="Deep research — reason → web search → synthesize (Exa)"
             aria-label="Toggle deep research"
+            aria-pressed={researchOn}
             onClick={() => {
-              const next = !loadSettings().researchMode;
+              const next = !researchOn;
+              setResearchOn(next);
               saveSettings({ researchMode: next });
-              toast(next ? '🔍 Deep research ON' : 'Deep research off');
+              toast(next ? 'Deep research ON' : 'Deep research off');
             }}
           >
-            🔍
+            <Search size={16} aria-hidden />
           </button>
 
           <EffortPill />
 
           {streaming ? (
-            <button className="btn btn-danger" onClick={() => stopStream()} aria-label="Stop generating">
-              ■ Stop
+            <button className="btn btn-danger stop-btn" onClick={() => stopStream()} aria-label="Stop generating">
+              <Square size={13} aria-hidden /> Stop
             </button>
           ) : (
             <button
-              className="btn btn-primary"
+              className="btn btn-primary send-btn"
               onClick={submit}
               disabled={!text.trim() && !image}
               aria-label="Send message"
             >
-              Send ↵
+              Send <ArrowUp size={14} aria-hidden />
             </button>
           )}
         </div>

@@ -1,5 +1,5 @@
+import { Menu, X, Moon, Sun, Settings } from 'lucide-react';
 import { IconButton } from '../../ui/IconButton';
-import { Chip } from '../../ui/Chip';
 import { useUiStore } from '../../state/uiStore';
 import { getProviderMeta } from '../../catalog/providers';
 
@@ -18,7 +18,7 @@ export function TopBar() {
     <header className="topbar">
       <div className="topbar-left">
         <IconButton
-          icon={railOpen ? '✕' : '☰'}
+          icon={railOpen ? <X size={16} aria-hidden /> : <Menu size={16} aria-hidden />}
           aria-label={railOpen ? 'Close menu' : 'Open menu'}
           onClick={() => setRailOpen(!railOpen)}
         />
@@ -29,26 +29,27 @@ export function TopBar() {
 
       <div className="topbar-right">
         {/* Current model chip */}
-        <Chip 
-          variant="default"
-          className="model-chip"
+        <button
+          className="chip model-chip"
           onClick={() => setPaletteOpen(true)}
+          title="Switch model (⌘K)"
+          aria-label={`Current model ${activeModel.modelId}. Open model picker`}
         >
           <span className="tint-dot" style={{ ['--tint' as string]: meta?.tint }} />
           {activeModel.modelId}
           <span aria-hidden className="model-chip-arrow">▾</span>
-        </Chip>
+        </button>
 
         {/* Theme toggle */}
         <IconButton
-          icon={theme === 'light' ? '🌙' : '☀️'}
+          icon={theme === 'light' ? <Moon size={16} aria-hidden /> : <Sun size={16} aria-hidden />}
           aria-label="Toggle theme"
           onClick={() => useUiStore.getState().toggleTheme()}
         />
 
         {/* Settings */}
         <IconButton
-          icon="⚙"
+          icon={<Settings size={16} aria-hidden />}
           aria-label="Settings"
           onClick={() => setSettingsOpen(true)}
         />
