@@ -3,27 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- CSP: 'unsafe-inline' for styles is required by React's inline style system.
-         TODO: Migrate all inline styles to CSS classes to remove this. -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src blob:; connect-src https: wss: ws://localhost:* http://localhost:* http://127.0.0.1:*; base-uri 'none'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https:; media-src blob:; connect-src https: wss: ws://localhost:* http://localhost:* http://127.0.0.1:*; base-uri 'none'" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='24' x='2' font-size='22'%3E%E2%9F%90%3C/text%3E%3C/svg%3E" />
     <title>Relay — One thread. Every model.</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap"
-      rel="stylesheet"
-    />
+    <script src="/theme-boot.js"></script>
   </head>
   <body>
     <div id="root"></div>
-    <!-- Apply saved theme before React loads to prevent FOUC -->
-    <script>
-      try {
-        var s = JSON.parse(localStorage.getItem('relay.settings.v1') || '{}');
-        if (s.theme === 'dark') document.documentElement.dataset.theme = 'dark';
-      } catch(e) {}
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
