@@ -1,10 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
-
-// Simple classnames utility
-function cn(...classes: (string | undefined | null | false)[]): string {
-  return classes.filter(Boolean).join(' ');
-}
 
 interface DialogProps {
   open: boolean;
@@ -13,44 +9,37 @@ interface DialogProps {
   title?: string;
 }
 
+/** Centered modal dialog. Closes on scrim click or Escape. */
 export const Dialog = ({ open, onOpenChange, children, title }: DialogProps) => {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onOpenChange(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onOpenChange]);
+
   if (!open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50">
-      {/* Scrim */}
-      <div 
-        className="fixed inset-0 bg-black/50"
-        onClick={() => onOpenChange(false)}
-      />
-      
-      {/* Dialog content */}
-      <div 
-        className={cn(
-          "fixed left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2",
-          "bg-surface border border-hairline rounded-lg shadow-lg",
-          "animate-in zoom-in-95 duration-200 ease-out"
-        )}
-        style={{ maxWidth: '90vw', maxHeight: '90vh' }}
+    <div className="ui-dialog-scrim" onClick={() => onOpenChange(false)}>
+      <div
+        className="ui-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         {title && (
-          <div className="px-4 py-3 border-b border-hairline flex items-center justify-between">
-            <h3 className="text-lg font-semibold">{title}</h3>
-            <button 
-              className="text-muted hover:text-ink"
-              onClick={() => onOpenChange(false)}
-              aria-label="Close"
-            >
-              ✕
+          <div className="ui-dialog-head">
+            <h3>{title}</h3>
+            <button className="ui-dialog-close" aria-label="Close" onClick={() => onOpenChange(false)}>
+              <X size={16} aria-hidden />
             </button>
           </div>
         )}
-        
-        {/* Content */}
-        <div className="p-4 overflow-y-auto max-h-[calc(90vh-80px)]">
-          {children}
-        </div>
+        <div className="ui-dialog-body">{children}</div>
       </div>
     </div>,
     document.body

@@ -1,45 +1,48 @@
-import React, { useState, useRef, useEffect } from 'react';
-
-// Simple classnames utility
-function cn(...classes: (string | undefined | null | false)[]): string {
-  return classes.filter(Boolean).join(' ');
-}
+import React, { useEffect, useRef, useState } from 'react';
+import { cn } from './Button';
 
 interface DropdownProps {
   trigger: React.ReactNode;
   children: React.ReactNode;
   align?: 'start' | 'end';
+  label?: string;
 }
 
-export const Dropdown = ({ trigger, children, align = 'start' }: DropdownProps) => {
+/** Click-to-open popover menu. Closes on outside click or Escape. */
+export const Dropdown = ({ trigger, children, align = 'start', label }: DropdownProps) => {
   const [open, setOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
     };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      <div onClick={() => setOpen(!open)}>
+    <div className="ui-dropdown" ref={ref}>
+      <span
+        onClick={() => setOpen((o) => !o)}
+        role="button"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label={label}
+        style={{ display: 'inline-flex' }}
+      >
         {trigger}
-      </div>
-      
+      </span>
       {open && (
-        <div 
-          className={cn(
-            "absolute z-50 mt-1 bg-surface border border-hairline rounded-md shadow-lg",
-            "animate-in slide-in-from-top-2 duration-150 ease-out",
-            align === 'end' ? 'right-0' : 'left-0'
-          )}
-        >
+        <div className={cn('ui-dropdown-menu', align === 'end' && 'align-end')} role="menu" onClick={() => setOpen(false)}>
           {children}
         </div>
       )}
@@ -47,20 +50,10 @@ export const Dropdown = ({ trigger, children, align = 'start' }: DropdownProps) 
   );
 };
 
-interface DropdownItemProps extends React.HTMLAttributes<HTMLDivElement> {
-  children: React.ReactNode;
-}
+export interface DropdownItemProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {}
 
-export const DropdownItem = ({ children, className, ...props }: DropdownItemProps) => {
-  return (
-    <div
-      className={cn(
-        "px-3 py-2 text-sm hover:bg-[color:var(--paper)] cursor-pointer",
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-};
+export const DropdownItem = ({ children, className, ...props }: DropdownItemProps) => (
+  <button className={cn('ui-dropdown-item', className)} role="menuitem" {...props}>
+    {children}
+  </button>
+);

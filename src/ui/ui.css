@@ -1,0 +1,255 @@
+/* UI primitives — plain CSS on top of the design tokens (no Tailwind in this project) */
+
+/* ---------- Button ---------- */
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: var(--r-md);
+  font-weight: 500;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease);
+  white-space: nowrap;
+}
+
+.ui-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.ui-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ui-btn-sm { height: 30px; padding: 0 10px; font-size: 12px; }
+.ui-btn-md { height: 36px; padding: 0 14px; }
+.ui-btn-lg { height: 42px; padding: 0 20px; font-size: 15px; }
+
+.ui-btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.ui-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.07);
+}
+
+.ui-btn-secondary:hover:not(:disabled) {
+  border-color: var(--ink);
+}
+
+.ui-btn-ghost {
+  border-color: transparent;
+  background: none;
+}
+.ui-btn-ghost:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.ui-spinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: ui-spin 0.8s linear infinite;
+}
+@keyframes ui-spin { to { transform: rotate(360deg); } }
+
+/* ---------- Input / Textarea ---------- */
+.ui-field { display: flex; flex-direction: column; gap: 4px; }
+.ui-label { font-size: 12.5px; color: var(--muted); font-family: var(--font-mono); }
+
+.ui-input {
+  width: 100%;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  padding: 8px 11px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14px;
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease);
+}
+.ui-input:focus {
+  border-color: var(--accent);
+}
+.ui-input::placeholder { color: var(--muted); }
+.ui-input:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ui-textarea {
+  width: 100%;
+  min-height: 60px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  padding: 8px 11px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  resize: vertical;
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease);
+}
+.ui-textarea:focus { border-color: var(--accent); }
+.ui-textarea::placeholder { color: var(--muted); }
+
+/* ---------- Chip ---------- */
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  padding: 2px 9px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  background: var(--surface);
+}
+.ui-chip-accent {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--hairline));
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* ---------- Skeleton ---------- */
+.ui-skeleton {
+  background: var(--hairline);
+  border-radius: var(--r-sm);
+  animation: ui-pulse 1.4s ease-in-out infinite;
+}
+@keyframes ui-pulse { 50% { opacity: 0.45; } }
+
+/* ---------- Dropdown ---------- */
+.ui-dropdown { position: relative; display: inline-block; }
+.ui-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  z-index: 65;
+  min-width: 180px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  box-shadow: 0 10px 34px rgba(25, 23, 20, 0.16);
+  padding: 5px;
+  animation: ui-pop var(--duration-fast) var(--ease);
+}
+.ui-dropdown-menu.align-end { left: auto; right: 0; }
+.ui-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 7px 10px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  font-size: 13.5px;
+  color: var(--ink);
+}
+.ui-dropdown-item:hover { background: var(--accent-soft); }
+@keyframes ui-pop {
+  from { opacity: 0; transform: translateY(-4px); }
+}
+
+/* ---------- Sheet (bottom sheet) ---------- */
+.ui-sheet-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(25, 23, 20, 0.4);
+  z-index: 84;
+  animation: ui-fade var(--duration-fast) var(--ease);
+}
+.ui-sheet {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: min(560px, 100vw);
+  max-height: 84vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-bottom: none;
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  z-index: 85;
+  padding-bottom: env(safe-area-inset-bottom);
+  animation: ui-slide-up var(--duration-normal) var(--ease);
+}
+.ui-sheet-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--hairline);
+  margin: 10px auto 4px;
+}
+.ui-sheet-title {
+  padding: 6px 20px 10px;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+}
+.ui-sheet-body { padding: 16px 20px 24px; }
+@keyframes ui-slide-up {
+  from { transform: translate(-50%, 24px); opacity: 0; }
+}
+@keyframes ui-fade { from { opacity: 0; } }
+
+/* ---------- Dialog (centered modal) ---------- */
+.ui-dialog-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(25, 23, 20, 0.4);
+  z-index: 86;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  animation: ui-fade var(--duration-fast) var(--ease);
+}
+.ui-dialog {
+  width: min(480px, 100%);
+  max-height: 86vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-lg);
+  box-shadow: 0 18px 60px rgba(25, 23, 20, 0.22);
+  animation: ui-pop var(--duration-fast) var(--ease);
+}
+.ui-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--hairline);
+}
+.ui-dialog-head h3 { margin: 0; font-size: 16px; }
+.ui-dialog-close {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 4px;
+  border-radius: var(--r-sm);
+  display: grid;
+  place-items: center;
+}
+.ui-dialog-close:hover { color: var(--ink); background: var(--paper); }
+.ui-dialog-body { padding: 16px 18px 20px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-sheet, .ui-dialog, .ui-sheet-scrim, .ui-dialog-scrim, .ui-dropdown-menu {
+    animation: none;
+  }
+}

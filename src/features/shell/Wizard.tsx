@@ -12,11 +12,16 @@ const QUICK_IDS = [...QUICK];
  * connection test) → enter the app.
  */
 export function Wizard() {
-  // An unlocked-but-keyless vault lands directly on the key-setup step.
-  const [step, setStep] = useState<1 | 2>(useVaultStore.getState().status === 'unlocked' ? 2 : 1);
+  // 'empty' vault → create flow. 'locked' vault → unlock flow.
+  // 'unlocked' (keyless) → straight to key setup.
+  const initialStatus = useVaultStore.getState().status;
+  const [mode, setMode] = useState<'create' | 'unlock' | 'keys'>(
+    initialStatus === 'unlocked' ? 'keys' : initialStatus === 'locked' ? 'unlock' : 'create'
+  );
   const [pass, setPass] = useState('');
   const [pass2, setPass2] = useState('');
   const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
   const [keyDrafts, setKeyDrafts] = useState<Partial<Record<ProviderId, string>>>({});
   const [testState, setTestState] = useState<Partial<Record<ProviderId, string>>>({});
 
@@ -24,8 +29,31 @@ export function Wizard() {
     if (pass.length < 8) return setErr('Use at least 8 characters.');
     if (pass !== pass2) return setErr('Passphrases do not match.');
     setErr('');
-    await useVaultStore.getState().createVault(pass);
-    setStep(2);
+    setBusy(true);
+    try {
+      await useVaultStore.getState().createVault(pass);
+      setMode('keys');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function unlockVault() {
+    if (!pass) return setErr('Enter your passphrase.');
+    setErr('');
+    setBusy(true);
+    try {
+      const ok = await useVaultStore.getState().unlock(pass);
+      if (!ok) {
+        setErr('Wrong passphrase — try again.');
+        setPass('');
+      } else {
+        // Status flipped to 'unlocked' — App re-renders into the main shell.
+        setPass('');
+      }
+    } finally {
+      setBusy(false);
+    }
   }
 
   function skipToApp() {
@@ -59,7 +87,7 @@ export function Wizard() {
           One thread. Every model. Your keys never leave this browser.
         </p>
 
-        {step === 1 && (
+        {mode === 'create' && (
           <>
             <div className="wizard-step">STEP 1 / 2 — VAULT PASSPHRASE</div>
             <div className="field">
@@ -80,14 +108,52 @@ export function Wizard() {
             {err && <p className="key-status err">{err}</p>}
             <div className="wizard-actions">
               <span />
-              <button className="btn btn-primary" onClick={createPassphrase}>
+              <button className="btn btn-primary" onClick={createPassphrase} disabled={busy}>
                 Create vault →
               </button>
             </div>
           </>
         )}
 
-        {step === 2 && (
+        {mode === 'unlock' && (
+          <>
+            <div className="wizard-step">VAULT LOCKED — ENTER PASSPHRASE</div>
+            <div className="field">
+              <label htmlFor="w-unlock">Passphrase</label>
+              <input
+                id="w-unlock"
+                type="password"
+                value={pass}
+                onChange={(e) => setPass(e.target.value)}
+                placeholder="your vault passphrase"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void unlockVault();
+                }}
+              />
+            </div>
+            {err && <p className="key-status err">{err}</p>}
+            <div className="wizard-actions">
+              <button
+                className="btn btn-danger"
+                title="Erase the encrypted vault and start fresh (deletes stored keys)"
+                onClick={() => {
+                  if (window.confirm('Erase this vault and all stored keys? This cannot be undone.')) {
+                    localStorage.removeItem('relay.vault.v1');
+                    window.location.reload();
+                  }
+                }}
+              >
+                Reset vault
+              </button>
+              <button className="btn btn-primary" onClick={() => void unlockVault()} disabled={busy}>
+                Unlock →
+              </button>
+            </div>
+          </>
+        )}
+
+        {mode === 'keys' && (
           <>
             <div className="wizard-step">STEP 2 / 2 — ADD KEYS (ANY OR ALL)</div>
             {QUICK_IDS.map((p) => (
@@ -115,9 +181,7 @@ export function Wizard() {
               </div>
             ))}
             <div className="wizard-actions">
-              <button className="btn" onClick={() => setStep(1)}>
-                ← Back
-              </button>
+              <span />
               <span style={{ display: 'flex', gap: 8 }}>
                 <button className="btn" onClick={skipToApp} title="Skip for now — add keys later via Settings">
                   Skip for now
