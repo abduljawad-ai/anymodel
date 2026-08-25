@@ -51,7 +51,10 @@ export function TopBar() {
         <IconButton
           icon={<Settings size={16} aria-hidden />}
           aria-label="Settings"
-          onClick={() => setSettingsOpen(true)}
+          onClick={() => {
+            setRailOpen(false);
+            setSettingsOpen(true);
+          }}
         />
       </div>
     </header>

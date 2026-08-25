@@ -97,11 +97,37 @@ select {
   transform: translateX(0);
 }
 
+/* On wide screens the rail is a persistent sidebar, never an overlay + scrim. */
+@media (min-width: 1024px) {
+  .shell {
+    flex-direction: row;
+  }
+  .rail {
+    position: relative;
+    transform: translateX(0);
+    z-index: auto;
+    box-shadow: none;
+    border-right: 1px solid var(--hairline);
+  }
+  .shell-main {
+    flex: 1;
+    min-width: 0;
+  }
+  .menu-btn {
+    display: none !important;
+  }
+  .scrim {
+    display: none !important;
+  }
+}
+
 .scrim.show {
+  display: block;
   position: fixed;
   inset: 0;
   background: rgba(25, 23, 20, 0.35);
   z-index: 75;
+  animation: fadeIn 0.15s var(--ease);
 }
 
 .menu-btn {
@@ -217,6 +243,7 @@ select {
 
 .send-btn { gap: 4px; }
 .stop-btn { gap: 5px; }
+.composer-send { margin-left: auto; }
 
 .spin { animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -503,6 +530,31 @@ select {
   font-size: 13px;
 }
 
+/* tables */
+.msg-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 13.5px;
+  display: block;
+  overflow-x: auto;
+}
+.msg-content th,
+.msg-content td {
+  border: 1px solid var(--hairline);
+  padding: 7px 11px;
+  text-align: left;
+  vertical-align: top;
+}
+.msg-content th {
+  background: var(--surface);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.msg-content tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+}
+
 .msg-content code {
   font-family: var(--font-mono);
   font-size: 0.92em;
@@ -569,9 +621,10 @@ select {
 /* ChatGPT-style starter suggestions */
 .suggest-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  max-width: 640px;
+  width: 100%;
+  max-width: 620px;
   margin: 22px auto 0;
   text-align: left;
 }
@@ -596,7 +649,7 @@ select {
 }
 .suggest-icon { font-size: 15px; flex-shrink: 0; }
 @media (max-width: 700px) {
-  .suggest-grid { grid-template-columns: 1fr 1fr; }
+  .suggest-grid { grid-template-columns: 1fr; max-width: 420px; }
 }
 
 /* ---------- composer ---------- */
@@ -785,14 +838,34 @@ select {
 }
 
 .sheet-inner {
-  width: min(560px, 100vw);
-  max-height: 86vh;
+  width: min(640px, 100vw);
+  max-height: 88vh;
   overflow-y: auto;
   background: var(--surface);
   border-radius: 14px 14px 0 0;
   border: 1px solid var(--hairline);
-  padding: 20px 22px 28px;
+  padding: 0 22px 28px;
   animation: slideUp 0.2s var(--ease);
+}
+
+.sheet-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  padding: 16px 0 10px;
+  margin: 0 -22px;
+  padding-left: 22px;
+  padding-right: 14px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.sheet-head h2 {
+  margin: 0;
+  font-size: 19px;
 }
 
 @keyframes slideUp {
@@ -802,9 +875,29 @@ select {
   }
 }
 
-.sheet h2 {
-  margin: 0 0 4px;
-  font-size: 19px;
+}
+
+/* settings field links — themed, not browser-default blue */
+.sheet .field label a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+.sheet .field label a:hover {
+  text-decoration: underline;
+}
+
+/* remove-key button: quiet ghost until hover */
+.sheet .field .btn-danger {
+  border-color: transparent;
+  background: none;
+  color: var(--muted);
+  padding: 7px 9px;
+}
+.sheet .field .btn-danger:hover:not(:disabled) {
+  color: var(--err);
+  border-color: var(--err);
+  background: none;
 }
 
 .field {
@@ -996,9 +1089,17 @@ select {
   transition: width 0.4s var(--ease);
 }
 
-/* scrim for the drawer */
 .scrim {
   display: none;
+}
+
+.scrim.show {
+  display: block;
+  position: fixed;
+  inset: 0;
+  background: rgba(25, 23, 20, 0.35);
+  z-index: 75;
+  animation: fadeIn 0.15s var(--ease);
 }
 
 /* handoff menu */

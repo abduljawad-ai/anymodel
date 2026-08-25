@@ -56,7 +56,12 @@ export function SettingsSheet() {
       }}
     >
       <div className="sheet-inner">
-        <h2>Settings</h2>
+        <div className="sheet-head">
+          <h2>Settings</h2>
+          <button className="icon-btn" aria-label="Close settings" onClick={() => setSettingsOpen(false)}>
+            <X size={16} aria-hidden />
+          </button>
+        </div>
 
         {/* 1 · KEYS ------------------------------------------------------------ */}
         <h3 className="sec-title">API keys</h3>
@@ -264,9 +269,7 @@ export function SettingsSheet() {
           <button className="btn btn-danger" onClick={() => useVaultStore.getState().lock()}>
             <Lock size={13} aria-hidden /> Lock vault
           </button>
-          <button className="btn btn-primary" onClick={() => setSettingsOpen(false)}>
-            Done
-          </button>
+          <span />
         </div>
       </div>
     </div>

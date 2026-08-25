@@ -50,6 +50,7 @@ export default function App() {
       // Cmd+K / Ctrl+K: open model palette
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
+        setRailOpen(false);
         setPaletteOpen(true);
       }
       // Escape: close overlays
