@@ -2,12 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { cachedModels, isChatCapable, ensureModels } from '../../catalog';
 import { toast } from '../../lib/toast';
 import { onModelsChanged, keyedButUnloaded } from '../providers/autoLoad';
-import type { Capability, ModelInfo, ProviderId } from '../../catalog/types';
+import type { ModelInfo, ProviderId } from '../../catalog/types';
 import { getProviderMeta, listProviders } from '../../catalog/providers';
 import { useUiStore } from '../../state/uiStore';
 
 /** Search synonyms so "vision", "voice" etc. find the right models. */
-const CAP_SYNONYMS: Record<Capability, string[]> = {
+const CAP_SYNONYMS: Record<string, string[]> = {
   vision: ['vision', 'image in', 'picture', 'photo'],
   image: ['image', 'images', 'picture', 'photo', 'generate', 'dall', 'flux'],
   video: ['video', 'clip', 'movie', 'generate video'],
@@ -144,7 +144,7 @@ export function Palette() {
         if (e.target === e.currentTarget) setPaletteOpen(false);
       }}
     >
-      <div className="palette" role="dialog" aria-label="Switch model">
+      <div className="palette" role="dialog" aria-modal="true" aria-label="Switch model">
         <input
           ref={inputRef}
           value={q}
@@ -163,7 +163,7 @@ export function Palette() {
               {loadables.map((p, li) => (
                 <button
                   key={`load-${p.id}`}
-                  className={`palette-item ${li === sel ? 'active' : ''}`}
+                  className="palette-item"
                   data-selected={li === sel}
                   onMouseEnter={() => setSel(li)}
                   onClick={() =>

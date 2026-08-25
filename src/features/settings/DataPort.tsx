@@ -1,4 +1,5 @@
 import { useSessionStore } from '../../state/sessionStore';
+import { confirmDialog, alertDialog } from '../../lib/confirmDialog';
 
 function download(filename: string, content: string, type = 'application/json'): void {
   const blob = new Blob([content], { type });
@@ -26,29 +27,33 @@ export function DataPort() {
     try {
       const j = JSON.parse(text) as { sessions?: unknown[] };
       if (!Array.isArray(j.sessions)) {
-        alert('That file is not a valid Relay backup.');
+        await alertDialog('That file is not a valid Relay backup.', 'Import failed');
         return;
       }
       const existingCount = useSessionStore.getState().sessions.length;
       const importCount = j.sessions.length;
-      const confirmed = window.confirm(
+      const confirmed = await confirmDialog(
         `Import ${importCount} session${importCount !== 1 ? 's' : ''}?\n\n` +
         `This will REPLACE your ${existingCount} existing session${existingCount !== 1 ? 's' : ''}. ` +
-        `This action cannot be undone.`
+        `This action cannot be undone.`,
+        { title: 'Import backup', confirmLabel: 'Import', destructive: true },
       );
       if (!confirmed) return;
     } catch {
-      alert('That file is not a valid Relay backup.');
+      await alertDialog('That file is not a valid Relay backup.', 'Import failed');
       return;
     }
     const res = useSessionStore.getState().importJson(text);
     if (res === 'ok') window.location.reload();
-    else alert('That file is not a valid Relay backup.');
+    else await alertDialog('That file is not a valid Relay backup.', 'Import failed');
   };
 
   const exportThreadMd = () => {
     const s = useSessionStore.getState().active();
-    if (!s || s.turns.length === 0) return alert('Nothing to export yet.');
+    if (!s || s.turns.length === 0) {
+      void alertDialog('Nothing to export yet.', 'Export');
+      return;
+    }
     const lines: string[] = [`# ${s.title}`, ''];
     for (const t of s.turns) {
       if (t.role === 'user') {
@@ -59,7 +64,9 @@ export function DataPort() {
       }
     }
     const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    download(`${s.title.replace(/[^\w-]+/g, '-').slice(0, 40)}-${stamp}.md`, lines.join('\n'), 'text/markdown');
+    // #43: a title of pure symbols/spaces collapses to a dash — fall back to a name.
+    const base = s.title.replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'relay-thread';
+    download(`${base}-${stamp}.md`, lines.join('\n'), 'text/markdown');
   };
 
   return (
@@ -88,7 +95,7 @@ export function DataPort() {
         </button>
       </div>
       <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
-        Backups contain conversations and settings — never API keys.
+        Backups contain your conversations — API keys are never included.
       </span>
     </div>
   );

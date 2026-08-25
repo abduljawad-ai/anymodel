@@ -36,6 +36,13 @@ export function Rail() {
     return () => clearInterval(iv);
   }, []);
 
+  // Auto-disarm the delete confirmation so it can't stay armed forever.
+  useEffect(() => {
+    if (!confirmId) return;
+    const t = setTimeout(() => setConfirmId(null), 4000);
+    return () => clearTimeout(t);
+  }, [confirmId]);
+
   return (
     <aside className={`rail ${railOpen ? 'open' : ''}`} aria-label="Navigation">
       <div className="rail-brand">

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { PenLine, Brain, Lightbulb, Wrench } from 'lucide-react';
 import { useSessionStore } from '../../state/sessionStore';
 import { useUiStore } from '../../state/uiStore';
 import { MessageBubble } from './MessageBubble';
@@ -44,7 +45,7 @@ export function ThreadView() {
                   window.dispatchEvent(new CustomEvent('relay-fill-composer', { detail: s.text }));
                 }}
               >
-                <span className="suggest-icon" aria-hidden>{s.icon}</span>
+                <span className="suggest-icon" aria-hidden><s.icon /></span>
                 <span>{s.text}</span>
               </button>
             ))}
@@ -80,8 +81,8 @@ export function ThreadView() {
 
 /** ChatGPT-style starter prompts — fill the composer when clicked. */
 const SUGGESTIONS = [
-  { icon: '✍️', text: 'Help me write an email to my team about a project delay' },
-  { icon: '🧠', text: 'Explain quantum computing in simple terms' },
-  { icon: '💡', text: 'Give me ideas for a weekend side project' },
-  { icon: '🛠️', text: 'Debug why my JavaScript function returns undefined' },
+  { icon: PenLine, text: 'Help me write an email to my team about a project delay' },
+  { icon: Brain, text: 'Explain quantum computing in simple terms' },
+  { icon: Lightbulb, text: 'Give me ideas for a weekend side project' },
+  { icon: Wrench, text: 'Debug why my JavaScript function returns undefined' },
 ];

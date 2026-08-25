@@ -42,7 +42,7 @@ export async function sendTurn(text: string, imageUrl?: string): Promise<void> {
   const { providerId } = useSessionStore.getState().active()!.modelKey;
 
   if (!keys[providerId]) {
-    toast(`Add a ${PROVIDERS[providerId].name} key first — Settings → Keys.`);
+    toast(`Add a ${PROVIDERS[providerId].name} key first — Settings → Keys.`, { error: true });
     return;
   }
 
@@ -60,11 +60,12 @@ export async function sendTurn(text: string, imageUrl?: string): Promise<void> {
 /** Create + stream an assistant turn for the session's current model slot. */
 async function runAssistantTurn(sid: string, forceCompact = false): Promise<void> {
   const st = useSessionStore.getState();
-  const s0 = st.active()!;
+  const s0 = st.active();
+  if (!s0) return;
   const { providerId, modelId } = s0.modelKey;
 
   if (!useVaultKeys()[providerId]) {
-    toast(`Add a ${PROVIDERS[providerId].name} key first — Settings → Keys.`);
+    toast(`Add a ${PROVIDERS[providerId].name} key first — Settings → Keys.`, { error: true });
     return;
   }
 
@@ -72,7 +73,8 @@ async function runAssistantTurn(sid: string, forceCompact = false): Promise<void
   st.addTurn(sid, { id: aid, role: 'assistant', content: '', modelId, providerId, streaming: true });
 
   await ensureMemory(sid, modelId, providerId, forceCompact);
-  const s = useSessionStore.getState().active()!;
+  const s = useSessionStore.getState().active();
+  if (!s) return;
   const mem = s.memory;
   const liveTurns = mem ? s.turns.slice(mem.upto + 1).filter((t) => t.id !== aid) : s.turns.filter((t) => t.id !== aid);
   let history = buildHistory(liveTurns);
@@ -236,7 +238,6 @@ export async function regenerate(sid?: string): Promise<void> {
   if (!s) return;
   const last = s.turns[s.turns.length - 1];
   if (!last || last.role !== 'assistant') return;
-  st.patchTurn(s.id, last.id, {});
   useSessionStore.setState({
     sessions: st.sessions.map((x) =>
       x.id === s.id ? { ...x, turns: x.turns.filter((t) => t.id !== last.id) } : x,

@@ -22,12 +22,22 @@ export function MicRecorder({ onTranscript }: { onTranscript: (text: string) => 
   const [seconds, setSeconds] = useState(0);
   const [busy, setBusy] = useState(false);
   const recRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Stop recording + release the mic if the component goes away mid-recording.
   useEffect(
     () => () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      if (recRef.current && recRef.current.state !== 'inactive') {
+        try {
+          recRef.current.stop();
+        } catch {
+          /* already stopped */
+        }
+      }
     },
     [],
   );
@@ -43,6 +53,7 @@ export function MicRecorder({ onTranscript }: { onTranscript: (text: string) => 
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
       const rec = new MediaRecorder(stream);
       chunksRef.current = [];
       rec.ondataavailable = (e) => chunksRef.current.push(e.data);

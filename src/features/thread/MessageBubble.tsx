@@ -175,7 +175,7 @@ function AssistantActions({ turn }: { turn: Turn }) {
     useSessionStore.getState().patchTurn(sid, turn.id, {
       feedback: turn.feedback === v ? undefined : v,
     });
-    toast(v === 'up' ? 'Thanks — noted' : 'Noted — helps tuning');
+    toast(v === 'up' ? 'Thanks — feedback saved' : 'Thanks — feedback saved');
   }
 
   return (

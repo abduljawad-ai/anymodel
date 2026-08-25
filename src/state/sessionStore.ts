@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { uid } from '../lib/id';
 import type { ProviderId } from '../catalog/types';
+import { loadSettings } from './settings';
 
 const LS_SESSIONS = 'relay.sessions.v1';
 
@@ -186,7 +187,13 @@ export const useSessionStore = create<SessionsState>((set, get) => ({
   },
   exportJson() {
     return JSON.stringify(
-      { app: 'relay', v: 1, exportedAt: new Date().toISOString(), sessions: get().sessions },
+      {
+        app: 'relay',
+        v: 1,
+        exportedAt: new Date().toISOString(),
+        sessions: get().sessions,
+        settings: loadSettings(),
+      },
       null,
       2,
     );

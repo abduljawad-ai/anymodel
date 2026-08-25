@@ -1,10 +1,17 @@
-type Fn = (msg: string) => void;
+export interface ToastOpts {
+  /** Errors/important warnings stay longer so users can read them. */
+  error?: boolean;
+  /** Override auto-dismiss duration (ms). */
+  ms?: number;
+}
+
+type Fn = (msg: string, opts?: ToastOpts) => void;
 
 const listeners = new Set<Fn>();
 
-/** Fire-and-forget transient message. */
-export function toast(msg: string): void {
-  listeners.forEach((f) => f(msg));
+/** Fire-and-forget transient message. Pass { error: true } to linger longer. */
+export function toast(msg: string, opts?: ToastOpts): void {
+  listeners.forEach((f) => f(msg, opts));
 }
 
 export function onToast(fn: Fn): () => void {

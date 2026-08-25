@@ -950,6 +950,10 @@ select {
   animation: slideUp 0.2s var(--ease);
 }
 
+.toast-err {
+  background: var(--err);
+}
+
 /* wizard */
 .wizard {
   min-height: 100vh;
