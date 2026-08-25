@@ -149,7 +149,7 @@ function ProviderRow({ meta }: { meta: ProviderMeta }) {
 
             <button
               className="btn"
-              disabled={!useVaultStore.getState().keys[meta.id] && !meta.local}
+              disabled={!hasKey && !meta.local}
               onClick={() => void load()}
             >
               {isLoaded(meta.id) ? 'Refresh models' : 'Load models'}
@@ -280,7 +280,6 @@ export function ProvidersPage() {
         value={q}
         onChange={(e) => setQ(e.target.value)}
         aria-label="Search providers"
-        autoFocus
       />
       <div className="prov-list">
         {providers.map((p) => (

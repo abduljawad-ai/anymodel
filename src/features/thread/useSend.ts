@@ -228,9 +228,11 @@ async function emergencyTruncate(sid: string): Promise<void> {
 }
 
 /** Drop the trailing assistant turn and generate a fresh one over the same history. */
-export async function regenerate(): Promise<void> {
+export async function regenerate(sid?: string): Promise<void> {
   const st = useSessionStore.getState();
-  const s = st.active();
+  const targetId = sid ?? st.activeId;
+  if (!targetId) return;
+  const s = st.sessions.find((x) => x.id === targetId);
   if (!s) return;
   const last = s.turns[s.turns.length - 1];
   if (!last || last.role !== 'assistant') return;

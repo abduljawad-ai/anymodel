@@ -204,6 +204,7 @@ select {
 }
 
 .session-item:hover .session-del,
+.session-del:focus-visible,
 .session-del.confirm {
   opacity: 1;
 }
@@ -230,12 +231,6 @@ select {
 .rail-nav-item.active {
   background: var(--accent-soft);
   color: var(--accent);
-}
-
-.dial-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .dial-btn .chev { opacity: 0.5; }
@@ -344,7 +339,13 @@ select {
   border-radius: var(--r-md);
   font-family: var(--font-mono);
   font-size: 13px;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: all 0.15s var(--ease);
 }
+.model-chip:hover { border-color: var(--accent); color: var(--accent); }
 
 .model-chip-arrow {
   opacity: 0.5;
@@ -354,7 +355,8 @@ select {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: var(--tint);
+  background-color: var(--tint, var(--muted));
+  flex-shrink: 0;
 }
 
 /* ---------- buttons & chips ---------- */
@@ -407,14 +409,6 @@ select {
   font-size: 11.5px;
   color: var(--muted);
   background: var(--surface);
-}
-
-.tint-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--tint, var(--muted));
-  flex-shrink: 0;
 }
 
 /* ---------- thread ---------- */
@@ -936,13 +930,15 @@ select {
 /* toasts */
 .toasts {
   position: fixed;
-  bottom: 18px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   gap: 6px;
   z-index: 90;
+  width: max-content;
+  max-width: 92vw;
 }
 
 .toast {
@@ -1156,7 +1152,7 @@ select {
   .thread-wrap { padding: 14px 10px 28px; gap: 16px; }
   .turn-user { max-width: 92%; }
   .composer { padding: 8px 10px 10px; }
-  .composer textarea { font-size: 15px; } /* >=16px prevents iOS zoom */
+  .composer textarea { font-size: 16px; } /* >=16px prevents iOS zoom */
   .topbar { padding: 6px 10px; }
   .prov-row-line { padding: 9px 10px; }
   .providers-page { padding: 12px; }
@@ -1228,8 +1224,6 @@ details.reason .r-body { font-family: var(--font-mono); font-size: 12px; white-s
 .prov-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
 .prov-actions input { flex: 1; min-width: 140px; border: 1px solid var(--hairline); border-radius: var(--r); padding: 6px 9px; background: var(--paper); outline: none; }
 .prov-models { display: flex; flex-wrap: wrap; gap: 5px; border-top: 1px solid var(--hairline); padding-top: 10px; }
-.model-chip { cursor: pointer; transition: all .15s var(--ease); }
-.model-chip:hover { border-color: var(--accent); color: var(--accent); }
 .model-chip.aux { opacity: .65; }
 .prov-suggested { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; opacity: .85; }
 .prov-add {
@@ -1311,7 +1305,6 @@ details.reason summary {
 .user-actions {
   margin-top: 5px; justify-content: flex-end; gap: 8px;
 }
-.user-edit { margin-top: 6px; }
 .user-actions button { display: inline-flex; gap: 4px; align-items: center; }
 .turn-user-group:hover .user-actions, .turn-assistant:hover .msg-actions.row,
 .msg-actions.row:last-child:hover { opacity: 1; }

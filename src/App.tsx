@@ -30,6 +30,7 @@ export default function App() {
   const settingsOpen = useUiStore((s) => s.settingsOpen);
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
   const setRailOpen = useUiStore((s) => s.setRailOpen);
+  const inSetup = useUiStore((s) => s.inSetup);
 
   // Boot stores once.
   useEffect(() => {
@@ -62,11 +63,10 @@ export default function App() {
       // Cmd+L / Ctrl+L: focus composer
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'l') {
         e.preventDefault();
-        const ta = document.querySelector('.composer textarea') as HTMLTextAreaElement | null;
-        if (ta) ta.focus();
+        window.dispatchEvent(new Event('relay-focus-composer'));
       }
-      // Cmd+N / Ctrl+N: new thread
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
+      // Ctrl/Cmd+Shift+O: new thread (plain Ctrl/Cmd+N is reserved by browsers).
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'o') {
         e.preventDefault();
         const { activeModel, setView } = useUiStore.getState();
         useSessionStore.getState().createSession(activeModel);
@@ -106,8 +106,10 @@ export default function App() {
     );
   }
 
-  // Gate: locked vault → show wizard. Unlocked vault (even with no keys) → show app.
-  if (vaultStatus !== 'unlocked') {
+  // Gate: locked/empty vault → wizard. Also keep the wizard mounted while the
+  // user is in guided first-run key setup (vault just created, status already
+  // 'unlocked' — without this the Wizard would unmount and skip key setup).
+  if (vaultStatus !== 'unlocked' || inSetup) {
     return (
       <>
         <Wizard />
@@ -126,7 +128,7 @@ export default function App() {
       />
       <div className="shell-main">
         <TopBar />
-        <main className="view-area" aria-live="polite">
+        <main className="view-area">
           {view === 'providers' ? <ProvidersPage /> : <ThreadView />}
         </main>
         {view === 'chat' && <Composer />}

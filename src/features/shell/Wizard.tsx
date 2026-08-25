@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useVaultStore } from '../../vault/vaultStore';
+import { useUiStore } from '../../state/uiStore';
 import { createAdapter } from '../../adapters/factory';
 import { effectiveBase } from '../../adapters/base';
 import type { ProviderId } from '../../catalog/types';
@@ -32,6 +33,9 @@ export function Wizard() {
     setBusy(true);
     try {
       await useVaultStore.getState().createVault(pass);
+      // Keep the wizard mounted for the guided key-setup step (status is now
+      // 'unlocked', which would otherwise drop the user straight into the app).
+      useUiStore.getState().setInSetup(true);
       setMode('keys');
     } finally {
       setBusy(false);
@@ -48,7 +52,8 @@ export function Wizard() {
         setErr('Wrong passphrase — try again.');
         setPass('');
       } else {
-        // Status flipped to 'unlocked' — App re-renders into the main shell.
+        // Returning user — go straight to the app shell.
+        useUiStore.getState().setInSetup(false);
         setPass('');
       }
     } finally {
@@ -57,24 +62,31 @@ export function Wizard() {
   }
 
   function skipToApp() {
-    // Vault is already unlocked (created in step 1), just reload to enter the app.
+    // Vault is already unlocked (created in step 1); leave setup and enter the app.
+    useUiStore.getState().setInSetup(false);
     window.location.reload();
   }
 
   async function saveAndTest(p: ProviderId) {
     const key = keyDrafts[p]?.trim();
     if (!key) return;
-    await useVaultStore.getState().setKey(p, key);
-    setTestState((s) => ({ ...s, [p]: 'testing…' }));
-    const adapter = createAdapter(p, {
-      baseUrl: effectiveBase(p),
-      apiKey: () => useVaultStore.getState().keys[p],
-    });
-    const res = await adapter.testConnection();
-    setTestState((s) => ({ ...s, [p]: res.ok ? `✓ ${res.detail}` : `✗ ${res.detail}` }));
-    // Models for this provider are now one click away everywhere — preload.
-    const { ensureModels } = await import('../../catalog');
-    await ensureModels(p).catch(() => {});
+    if (testState[p] === 'testing…') return; // busy guard — no double-fire
+    try {
+      await useVaultStore.getState().setKey(p, key);
+      setTestState((s) => ({ ...s, [p]: 'testing…' }));
+      const adapter = createAdapter(p, {
+        baseUrl: effectiveBase(p),
+        apiKey: () => useVaultStore.getState().keys[p],
+      });
+      const res = await adapter.testConnection();
+      setTestState((s) => ({ ...s, [p]: res.ok ? `✓ ${res.detail}` : `✗ ${res.detail}` }));
+      // Models for this provider are now one click away everywhere — preload.
+      const { ensureModels } = await import('../../catalog');
+      const ms = await ensureModels(p);
+      if (ms.length === 0) setTestState((s) => ({ ...s, [p]: '✓ key saved (no models listed)' }));
+    } catch (e) {
+      setTestState((s) => ({ ...s, [p]: `✗ ${e instanceof Error ? e.message : 'save failed'}` }));
+    }
   }
 
   return (
@@ -194,6 +206,7 @@ export function Wizard() {
                       return;
                     }
                     setErr('');
+                    useUiStore.getState().setInSetup(false);
                     window.location.reload();
                   }}
                 >

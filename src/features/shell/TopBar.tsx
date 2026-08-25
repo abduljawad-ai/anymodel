@@ -2,6 +2,7 @@ import { Menu, X, Moon, Sun, Settings } from 'lucide-react';
 import { IconButton } from '../../ui/IconButton';
 import { useUiStore } from '../../state/uiStore';
 import { getProviderMeta } from '../../catalog/providers';
+import { cachedModels } from '../../catalog';
 
 /** Top bar: menu toggle, brand, current model, theme toggle, settings. */
 export function TopBar() {
@@ -13,6 +14,10 @@ export function TopBar() {
   const setSettingsOpen = useUiStore((s) => s.setSettingsOpen);
 
   const meta = getProviderMeta(activeModel.providerId);
+  // Prefer the catalog's friendly label over the raw model id.
+  const label =
+    cachedModels(activeModel.providerId).find((m) => m.id === activeModel.modelId)?.label ??
+    activeModel.modelId;
 
   return (
     <header className="topbar">
@@ -36,7 +41,7 @@ export function TopBar() {
           aria-label={`Current model ${activeModel.modelId}. Open model picker`}
         >
           <span className="tint-dot" style={{ ['--tint' as string]: meta?.tint }} />
-          {activeModel.modelId}
+          {label}
           <span aria-hidden className="model-chip-arrow">▾</span>
         </button>
 

@@ -41,12 +41,7 @@ export function ThreadView() {
                 key={s.text}
                 className="suggest-card"
                 onClick={() => {
-                  const ta = document.querySelector('.composer textarea') as HTMLTextAreaElement | null;
-                  if (ta) {
-                    ta.value = s.text;
-                    ta.dispatchEvent(new Event('input', { bubbles: true }));
-                    ta.focus();
-                  }
+                  window.dispatchEvent(new CustomEvent('relay-fill-composer', { detail: s.text }));
                 }}
               >
                 <span className="suggest-icon" aria-hidden>{s.icon}</span>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { X, Lock } from 'lucide-react';
 import type { ProviderId } from '../../catalog/types';
 import { useUiStore } from '../../state/uiStore';
@@ -25,14 +25,8 @@ export function SettingsSheet() {
   const [flash, setFlash] = useState<Partial<Record<ProviderId, string>>>({});
   const [autoLockMin, setAutoLockMin] = useState(loadSettings().autoLockMin);
   const [budget, setBudget] = useState(loadSettings().contextBudgetTokens);
-
-  useEffect(() => {
-    const onEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSettingsOpen(false);
-    };
-    window.addEventListener('keydown', onEsc);
-    return () => window.removeEventListener('keydown', onEsc);
-  }, [setSettingsOpen]);
+  // Track initial values so blur handlers only save + toast on real changes.
+  const initialRef = useState(() => loadSettings())[0];
 
   async function saveKey(p: ProviderId) {
     const v = drafts[p]?.trim();
@@ -41,9 +35,13 @@ export function SettingsSheet() {
     setDrafts((d) => ({ ...d, [p]: '' }));
     setFlash((f) => ({ ...f, [p]: '✓ saved — loading models…' }));
     const { ensureModels } = await import('../../catalog');
-    await ensureModels(p).catch(() => {});
-    setFlash((f) => ({ ...f, [p]: '✓ saved · models ready' }));
-    setTimeout(() => setFlash((f) => ({ ...f, [p]: '' })), 2500);
+    try {
+      const ms = await ensureModels(p);
+      setFlash((f) => ({ ...f, [p]: `✓ saved · ${ms.length} models ready` }));
+    } catch (e) {
+      setFlash((f) => ({ ...f, [p]: `saved, but model load failed: ${e instanceof Error ? e.message : 'unknown error'}` }));
+    }
+    setTimeout(() => setFlash((f) => ({ ...f, [p]: '' })), 3000);
   }
 
   return (
@@ -115,9 +113,11 @@ export function SettingsSheet() {
             className="ui-textarea"
             rows={3}
             placeholder="e.g. You are a concise assistant. Prefer bullet points. Answer in English."
-            defaultValue={loadSettings().systemPrompt}
+            defaultValue={initialRef.systemPrompt}
             onBlur={(e) => {
-              saveSettings({ systemPrompt: e.target.value });
+              const v = e.target.value;
+              if (v === initialRef.systemPrompt) return;
+              saveSettings({ systemPrompt: v });
               toast('Custom instructions saved');
             }}
           />
@@ -147,9 +147,11 @@ export function SettingsSheet() {
           <input
             id="gate"
             placeholder="https://your-gate.example.com"
-            defaultValue={loadSettings().gateUrl}
+            defaultValue={initialRef.gateUrl}
             onBlur={(e) => {
-              saveSettings({ gateUrl: e.target.value.trim() });
+              const v = e.target.value.trim();
+              if (v === initialRef.gateUrl) return;
+              saveSettings({ gateUrl: v });
               toast('Gate URL saved');
             }}
           />

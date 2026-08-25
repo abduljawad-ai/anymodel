@@ -16,6 +16,8 @@ interface UiState {
   paletteOpen: boolean;
   settingsOpen: boolean;
   railOpen: boolean;
+  /** True while the user is in the guided first-run key setup (after vault create). */
+  inSetup: boolean;
   activeModel: ModelRef;
   setView(v: View): void;
   toggleTheme(): void;
@@ -23,6 +25,7 @@ interface UiState {
   setPaletteOpen(b: boolean): void;
   setSettingsOpen(b: boolean): void;
   setRailOpen(b: boolean): void;
+  setInSetup(b: boolean): void;
   setActiveModel(ref: ModelRef): void;
 }
 
@@ -67,6 +70,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   paletteOpen: false,
   settingsOpen: false,
   railOpen: typeof window !== 'undefined' && window.innerWidth >= 1024,
+  inSetup: false,
   activeModel: loadSettings().lastModel,
   setTheme(t) {
     applyTheme(t);
@@ -83,6 +87,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   setPaletteOpen(b) { set({ paletteOpen: b }); },
   setSettingsOpen(b) { set({ settingsOpen: b }); },
   setRailOpen(b) { set({ railOpen: b }); },
+  setInSetup(b) { set({ inSetup: b }); },
   setActiveModel(ref) {
     saveSettings({ lastModel: ref });
     set({ activeModel: ref });

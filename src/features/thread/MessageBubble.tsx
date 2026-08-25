@@ -183,7 +183,7 @@ function AssistantActions({ turn }: { turn: Turn }) {
       <button title="Copy reply" aria-label="Copy reply" onClick={() => copyText(turn.content)}>
         <Copy size={13} aria-hidden />
       </button>
-      <button title="Regenerate" aria-label="Regenerate" onClick={() => void regenerate()}>
+      <button title="Regenerate" aria-label="Regenerate" onClick={() => void regenerate(useSessionStore.getState().activeId ?? undefined)}>
         <RefreshCw size={13} aria-hidden />
       </button>
       <button title="Share (copy quote)" aria-label="Share" onClick={() => copyText(`"${turn.content.slice(0, 280)}"\n— ${turn.modelId} via Relay`)}>
@@ -255,7 +255,7 @@ export const MessageBubble = memo(function MessageBubble({ turn }: { turn: Turn 
             ⚠ {turn.error.message}
             {turn.error.status ? ` (${turn.error.status})` : ''}
           </span>
-          <button className="btn" onClick={() => void regenerate()}>
+          <button className="btn" onClick={() => void regenerate(useSessionStore.getState().activeId ?? undefined)}>
             Retry
           </button>
         </div>

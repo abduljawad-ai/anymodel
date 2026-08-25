@@ -9,6 +9,8 @@ import { useUiStore } from '../../state/uiStore';
 /** Search synonyms so "vision", "voice" etc. find the right models. */
 const CAP_SYNONYMS: Record<Capability, string[]> = {
   vision: ['vision', 'image in', 'picture', 'photo'],
+  image: ['image', 'images', 'picture', 'photo', 'generate', 'dall', 'flux'],
+  video: ['video', 'clip', 'movie', 'generate video'],
   stt: ['stt', 'transcribe', 'transcription', 'whisper', 'audio in', 'dictation'],
   tts: ['tts', 'speak', 'speech', 'voice out', 'read aloud'],
   reasoning: ['reasoning', 'reason', 'think', 'smart', 'o1', 'o3'],
@@ -45,10 +47,10 @@ export function Palette() {
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Show all chat-capable models from all providers.
+  // Show all chat-capable models from all providers — recompute when models load.
   const entries = useMemo(() => {
     return allEntries();
-  }, []);
+  }, [tick]);
 
   const filtered = useMemo(() => {
     void tick; // recomputes when model lists load
@@ -103,17 +105,33 @@ export function Palette() {
   // Flat index for keyboard selection across groups.
   const flat = useMemo(() => groups.flatMap((g) => g.models), [groups]);
 
+  // Unified keyboard-nav list: loadable rows first, then all model entries.
+  const navItems = useMemo(
+    () => [
+      ...loadables.map((p) => ({ kind: 'load' as const, pid: p.id, meta: p })),
+      ...flat.map((e) => ({ kind: 'model' as const, entry: e })),
+    ],
+    [loadables, flat],
+  );
+
   function onKeyDown(ev: React.KeyboardEvent) {
     if (ev.key === 'ArrowDown') {
       ev.preventDefault();
-      setSel((i) => Math.min(i + 1, flat.length - 1));
+      setSel((i) => Math.min(i + 1, navItems.length - 1));
     } else if (ev.key === 'ArrowUp') {
       ev.preventDefault();
       setSel((i) => Math.max(i - 1, 0));
     } else if (ev.key === 'Enter') {
       ev.preventDefault();
-      const entry = flat[sel];
-      if (entry) choose(entry);
+      const item = navItems[sel];
+      if (!item) return;
+      if (item.kind === 'load') {
+        void ensureModels(item.pid)
+          .then((ms) => toast(`${item.meta.name}: ${ms.length} models loaded`))
+          .catch((e) => toast(e instanceof Error ? e.message : 'load failed'));
+      } else {
+        choose(item.entry);
+      }
     } else if (ev.key === 'Escape') {
       setPaletteOpen(false);
     }
@@ -142,10 +160,12 @@ export function Palette() {
           {loadables.length > 0 && (
             <>
               <div className="palette-group">LOAD MODELS</div>
-              {loadables.map((p) => (
+              {loadables.map((p, li) => (
                 <button
                   key={`load-${p.id}`}
-                  className="palette-item"
+                  className={`palette-item ${li === sel ? 'active' : ''}`}
+                  data-selected={li === sel}
+                  onMouseEnter={() => setSel(li)}
                   onClick={() =>
                     void ensureModels(p.id)
                       .then((ms) => toast(`${p.name}: ${ms.length} models loaded`))
@@ -170,7 +190,7 @@ export function Palette() {
             <div key={g.providerId}>
               <div className="palette-group">{getProviderMeta(g.providerId)?.name ?? g.providerId}</div>
               {g.models.map((e) => {
-                const i = flat.indexOf(e);
+                const i = loadables.length + flat.indexOf(e);
                 const isActive = e.providerId === activeModel.providerId && e.id === activeModel.modelId;
                 return (
                   <button

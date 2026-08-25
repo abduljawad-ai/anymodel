@@ -85,7 +85,15 @@ export const useSessionStore = create<SessionsState>((set, get) => ({
     } catch {
       sessions = [];
     }
-    set({ sessions, activeId: sessions[0]?.id ?? null });
+    // Honor a deep link (#/chat/<id>) once sessions are loaded — the URL may
+    // point at a specific thread that initRouting() couldn't resolve yet.
+    let activeId = sessions[0]?.id ?? null;
+    if (typeof window !== 'undefined') {
+      const m = window.location.hash.match(/^\#\/(?:chat|providers)\/([^/]+)/);
+      const linked = m?.[1];
+      if (linked && sessions.some((s) => s.id === linked)) activeId = linked;
+    }
+    set({ sessions, activeId });
   },
   createSession(mk) {
     const id = uid('s_');
@@ -100,10 +108,17 @@ export const useSessionStore = create<SessionsState>((set, get) => ({
     return id;
   },
   deleteSession(id) {
+    let nextActive: string | null = null;
     set((st) => {
       const sessions = st.sessions.filter((x) => x.id !== id);
-      return { sessions, activeId: st.activeId === id ? sessions[0]?.id ?? null : st.activeId };
+      nextActive = st.activeId === id ? sessions[0]?.id ?? null : st.activeId;
+      return { sessions, activeId: nextActive };
     });
+    // Keep the URL hash in sync so Back/forward never points at a deleted thread.
+    if (typeof window !== 'undefined' && window.location.hash.includes(id)) {
+      const hash = nextActive ? `#/chat/${nextActive}` : '#/chat';
+      if (window.location.hash !== hash) window.history.replaceState(null, '', hash);
+    }
     persistSoon(get);
   },
   renameSession(id, title) {

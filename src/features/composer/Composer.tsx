@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Paperclip, X, Square, ArrowUp } from 'lucide-react';
-import { anyActive, stopStream } from '../../state/streamRegistry';
+import { anyActive, onStreamActivity, stopStream } from '../../state/streamRegistry';
 import { sendTurn } from '../thread/useSend';
 import { fileToDataUrl } from './ImageAttach';
 import { MicRecorder } from './MicRecorder';
+import { toast } from '../../lib/toast';
 
 /**
  * Composer — attach · mic · send/stop. The model lives in the top bar.
@@ -16,10 +17,26 @@ export function Composer() {
   const inputRef = useRef<HTMLInputElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
-  // Track global stream activity for the Stop affordance.
+  // Track global stream activity for the Stop affordance via subscription
+  // (instant Stop, no polling lag, no idle timer).
+  useEffect(() => onStreamActivity(() => setStreaming(anyActive())), []);
+
+  // Receive suggestion fills / focus requests from elsewhere without poking the DOM.
   useEffect(() => {
-    const iv = setInterval(() => setStreaming(anyActive()), 200);
-    return () => clearInterval(iv);
+    const onFill = (e: Event) => {
+      const detail = (e as CustomEvent<string>).detail;
+      if (typeof detail === 'string') {
+        setText(detail);
+        requestAnimationFrame(() => taRef.current?.focus());
+      }
+    };
+    const onFocus = () => taRef.current?.focus();
+    window.addEventListener('relay-fill-composer', onFill);
+    window.addEventListener('relay-focus-composer', onFocus);
+    return () => {
+      window.removeEventListener('relay-fill-composer', onFill);
+      window.removeEventListener('relay-focus-composer', onFocus);
+    };
   }, []);
 
   // Autosize.
@@ -51,7 +68,8 @@ export function Composer() {
             const f = item.getAsFile();
             if (f) {
               e.preventDefault();
-              void fileToDataUrl(f).then(setImage).catch(() => {});
+              if (image) toast('Replaced the current attachment');
+              void fileToDataUrl(f).then(setImage).catch(() => toast('Could not read that image'));
             }
           }
         }}
@@ -67,6 +85,7 @@ export function Composer() {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
               if (!streaming) submit();
+              else if (text.trim()) toast('Still generating — please wait for the reply to finish');
             }
           }}
         />
@@ -83,6 +102,7 @@ export function Composer() {
                 setImage(await fileToDataUrl(f));
               } catch {
                 setImage(null);
+                toast('Could not read that image');
               }
               e.target.value = '';
             }}
