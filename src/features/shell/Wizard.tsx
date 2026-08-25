@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useVaultStore } from '../../vault/vaultStore';
 import { useUiStore } from '../../state/uiStore';
+import { confirmDialog } from '../../lib/confirmDialog';
 import { createAdapter } from '../../adapters/factory';
 import { effectiveBase } from '../../adapters/base';
 import type { ProviderId } from '../../catalog/types';
@@ -146,18 +147,24 @@ export function Wizard() {
             </div>
             {err && <p className="key-status err">{err}</p>}
             <div className="wizard-actions">
-              <button
-                className="btn btn-danger"
-                title="Erase the encrypted vault and start fresh (deletes stored keys)"
-                onClick={() => {
-                  if (window.confirm('Erase this vault and all stored keys? This cannot be undone.')) {
-                    localStorage.removeItem('relay.vault.v1');
-                    window.location.reload();
-                  }
-                }}
-              >
-                Reset vault
-              </button>
+                <button
+                  className="btn btn-danger"
+                  title="Erase the encrypted vault and start fresh (deletes stored keys)"
+                  onClick={() => {
+                    void confirmDialog('Erase this vault and all stored keys? This cannot be undone.', {
+                      title: 'Reset vault',
+                      confirmLabel: 'Erase',
+                      destructive: true,
+                    }).then((ok) => {
+                      if (ok) {
+                        localStorage.removeItem('relay.vault.v1');
+                        window.location.reload();
+                      }
+                    });
+                  }}
+                >
+                  Reset vault
+                </button>
               <button className="btn btn-primary" onClick={() => void unlockVault()} disabled={busy}>
                 Unlock →
               </button>
