@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect } from 'react';
 import './styles/tokens.css';
 import './ui/ui.css';
 import './styles/app.css';
@@ -12,11 +12,6 @@ import { ToastStack } from './features/shell/ToastStack';
 import { ThreadView } from './features/thread/ThreadView';
 import { Composer } from './features/composer/Composer';
 import { ProvidersPage } from './features/providers/ProvidersPage';
-import { StudioPage } from './features/studio/StudioPage';
-// CodeMirror is heavy — the IDE loads only when a code artifact is opened.
-const IDEPanel = lazy(() =>
-  import('./ide/IDEPanel').then((m) => ({ default: m.IDEPanel })),
-);
 import { autoLoadKeyedModels, ensureSaneActiveModel } from './features/providers/autoLoad';
 import { Palette } from './features/palette/Palette';
 import { SettingsSheet } from './features/settings/SettingsSheet';
@@ -131,14 +126,11 @@ export default function App() {
       <div className="shell-main">
         <TopBar />
         <main className="view-area" aria-live="polite">
-          {view === 'providers' ? <ProvidersPage /> : view === 'studio' ? <StudioPage /> : <ThreadView />}
+          {view === 'providers' ? <ProvidersPage /> : <ThreadView />}
         </main>
         {view === 'chat' && <Composer />}
         <div id="aria-announcer" className="sr-only" aria-live="polite" />
       </div>
-      <Suspense fallback={null}>
-        <IDEPanel />
-      </Suspense>
       <ToastStack />
       {paletteOpen && <Palette />}
       {settingsOpen && <SettingsSheet />}

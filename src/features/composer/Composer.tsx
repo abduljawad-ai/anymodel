@@ -1,102 +1,20 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Zap, Search, AudioLines, Square, ArrowUp } from 'lucide-react';
-import { toast } from '../../lib/toast';
+import { useEffect, useRef, useState } from 'react';
+import { Square, ArrowUp } from 'lucide-react';
 import { anyActive, stopStream } from '../../state/streamRegistry';
-import { loadSettings, saveSettings } from '../../state/settings';
 import { sendTurn } from '../thread/useSend';
 import { ImageAttach, fileToDataUrl } from './ImageAttach';
 import { MicRecorder } from './MicRecorder';
 import { ModelDial } from './ModelDial';
-import { LivePanel } from '../voice/LivePanel';
-import { cachedModels } from '../../catalog';
-import { useUiStore } from '../../state/uiStore';
-import { useVaultStore } from '../../vault/vaultStore';
-
-/** Capability of the active model, or 'unknown' when its list isn't loaded yet. */
-function activeModelCaps(): { vision: boolean; realtime: boolean; known: boolean } {
-  const { providerId, modelId } = useUiStore.getState().activeModel;
-  const models = cachedModels(providerId);
-  const m = models.find((x) => x.id === modelId);
-  if (!m) return { vision: true, realtime: /realtime/i.test(modelId), known: models.length === 0 };
-  return {
-    vision: m.caps.includes('vision'),
-    realtime: /realtime/i.test(modelId),
-    known: true,
-  };
-}
-
-/** Effort pill — thinking effort applies to EVERY model. */
-function EffortPill() {
-  const [open, setOpen] = useState(false);
-  const cfg = loadSettings();
-  const ref = useRef<HTMLSpanElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    window.addEventListener('mousedown', close);
-    return () => window.removeEventListener('mousedown', close);
-  }, [open]);
-
-  return (
-    <span style={{ position: 'relative' }} ref={ref}>
-      <button
-        className={`dial-btn ${cfg.effort === 'high' ? 'effort-high' : ''}`}
-        onClick={() => setOpen((o) => !o)}
-        aria-label="Thinking effort"
-        aria-expanded={open}
-      >
-        <Zap size={13} aria-hidden />
-        {cfg.effort === 'high' ? 'High' : 'Standard'}
-        <span className="chev" aria-hidden>▾</span>
-      </button>
-      {open && (
-        <div className="mode-pop" role="menu">
-          <div className="pop-sec">THINKING EFFORT — APPLIES TO EVERY MODEL</div>
-          {(['standard', 'high'] as const).map((e) => (
-            <button
-              key={e}
-              className="pop-row"
-              onClick={() => {
-                saveSettings({ effort: e });
-                toast(e === 'high' ? 'High — forced step-by-step reasoning' : 'Standard — fast chat');
-                setOpen(false);
-              }}
-            >
-              <span>{e === 'standard' ? 'Standard · fast chat' : 'High · forced reasoning'}</span>
-              {cfg.effort === e && <span style={{ marginLeft: 'auto', color: 'var(--accent)' }} aria-hidden>✓</span>}
-            </button>
-          ))}
-        </div>
-      )}
-    </span>
-  );
-}
 
 /**
- * Composer row (left→right): model · attach · mic · live · research · effort · send.
- * Model switching = dial/⌘K only. Research toggle = search icon only. No duplicates.
+ * Composer — model dial · attach · mic · send/stop.
+ * Clean, standard chat input: nothing decorative, everything works.
  */
 export function Composer() {
   const [text, setText] = useState('');
   const [image, setImage] = useState<string | null>(null);
   const [streaming, setStreaming] = useState(false);
-  const [voiceOpen, setVoiceOpen] = useState(false);
-  const [researchOn, setResearchOn] = useState(() => loadSettings().researchMode);
-  const [capsTick, setCapsTick] = useState(0);
   const taRef = useRef<HTMLTextAreaElement>(null);
-
-  const activeModel = useUiStore((s) => s.activeModel);
-  const caps = useMemo(() => activeModelCaps(), [activeModel, capsTick]);
-
-  // Re-check caps when a provider's model list finishes loading.
-  useEffect(() => {
-    const onChange = () => setCapsTick((t) => t + 1);
-    window.addEventListener('relay-models-changed', onChange);
-    return () => window.removeEventListener('relay-models-changed', onChange);
-  }, []);
 
   // Track global stream activity for the Stop affordance.
   useEffect(() => {
@@ -133,7 +51,7 @@ export function Composer() {
             const f = item.getAsFile();
             if (f) {
               e.preventDefault();
-              void fileToDataUrl(f).then(setImage).catch(() => toast('Could not read pasted image'));
+              void fileToDataUrl(f).then(setImage).catch(() => {});
             }
           }
         }}
@@ -142,7 +60,7 @@ export function Composer() {
           ref={taRef}
           rows={1}
           value={text}
-          placeholder="Ask anything — switch models any time with ⌘K…"
+          placeholder="Message your AI…"
           aria-label="Message"
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
@@ -154,38 +72,8 @@ export function Composer() {
         />
         <div className="composer-row">
           <ModelDial />
-          {caps.vision && <ImageAttach image={image} setImage={setImage} />}
+          <ImageAttach image={image} setImage={setImage} />
           <MicRecorder onTranscript={(t) => setText((cur) => (cur ? `${cur} ${t}` : t))} />
-          {caps.realtime && (
-            <button
-              className="icon-btn"
-              title="Live voice mode (WebRTC)"
-              aria-label="Open live voice"
-              onClick={() => setVoiceOpen(true)}
-            >
-              <AudioLines size={16} aria-hidden />
-            </button>
-          )}
-          <button
-            className={`icon-btn ${researchOn ? 'research-on' : ''}`}
-            title="Deep research — reason → web search → synthesize (Exa)"
-            aria-label="Toggle deep research"
-            aria-pressed={researchOn}
-            onClick={() => {
-              const next = !researchOn;
-              setResearchOn(next);
-              saveSettings({ researchMode: next });
-              if (next && !useVaultStore.getState().keys.exa) {
-                toast('No Exa key — research will reason without web results. Add one in Settings.');
-              } else {
-                toast(next ? 'Deep research ON' : 'Deep research off');
-              }
-            }}
-          >
-            <Search size={16} aria-hidden />
-          </button>
-
-          <EffortPill />
 
           {streaming ? (
             <button className="btn btn-danger stop-btn" onClick={() => stopStream()} aria-label="Stop generating">
@@ -203,7 +91,6 @@ export function Composer() {
           )}
         </div>
       </div>
-      {voiceOpen && <LivePanel onClose={() => setVoiceOpen(false)} />}
     </div>
   );
 }

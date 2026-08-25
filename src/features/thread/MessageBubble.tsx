@@ -1,9 +1,17 @@
 import { memo, useEffect, useMemo, useState } from 'react';
-import { ThumbsUp, ThumbsDown, RefreshCw, Share, Zap } from 'lucide-react';
+import {
+  ThumbsUp,
+  ThumbsDown,
+  RefreshCw,
+  Share,
+  Copy,
+  Pencil,
+  Lightbulb,
+  ChevronDown,
+  ChevronRight,
+} from 'lucide-react';
 import hljs from 'highlight.js/lib/common';
-import { isChatCapable, cachedModels } from '../../catalog';
-import type { ModelInfo } from '../../catalog/types';
-import { getProviderMeta, listProviders } from '../../catalog/providers';
+import { getProviderMeta } from '../../catalog/providers';
 import { renderMarkdown } from '../../lib/markdown';
 import { toast } from '../../lib/toast';
 import { playBlob, stopAudio } from '../../lib/audioBus';
@@ -11,18 +19,14 @@ import { createAdapter } from '../../adapters/factory';
 import { resolveDeps } from '../../vault/gate';
 import { useVaultStore } from '../../vault/vaultStore';
 import { useSessionStore, type Turn } from '../../state/sessionStore';
-import { useUiStore } from '../../state/uiStore';
 import { regenerate, editAndResend } from './useSend';
-import { openInIDE } from '../../ide/open';
 
-const IDE_LANGS = /html|css|js|jsx|javascript|ts|typescript|json/i;
-
-/** Post-process rendered markdown: highlight code + language header + copy + IDE/preview. */
-function enhance(container: HTMLDivElement, turnId?: string): void {
+/** Post-process rendered markdown: highlight code + language header + copy. */
+function enhance(container: HTMLDivElement): void {
   container.querySelectorAll('pre').forEach((pre) => {
     if (pre.parentElement?.classList.contains('code-wrap')) return;
     const code = pre.querySelector('code');
-    let langRaw = '';
+    let lang = '';
     if (code && !code.dataset.hlzed) {
       code.dataset.hlzed = '1';
       try {
@@ -30,7 +34,7 @@ function enhance(container: HTMLDivElement, turnId?: string): void {
       } catch {
         /* unknown language — stays plain */
       }
-      langRaw = ([...code.classList].find((c) => c.startsWith('language-')) ?? '').slice(9);
+      lang = ([...code.classList].find((c) => c.startsWith('language-')) ?? '').slice(9).toUpperCase();
     }
     const wrap = document.createElement('div');
     wrap.className = 'code-wrap';
@@ -39,63 +43,23 @@ function enhance(container: HTMLDivElement, turnId?: string): void {
     const head = document.createElement('div');
     head.className = 'code-head';
     const label = document.createElement('span');
-    label.textContent = (langRaw || 'code').toUpperCase();
-
-    const actions = document.createElement('span');
-    actions.style.display = 'inline-flex';
-    actions.style.gap = '4px';
-
-    function mkBtn(labelText: string, title: string, icon: HTMLElement, onClick: () => void) {
-      const b = document.createElement('button');
-      b.className = 'btn code-copy';
-      b.style.position = 'static';
-      b.title = title;
-      b.setAttribute('aria-label', title);
-      b.style.display = 'inline-flex';
-      b.style.alignItems = 'center';
-      b.style.gap = '4px';
-      b.append(icon, document.createTextNode(labelText));
-      b.addEventListener('click', onClick);
-      return b;
-    }
-
-    const copyIcon = document.createElement('span');
-    copyIcon.style.display = 'inline-flex';
-    copyIcon.append(document.createTextNode('⧉'));
-    actions.append(
-      mkBtn('copy', 'Copy code', copyIcon, () => {
-        navigator.clipboard.writeText(pre.textContent ?? '').then(
-          () => toast('Code copied'),
-          () => toast('Copy failed'),
-        );
-      }),
-    );
-
-    // Editable artifacts: HTML/CSS/JS get "Open in IDE" + quick preview.
-    const source = pre.textContent ?? '';
-    if (langRaw && IDE_LANGS.test(langRaw)) {
-      const ideIcon = document.createElement('span');
-      ideIcon.style.display = 'inline-flex';
-      const prevIcon = document.createElement('span');
-      prevIcon.style.display = 'inline-flex';
-      actions.append(
-        mkBtn('IDE', 'Open in IDE — edit and preview', ideIcon, () => {
-          openInIDE(source, langRaw.toLowerCase(), `snippet.${langRaw.toLowerCase()}`, turnId);
-        }),
-        mkBtn('run', 'Quick preview', prevIcon, () => {
-          openInIDE(source, langRaw.toLowerCase(), `snippet.${langRaw.toLowerCase()}`, turnId);
-          // Switch to preview tab via a custom event the panel listens for.
-          window.dispatchEvent(new CustomEvent('relay-ide-preview'));
-        }),
+    label.textContent = lang || 'CODE';
+    const btn = document.createElement('button');
+    btn.className = 'btn code-copy';
+    btn.style.position = 'static';
+    btn.textContent = 'copy';
+    btn.addEventListener('click', () => {
+      navigator.clipboard.writeText(pre.textContent ?? '').then(
+        () => toast('Code copied'),
+        () => toast('Copy failed'),
       );
-    }
-
-    head.append(label, actions);
+    });
+    head.append(label, btn);
     wrap.append(head, pre);
   });
 }
 
-/** 💡 Think box — reasoning above the answer; live while streaming, collapsed after. */
+/** Think box — reasoning above the answer; live while streaming, collapsed after. */
 function ThinkBox({ reasoning, live }: { reasoning: string; live: boolean }) {
   const [open, setOpen] = useState(live);
   useEffect(() => {
@@ -104,8 +68,10 @@ function ThinkBox({ reasoning, live }: { reasoning: string; live: boolean }) {
   return (
     <div className={`think-box ${live ? 'live' : ''}`}>
       <button className="think-head" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-        <span>💡 Think</span>
-        <span className="chev">{open ? '▾' : '▸'}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Lightbulb size={13} aria-hidden /> Think
+        </span>
+        <span className="chev">{open ? <ChevronDown size={13} aria-hidden /> : <ChevronRight size={13} aria-hidden />}</span>
       </button>
       {(open || live) && <div className="r-body">{reasoning}</div>}
     </div>
@@ -162,13 +128,13 @@ function UserActions({ turn }: { turn: Turn }) {
   return (
     <div className="msg-actions user-actions">
       <button onClick={() => setEditing(true)} title="Edit & resend">
-        ✏️ Edit
+        <Pencil size={12} aria-hidden /> Edit
       </button>
       <button onClick={() => copyText(turn.content)} title="Copy">
-        ⧉ Copy
+        <Copy size={12} aria-hidden /> Copy
       </button>
       <button onClick={share} title="Share">
-        ↗ Share
+        <Share size={12} aria-hidden /> Share
       </button>
     </div>
   );
@@ -179,7 +145,6 @@ function AssistantActions({ turn }: { turn: Turn }) {
   const sid = useSessionStore((s) => s.activeId);
   const hasTtsKey = useVaultStore((s) => !!s.keys.openai);
   const [speaking, setSpeaking] = useState(false);
-  const [handoffOpen, setHandoffOpen] = useState(false);
 
   useEffect(
     () => () => {
@@ -189,7 +154,6 @@ function AssistantActions({ turn }: { turn: Turn }) {
   );
 
   async function speak(): Promise<void> {
-    if (!turn.providerId) return;
     if (speaking) {
       stopAudio();
       setSpeaking(false);
@@ -197,9 +161,7 @@ function AssistantActions({ turn }: { turn: Turn }) {
     }
     try {
       setSpeaking(true);
-      // Use the turn's provider if it's OpenAI (TTS-capable), otherwise fallback to OpenAI.
-      const ttsProvider = turn.providerId === 'openai' ? 'openai' : 'openai';
-      const blob = await createAdapter(ttsProvider, resolveDeps(ttsProvider)).speak(turn.content, 'tts-1');
+      const blob = await createAdapter('openai', resolveDeps('openai')).speak(turn.content, 'tts-1');
       await playBlob(blob);
       setSpeaking(false);
     } catch (e) {
@@ -216,25 +178,20 @@ function AssistantActions({ turn }: { turn: Turn }) {
     toast(v === 'up' ? 'Thanks — noted' : 'Noted — helps tuning');
   }
 
-  /** Handoff candidates from already-loaded catalogs. */
-  const candidates: ModelInfo[] = [];
-  for (const p of listProviders()) {
-    for (const m of cachedModels(p.id)) if (isChatCapable(m)) candidates.push(m);
-  }
-
   return (
     <div className="msg-actions row">
-      <button title="Copy reply" onClick={() => copyText(turn.content)}>
-        ⧉
+      <button title="Copy reply" aria-label="Copy reply" onClick={() => copyText(turn.content)}>
+        <Copy size={13} aria-hidden />
       </button>
-      <button title="Regenerate" onClick={() => void regenerate()}>
+      <button title="Regenerate" aria-label="Regenerate" onClick={() => void regenerate()}>
         <RefreshCw size={13} aria-hidden />
       </button>
-      <button title="Share (copy quote)" onClick={() => copyText(`"${turn.content.slice(0, 280)}"\n— ${turn.modelId} via Relay`)}>
+      <button title="Share (copy quote)" aria-label="Share" onClick={() => copyText(`"${turn.content.slice(0, 280)}"\n— ${turn.modelId} via Relay`)}>
         <Share size={13} aria-hidden />
       </button>
       <button
         title="Good reply"
+        aria-label="Good reply"
         className={turn.feedback === 'up' ? 'active' : ''}
         onClick={() => feedback('up')}
       >
@@ -242,40 +199,12 @@ function AssistantActions({ turn }: { turn: Turn }) {
       </button>
       <button
         title="Bad reply"
+        aria-label="Bad reply"
         className={turn.feedback === 'down' ? 'active' : ''}
         onClick={() => feedback('down')}
       >
         <ThumbsDown size={13} aria-hidden />
       </button>
-
-      <span style={{ position: 'relative' }}>
-        <button title="Hand off to another model" onClick={() => setHandoffOpen((o) => !o)}>
-          <Zap size={13} aria-hidden />
-        </button>
-        {handoffOpen && (
-          <div className="handoff-menu" role="menu">
-            {candidates
-              .filter((m) => m.providerId !== turn.providerId)
-              .slice(0, 10)
-              .map((m) => (
-                <button
-                  key={`${m.providerId}/${m.id}`}
-                  onClick={() => {
-                    useUiStore.getState().setActiveModel({ providerId: m.providerId, modelId: m.id });
-                    toast(`Next reply handed to ${m.label}`);
-                    setHandoffOpen(false);
-                  }}
-                >
-                  <span
-                    className="tint-dot"
-                    style={{ ['--tint' as string]: getProviderMeta(m.providerId)?.tint, marginRight: 6 }}
-                  />
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{m.label}</span>
-                </button>
-              ))}
-          </div>
-        )}
-      </span>
 
       {hasTtsKey && (
         <button className={`tts-chip ${speaking ? 'playing' : ''}`} onClick={() => void speak()} title="Read aloud">
@@ -340,7 +269,7 @@ export const MessageBubble = memo(function MessageBubble({ turn }: { turn: Turn 
             <div
               className={`msg-content ${turn.streaming ? 'caret' : ''}`}
               ref={(el) => {
-                if (el && turn.content) enhance(el, turn.id);
+                if (el && turn.content) enhance(el);
               }}
               dangerouslySetInnerHTML={{ __html: md }}
             />

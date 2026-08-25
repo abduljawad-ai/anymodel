@@ -566,6 +566,39 @@ select {
   font-size: 12px;
 }
 
+/* ChatGPT-style starter suggestions */
+.suggest-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  max-width: 640px;
+  margin: 22px auto 0;
+  text-align: left;
+}
+.suggest-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1.45;
+  transition: all var(--duration-fast) var(--ease);
+  text-align: left;
+}
+.suggest-card:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.suggest-icon { font-size: 15px; flex-shrink: 0; }
+@media (max-width: 700px) {
+  .suggest-grid { grid-template-columns: 1fr 1fr; }
+}
+
 /* ---------- composer ---------- */
 
 .composer {

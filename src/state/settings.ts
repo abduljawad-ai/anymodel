@@ -11,10 +11,10 @@ export interface RelaySettings {
   customProviders: Array<{ id: string; name: string; baseUrl: string }>;
   /** relay-gate base URL — when set + enrolled, traffic takes split-key custody. */
   gateUrl: string;
-  /** Thinking effort applied to EVERY model via forced-reasoning directives. */
-  effort: 'standard' | 'high';
-  /** Deep-research loop toggle (Exa-backed when a key is present). */
-  researchMode: boolean;
+  /** Global custom instructions — prepended as a system message to every chat. */
+  systemPrompt: string;
+  /** Sampling temperature (provider-supported models). */
+  temperature: number;
   /** Custom base URL per provider ('' or missing → PROVIDERS.defaultBase). */
   bases: Partial<Record<ProviderId, string>>;
   lastModel: { providerId: ProviderId; modelId: string };
@@ -26,8 +26,8 @@ export const DEFAULT_SETTINGS: RelaySettings = {
   contextBudgetTokens: 12000,
   customProviders: [],
   gateUrl: '',
-  effort: 'standard',
-  researchMode: false,
+  systemPrompt: '',
+  temperature: 0.7,
   bases: {},
   lastModel: { providerId: 'openai', modelId: 'gpt-4o' },
 };

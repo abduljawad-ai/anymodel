@@ -3,13 +3,8 @@ import type {
   AdapterDeps,
   ChatRequest,
   ConnectionResult,
-  ImageGenOpts,
-  ImageGenResult,
   ProviderAdapter,
   StreamSignals,
-  VideoGenOpts,
-  VideoJobHandle,
-  VideoJobStatus,
 } from './types';
 import { assertOk } from './http';
 import { fetchWithRetry } from '../lib/net';
@@ -56,6 +51,7 @@ export class OpenAIAdapter implements ProviderAdapter {
         model: req.model,
         messages,
         max_tokens: req.maxTokens ?? 2048,
+        ...(typeof req.temperature === 'number' ? { temperature: req.temperature } : {}),
         stream: true,
       }),
       signal: signals.signal,
@@ -115,90 +111,4 @@ export class OpenAIAdapter implements ProviderAdapter {
     }
   }
 
-  /** Text-to-image via /images/generations (dall-e-3, gpt-image-1). */
-  async generateImage(opts: ImageGenOpts): Promise<ImageGenResult> {
-    const body: Record<string, unknown> = {
-      model: opts.model || 'gpt-image-1',
-      prompt: opts.prompt,
-      n: opts.n ?? 1,
-    };
-    if (opts.size) body.size = opts.size;
-    // dall-e-3 accepts quality; gpt-image-1 accepts quality too. Harmless otherwise.
-    if (opts.quality) body.quality = opts.quality;
-
-    const res = await fetchWithRetry(`${this.base}/images/generations`, {
-      method: 'POST',
-      headers: this.headers(),
-      body: JSON.stringify(body),
-    });
-    await assertOk(res);
-    const json = (await res.json()) as {
-      data?: Array<{ url?: string; b64_json?: string }>;
-    };
-    const images = (json.data ?? [])
-      .map((d) => (d.b64_json ? `data:image/png;base64,${d.b64_json}` : d.url))
-      .filter((u): u is string => Boolean(u));
-    if (images.length === 0) throw new Error('Provider returned no images');
-    return { images };
-  }
-
-  /** Text-to-video via /videos (Sora). Returns a job handle for polling. */
-  async generateVideo(opts: VideoGenOpts): Promise<VideoJobHandle> {
-    const form = new FormData();
-    form.append('model', opts.model || 'sora-2');
-    form.append('prompt', opts.prompt);
-    form.append('seconds', String(opts.seconds ?? 4));
-    if (opts.size) form.append('size', opts.size);
-    const res = await fetchWithRetry(`${this.base}/videos`, {
-      method: 'POST',
-      headers: this.headers(false),
-      body: form,
-    });
-    await assertOk(res);
-    const json = (await res.json()) as { id?: string };
-    if (!json.id) throw new Error('Provider returned no video job id');
-    return { jobId: json.id };
-  }
-
-  /** Poll a Sora video job. */
-  async getVideoStatus(job: VideoJobHandle): Promise<VideoJobStatus> {
-    const res = await fetchWithRetry(`${this.base}/videos/${encodeURIComponent(job.jobId)}`, {
-      headers: this.headers(false),
-    });
-    await assertOk(res);
-    const json = (await res.json()) as {
-      status?: string;
-      progress?: number;
-      error?: { message?: string } | string | null;
-    };
-    const map: Record<string, VideoJobStatus['status']> = {
-      queued: 'queued',
-      in_progress: 'processing',
-      processing: 'processing',
-      completed: 'completed',
-      failed: 'failed',
-    };
-    const status = map[json.status ?? ''] ?? 'processing';
-    const err =
-      typeof json.error === 'string'
-        ? json.error
-        : json.error && typeof json.error === 'object'
-          ? json.error.message
-          : undefined;
-    return {
-      status,
-      progress: typeof json.progress === 'number' ? json.progress : undefined,
-      error: status === 'failed' ? (err ?? 'Video generation failed') : undefined,
-    };
-  }
-
-  /** Fetch the finished video bytes. */
-  async getVideoContent(job: VideoJobHandle): Promise<Blob> {
-    const res = await fetchWithRetry(
-      `${this.base}/videos/${encodeURIComponent(job.jobId)}/content`,
-      { headers: this.headers(false) },
-    );
-    await assertOk(res);
-    return res.blob();
-  }
 }

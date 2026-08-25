@@ -12,7 +12,6 @@ import { useUiStore } from '../../state/uiStore';
 import { useVaultStore } from '../../vault/vaultStore';
 import { loadSettings } from '../../state/settings';
 import { memoryPrompt, splitForCompaction, textTokens, truncationNotice, HOT_TAIL } from '../../lib/memory';
-import { deepResearch } from '../../lib/research';
 
 /** Map stored turns → wire messages (skip errors/empty; cap context). */
 export function buildHistory(turns: Turn[], cap = 20): ChatMessage[] {
@@ -80,17 +79,10 @@ async function runAssistantTurn(sid: string, forceCompact = false): Promise<void
   if (mem?.text.trim()) {
     history = [{ role: 'system', content: `Conversation memory so far (older turns were compacted):\n${mem.text}\nContinue seamlessly.` }, ...history];
   }
-  // Thinking-effort directive applies to EVERY model via forced reasoning.
+  // Custom instructions — global system prompt, like ChatGPT's custom instructions.
   const cfg = loadSettings();
-  if (cfg.effort === 'high') {
-    history = [
-      {
-        role: 'system',
-        content:
-          'Reasoning mode HIGH: before answering, silently work through the problem step by step — consider alternatives, check edge cases, verify facts — then give the answer.',
-      },
-      ...history,
-    ];
+  if (cfg.systemPrompt.trim()) {
+    history = [{ role: 'system', content: cfg.systemPrompt.trim() }, ...history];
   }
   const ac = startStream(aid);
   const adapter = createAdapter(providerId, resolveDeps(providerId));
@@ -128,22 +120,7 @@ async function runAssistantTurn(sid: string, forceCompact = false): Promise<void
       },
       onDone: () => {},
     };
-    if (cfg.researchMode) {
-      // Reason→search→synthesize loop; plan/findings stream as reasoning,
-      // final synthesis streams as the answer. Works with any model.
-      await deepResearch({
-        adapter,
-        modelId,
-        history,
-        question: liveTurns.filter((t) => t.role === 'user').at(-1)?.content ?? '',
-        exaKey: useVaultStore.getState().keys.exa,
-        signal: ac.signal,
-        onDelta: signals.onDelta,
-        onReasoning: signals.onReasoning,
-      });
-    } else {
-      await adapter.streamChat({ model: modelId, messages: history }, signals);
-    }
+    await adapter.streamChat({ model: modelId, messages: history, temperature: cfg.temperature }, signals);
     flush();
     const done = useSessionStore.getState().active()!.turns.find((t) => t.id === aid);
     useSessionStore.getState().patchTurn(sid, aid, {

@@ -55,6 +55,7 @@ export class AnthropicAdapter implements ProviderAdapter {
       body: JSON.stringify({
         model: req.model,
         max_tokens: req.maxTokens ?? 2048,
+        ...(typeof req.temperature === 'number' ? { temperature: req.temperature } : {}),
         ...(system ? { system } : {}),
         messages,
       }),

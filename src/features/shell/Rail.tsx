@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MessageCircle, Boxes, Sparkles, Settings, Moon, Sun, Lock, X } from 'lucide-react';
+import { MessageCircle, Boxes, Settings, Moon, Sun, Lock, X } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import { IconButton } from '../../ui/IconButton';
 import { Input } from '../../ui/Input';
@@ -61,11 +61,10 @@ export function Rail() {
       </Button>
 
       <nav aria-label="Navigation" className="rail-nav">
-        {(['chat', 'providers', 'studio'] as const).map((v) => {
+        {(['chat', 'providers'] as const).map((v) => {
           const items: Record<string, { label: string; icon: JSX.Element }> = {
             chat: { label: 'Chat', icon: <MessageCircle size={15} aria-hidden /> },
             providers: { label: 'Providers & models', icon: <Boxes size={15} aria-hidden /> },
-            studio: { label: 'Studio', icon: <Sparkles size={15} aria-hidden /> }
           };
           
           return (

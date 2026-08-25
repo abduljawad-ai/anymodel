@@ -1,10 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { useSessionStore } from '../../state/sessionStore';
 import { useUiStore } from '../../state/uiStore';
-import { BatonTrail } from './BatonTrail';
 import { MessageBubble } from './MessageBubble';
 
-/** The conversation: baton trail + turn list + empty state. */
+/** The conversation: turn list + empty state. */
 export function ThreadView() {
   const session = useSessionStore((s) => s.sessions.find((x) => x.id === s.activeId));
   const turns = session?.turns ?? [];
@@ -30,17 +29,37 @@ export function ThreadView() {
     return (
       <div className="empty-state">
         <div className="empty-card">
-          <h1>One thread. Every model.</h1>
+          <h1>How can I help you today?</h1>
           <p>
-            Swap models mid-conversation — every answer carries its maker's badge.
+            Bring your own key — chat with any model from OpenAI, Anthropic, Google, Groq and more.
             <br />
             Press <span className="kbd">⌘K</span> to pick a model, then just start typing.
           </p>
+          <div className="suggest-grid">
+            {SUGGESTIONS.map((s) => (
+              <button
+                key={s.text}
+                className="suggest-card"
+                onClick={() => {
+                  const ta = document.querySelector('.composer textarea') as HTMLTextAreaElement | null;
+                  if (ta) {
+                    ta.value = s.text;
+                    ta.dispatchEvent(new Event('input', { bubbles: true }));
+                    ta.focus();
+                  }
+                }}
+              >
+                <span className="suggest-icon" aria-hidden>{s.icon}</span>
+                <span>{s.text}</span>
+              </button>
+            ))}
+          </div>
           <button
             className="btn btn-primary"
+            style={{ marginTop: 18 }}
             onClick={() => useUiStore.getState().setView('providers')}
           >
-            ⟐ Set up providers & models
+            Set up providers & models
           </button>
         </div>
       </div>
@@ -49,14 +68,13 @@ export function ThreadView() {
 
   return (
     <div className="thread-wrap">
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <BatonTrail turns={turns} />
-        {session.memory && (
+      {session.memory && (
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
           <span className="chip" title={session.memory.text}>
-            🗜 memory ×{session.memory.compactions}
+            memory ×{session.memory.compactions}
           </span>
-        )}
-      </div>
+        </div>
+      )}
       {turns.map((t) => (
         <MessageBubble key={t.id} turn={t} />
       ))}
@@ -64,3 +82,11 @@ export function ThreadView() {
     </div>
   );
 }
+
+/** ChatGPT-style starter prompts — fill the composer when clicked. */
+const SUGGESTIONS = [
+  { icon: '✍️', text: 'Help me write an email to my team about a project delay' },
+  { icon: '🧠', text: 'Explain quantum computing in simple terms' },
+  { icon: '💡', text: 'Give me ideas for a weekend side project' },
+  { icon: '🛠️', text: 'Debug why my JavaScript function returns undefined' },
+];

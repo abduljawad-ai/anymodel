@@ -99,40 +99,38 @@ export function SettingsSheet() {
           </div>
         ))}
 
-        {/* EXA — powers the 🔍 deep-research loop */}
+        <hr className="sec-div" />
+
+        {/* CUSTOM INSTRUCTIONS ------------------------------------------------- */}
+        <h3 className="sec-title">Custom instructions</h3>
         <div className="field">
-          <label htmlFor="set-exa">
-            <a href="https://exa.ai" target="_blank" rel="noreferrer">
-              Exa (web search) ↗
-            </a>
-            <span style={{ opacity: 0.55 }}> · {keys.exa ? 'stored' : 'not set'} — free tier works</span>
+          <label htmlFor="sysprompt">How should the AI respond? (applies to every chat)</label>
+          <textarea
+            id="sysprompt"
+            className="ui-textarea"
+            rows={3}
+            placeholder="e.g. You are a concise assistant. Prefer bullet points. Answer in English."
+            defaultValue={loadSettings().systemPrompt}
+            onBlur={(e) => {
+              saveSettings({ systemPrompt: e.target.value });
+              toast('Custom instructions saved');
+            }}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="temp">
+            Temperature · <span style={{ fontFamily: 'var(--font-mono)' }}>{loadSettings().temperature}</span>{' '}
+            (lower = focused, higher = creative)
           </label>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <input
-              id="set-exa"
-              type="password"
-              placeholder={keys.exa ? '••••••••••••' : 'paste Exa key…'}
-              value={drafts.exa ?? ''}
-              onChange={(e) => setDrafts((d) => ({ ...d, exa: e.target.value }))}
-              onKeyDown={(e) => e.key === 'Enter' && void saveKey('exa')}
-            />
-            <button className="btn" onClick={() => void saveKey('exa')} disabled={!drafts.exa?.trim()}>
-              Save
-            </button>
-            <button
-              className="btn btn-danger"
-              onClick={() => {
-                void useVaultStore.getState().removeKey('exa');
-                toast('Exa key removed');
-              }}
-              disabled={!keys.exa}
-            >
-              <X size={13} aria-hidden />
-            </button>
-          </div>
-          <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
-            Used by Deep research — any model reasons → searches the web → synthesizes a cited answer.
-          </span>
+          <input
+            id="temp"
+            type="range"
+            min={0}
+            max={2}
+            step={0.1}
+            defaultValue={loadSettings().temperature}
+            onChange={(e) => saveSettings({ temperature: Number(e.target.value) })}
+          />
         </div>
 
         <hr className="sec-div" />

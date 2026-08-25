@@ -8,7 +8,7 @@ export interface ModelRef {
   modelId: string;
 }
 
-export type View = 'chat' | 'providers' | 'studio';
+export type View = 'chat' | 'providers';
 
 interface UiState {
   view: View;
@@ -34,16 +34,13 @@ function applyTheme(theme: 'light' | 'dark'): void {
 function parseHash(): { view: View; sessionId?: string } {
   const hash = window.location.hash.replace(/^#\/?/, '');
   const parts = hash.split('/');
-  let view: View = 'chat';
-  if (parts[0] === 'providers') view = 'providers';
-  else if (parts[0] === 'studio') view = 'studio';
+  const view = parts[0] === 'providers' ? 'providers' : 'chat';
   const sessionId = parts[1] || undefined;
   return { view, sessionId };
 }
 
 function writeHash(view: View, sessionId?: string): void {
-  // Studio doesn't have session IDs
-  const path = view === 'studio' ? '/studio' : (sessionId ? `/${view}/${sessionId}` : `/${view}`);
+  const path = sessionId ? `/${view}/${sessionId}` : `/${view}`;
   if (window.location.hash !== `#${path}`) {
     window.history.pushState(null, '', `#${path}`);
   }

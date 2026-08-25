@@ -1,7 +1,7 @@
 export type BuiltinKind = 'openai' | 'anthropic' | 'google' | 'compatible';
 /** Any string — directory ids and user-registered custom providers alike. */
 export type ProviderId = string;
-export type Capability = 'vision' | 'stt' | 'tts' | 'reasoning' | 'tools' | 'image' | 'video';
+export type Capability = 'vision' | 'stt' | 'tts' | 'reasoning' | 'tools';
 
 export interface ModelInfo {
   id: string;

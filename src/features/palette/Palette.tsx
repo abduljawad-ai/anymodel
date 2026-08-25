@@ -13,8 +13,6 @@ const CAP_SYNONYMS: Record<Capability, string[]> = {
   tts: ['tts', 'speak', 'speech', 'voice out', 'read aloud'],
   reasoning: ['reasoning', 'reason', 'think', 'smart', 'o1', 'o3'],
   tools: ['tools', 'function calling', 'agents'],
-  image: ['image gen', 'generate image', 'draw', 'dall-e', 'picture out'],
-  video: ['video gen', 'generate video', 'sora', 'veo', 'clip'],
 };
 
 interface Entry extends ModelInfo {

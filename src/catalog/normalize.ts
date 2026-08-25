@@ -6,8 +6,6 @@ const PATTERNS: Array<[Capability, RegExp]> = [
   ['reasoning', /(^|[^a-z])o[13]([^0-9]|$)|-r1|reason|think/i],
   ['vision', /gpt-4o|vision|claude-[3-9]|gemini|\bvl\b|llava|multimodal/i],
   ['tools', /function|tool|gpt-4o|claude|gemini/i],
-  ['image', /dall-e|gpt-image|flux|sdxl|stable-diffusion|ideogram|imagen|image-gen|\bimage\b/i],
-  ['video', /sora|veo|video-gen|\bvideo\b|kling|runway|pika/i],
 ];
 
 export function prettify(id: string): string {
