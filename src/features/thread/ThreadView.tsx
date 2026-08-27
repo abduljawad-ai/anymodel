@@ -28,7 +28,7 @@ export function ThreadView() {
 
   if (!session || turns.length === 0) {
     return (
-      <div className="empty-state">
+      <div className="empty-state" role="main" aria-label="Welcome">
         <div className="empty-card">
           <h1>How can I help you today?</h1>
           <p>
@@ -36,7 +36,7 @@ export function ThreadView() {
             <br />
             Press <span className="kbd">⌘K</span> to pick a model, then just start typing.
           </p>
-          <div className="suggest-grid">
+          <div className="suggest-grid" role="group" aria-label="Suggested prompts">
             {SUGGESTIONS.map((s) => (
               <button
                 key={s.text}
@@ -44,6 +44,7 @@ export function ThreadView() {
                 onClick={() => {
                   window.dispatchEvent(new CustomEvent('relay-fill-composer', { detail: s.text }));
                 }}
+                aria-label={`Use suggestion: ${s.text}`}
               >
                 <span className="suggest-icon" aria-hidden><s.icon /></span>
                 <span>{s.text}</span>
@@ -54,6 +55,7 @@ export function ThreadView() {
             className="btn btn-primary"
             style={{ marginTop: 18 }}
             onClick={() => useUiStore.getState().setView('providers')}
+            aria-label="Set up providers and models"
           >
             Set up providers & models
           </button>
@@ -63,10 +65,10 @@ export function ThreadView() {
   }
 
   return (
-    <div className="thread-wrap">
+    <div className="thread-wrap" role="log" aria-label="Conversation" aria-live="polite">
       {session.memory && (
         <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <span className="chip" title={session.memory.text}>
+          <span className="chip" title={session.memory.text} aria-label={`Memory compacted ${session.memory.compactions} times`}>
             memory ×{session.memory.compactions}
           </span>
         </div>
@@ -74,7 +76,7 @@ export function ThreadView() {
       {turns.map((t) => (
         <MessageBubble key={t.id} turn={t} />
       ))}
-      <div ref={bottomRef} />
+      <div ref={bottomRef} aria-hidden="true" />
     </div>
   );
 }

@@ -35,7 +35,7 @@ export async function sendTurn(text: string, imageUrl?: string): Promise<void> {
   const trimmed = text.trim();
   if (!trimmed && !imageUrl) return;
 
-  const keys = useVaultKeys();
+  const keys = getVaultKeys();
   const ss = useSessionStore.getState();
   if (!ss.activeId) ss.createSession(useUiStore.getState().activeModel);
   const sid = useSessionStore.getState().activeId!;
@@ -64,7 +64,7 @@ async function runAssistantTurn(sid: string, forceCompact = false): Promise<void
   if (!s0) return;
   const { providerId, modelId } = s0.modelKey;
 
-  if (!useVaultKeys()[providerId]) {
+  if (!getVaultKeys()[providerId]) {
     toast(`Add a ${PROVIDERS[providerId].name} key first — Settings → Keys.`, { error: true });
     return;
   }
@@ -255,7 +255,8 @@ function announce(modelId: string): void {
   if (el) el.textContent = `Reply from ${modelId} finished`;
 }
 
-function useVaultKeys() {
+/** Get vault keys directly from the store (not a hook). */
+function getVaultKeys() {
   return useVaultStore.getState().keys;
 }
 

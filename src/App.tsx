@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import './styles/tokens.css';
 import './ui/ui.css';
 import './styles/app.css';
@@ -13,9 +13,11 @@ import { ThreadView } from './features/thread/ThreadView';
 import { Composer } from './features/composer/Composer';
 import { ProvidersPage } from './features/providers/ProvidersPage';
 import { autoLoadKeyedModels, ensureSaneActiveModel } from './features/providers/autoLoad';
-import { Palette } from './features/palette/Palette';
-import { SettingsSheet } from './features/settings/SettingsSheet';
 import { loadSettings } from './state/settings';
+
+// Lazy load components that are not immediately needed
+const Palette = lazy(() => import('./features/palette/Palette').then(m => ({ default: m.Palette })));
+const SettingsSheet = lazy(() => import('./features/settings/SettingsSheet').then(m => ({ default: m.SettingsSheet })));
 
 /**
  * Shell: vault gate → rail + topbar + active view.
@@ -135,8 +137,16 @@ export default function App() {
         <div id="aria-announcer" className="sr-only" aria-live="polite" />
       </div>
       <ToastStack />
-      {paletteOpen && <Palette />}
-      {settingsOpen && <SettingsSheet />}
+      {paletteOpen && (
+        <Suspense fallback={null}>
+          <Palette />
+        </Suspense>
+      )}
+      {settingsOpen && (
+        <Suspense fallback={null}>
+          <SettingsSheet />
+        </Suspense>
+      )}
     </div>
   );
 }

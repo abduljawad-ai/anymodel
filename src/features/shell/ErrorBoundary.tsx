@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from 'react';
+import { logger } from '../../lib/logger';
 
 interface Props {
   children: ReactNode;
@@ -7,21 +8,38 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+  errorInfo: React.ErrorInfo | null;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
   static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
+    return { hasError: true, error, errorInfo: null };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Relay crashed:', error, errorInfo);
+    logger.error('Relay crashed', 'ErrorBoundary', { error, errorInfo });
+    this.setState({ errorInfo });
   }
+
+  copyErrorDetails = (): void => {
+    const { error, errorInfo } = this.state;
+    const details = [
+      `Error: ${error?.message ?? 'Unknown'}`,
+      error?.stack && `\nStack: ${error.stack}`,
+      errorInfo?.componentStack && `\nComponent Stack: ${errorInfo.componentStack}`,
+      '\nRecent Logs:',
+      ...logger.getRecent(10).map((e) => `  ${e.timestamp} [${e.level}] ${e.message}`),
+    ].filter(Boolean).join('\n');
+    navigator.clipboard.writeText(details).then(
+      () => alert('Error details copied to clipboard'),
+      () => console.error('Failed to copy error details'),
+    );
+  };
 
   render() {
     if (this.state.hasError) {
@@ -60,12 +78,20 @@ export class ErrorBoundary extends Component<Props, State> {
             }}>
               {this.state.error?.message ?? 'Unknown error'}
             </pre>
-            <button
-              className="btn btn-primary"
-              onClick={() => window.location.reload()}
-            >
-              Reload Relay
-            </button>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+              <button
+                className="btn"
+                onClick={this.copyErrorDetails}
+              >
+                Copy Error Details
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => window.location.reload()}
+              >
+                Reload Relay
+              </button>
+            </div>
           </div>
         </div>
       );
