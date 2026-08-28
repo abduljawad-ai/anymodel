@@ -13,7 +13,7 @@ import { ThreadView } from './features/thread/ThreadView';
 import { Composer } from './features/composer/Composer';
 import { ProvidersPage } from './features/providers/ProvidersPage';
 import { autoLoadKeyedModels, ensureSaneActiveModel } from './features/providers/autoLoad';
-import { loadSettings } from './state/settings';
+
 import { KeyboardShortcuts } from './features/shell/KeyboardShortcuts';
 
 const Palette = lazy(() => import('./features/palette/Palette').then(m => ({ default: m.Palette })));

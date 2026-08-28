@@ -142,4 +142,4 @@ export const MicRecorder = forwardRef<MicRecorderRef, MicRecorderProps>(({ text,
       {active ? <MicOff size={16} aria-hidden /> : <Mic size={16} aria-hidden />}
     </button>
   );
-}
+});
