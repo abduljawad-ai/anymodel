@@ -115,7 +115,7 @@ export function Rail() {
           .map((s) => (
           <div key={s.id} className={`session-item ${s.id === activeId ? 'active' : ''}`}>
             <button
-              className="session-pin"
+              className="session-action session-pin"
               title={s.pinned ? 'Unpin' : 'Pin'}
               onClick={() => useSessionStore.getState().togglePin(s.id)}
               aria-label={s.pinned ? 'Unpin conversation' : 'Pin conversation'}
@@ -136,7 +136,7 @@ export function Rail() {
               <span className="session-time">{relTime(s.updatedAt)}</span>
             </button>
             <button
-              className={`session-del ${confirmId === s.id ? 'confirm' : ''}`}
+              className={`session-action session-del ${confirmId === s.id ? 'confirm' : ''}`}
               title="Delete session"
               onClick={() => {
                 if (confirmId === s.id) {

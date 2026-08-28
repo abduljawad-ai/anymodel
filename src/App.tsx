@@ -15,6 +15,7 @@ import { ProvidersPage } from './features/providers/ProvidersPage';
 import { autoLoadKeyedModels, ensureSaneActiveModel } from './features/providers/autoLoad';
 import { loadSettings } from './state/settings';
 import { KeyboardShortcuts } from './features/shell/KeyboardShortcuts';
+import { OnboardingTooltips } from './features/shell/OnboardingTooltips';
 
 // Lazy load components that are not immediately needed
 const Palette = lazy(() => import('./features/palette/Palette').then(m => ({ default: m.Palette })));
@@ -155,6 +156,7 @@ export default function App() {
         </Suspense>
       )}
       <KeyboardShortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      <OnboardingTooltips />
     </div>
   );
 }
