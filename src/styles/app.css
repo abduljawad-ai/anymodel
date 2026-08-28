@@ -213,6 +213,25 @@ select {
   color: var(--err);
 }
 
+.session-pin {
+  opacity: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 0 4px;
+  transition: opacity 0.15s var(--ease);
+}
+
+.session-item:hover .session-pin,
+.session-pin:focus-visible {
+  opacity: 1;
+}
+
+.session-pin:hover {
+  color: var(--accent);
+}
+
 .rail-nav {
   display: flex;
   flex-direction: column;

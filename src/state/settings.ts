@@ -18,6 +18,8 @@ export interface RelaySettings {
   /** Custom base URL per provider ('' or missing → PROVIDERS.defaultBase). */
   bases: Partial<Record<ProviderId, string>>;
   lastModel: { providerId: ProviderId; modelId: string };
+  /** Favorite models for quick access in palette */
+  favoriteModels: Array<{ providerId: ProviderId; modelId: string; label: string }>;
 }
 
 export const DEFAULT_SETTINGS: RelaySettings = {
@@ -30,6 +32,7 @@ export const DEFAULT_SETTINGS: RelaySettings = {
   temperature: 0.7,
   bases: {},
   lastModel: { providerId: 'openai', modelId: 'gpt-4o' },
+  favoriteModels: [],
 };
 
 export function loadSettings(): RelaySettings {

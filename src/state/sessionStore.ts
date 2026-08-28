@@ -35,6 +35,8 @@ export interface Session {
   modelKey: { providerId: ProviderId; modelId: string };
   turns: Turn[];
   memory?: SessionMemory;
+  pinned?: boolean;
+  tags?: string[];
 }
 
 type ModelKey = Session['modelKey'];
@@ -54,6 +56,9 @@ interface SessionsState {
   /** Streaming fast-path — updates content without persisting. */
   appendDelta(sid: string, tid: string, text: string): void;
   appendReasoning(sid: string, tid: string, text: string): void;
+  togglePin(id: string): void;
+  addTag(id: string, tag: string): void;
+  removeTag(id: string, tag: string): void;
   active(): Session | undefined;
   exportJson(): string;
   importJson(text: string): 'ok' | 'invalid';
@@ -181,6 +186,28 @@ export const useSessionStore = create<SessionsState>((set, get) => ({
     set((st) => ({ sessions: st.sessions.map((x) =>
       x.id !== sid ? x : { ...x, turns: x.turns.map((t) => (t.id !== tid ? t : { ...t, reasoning: (t.reasoning ?? '') + text })) },
     ) }));
+  },
+  togglePin(id) {
+    set((st) => ({ sessions: touch(st.sessions, id, (s) => ({ ...s, pinned: !s.pinned })) }));
+    persistSoon(get);
+  },
+  addTag(id, tag) {
+    set((st) => ({
+      sessions: touch(st.sessions, id, (s) => ({
+        ...s,
+        tags: [...new Set([...(s.tags ?? []), tag])],
+      })),
+    }));
+    persistSoon(get);
+  },
+  removeTag(id, tag) {
+    set((st) => ({
+      sessions: touch(st.sessions, id, (s) => ({
+        ...s,
+        tags: (s.tags ?? []).filter((t) => t !== tag),
+      })),
+    }));
+    persistSoon(get);
   },
   active() {
     return get().sessions.find((s) => s.id === get().activeId);

@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { PenLine, Brain, Lightbulb, Wrench } from 'lucide-react';
+import { PenLine, Brain, Lightbulb, Wrench, Download, Copy } from 'lucide-react';
 import { useSessionStore } from '../../state/sessionStore';
 import { useUiStore } from '../../state/uiStore';
 import { MessageBubble } from './MessageBubble';
+import { toast } from '../../lib/toast';
 
 /** The conversation: turn list + empty state. */
 export function ThreadView() {
@@ -64,6 +65,40 @@ export function ThreadView() {
     );
   }
 
+  function copyAllMessages() {
+    const text = turns
+      .map((t) => {
+        if (t.role === 'user') {
+          return `You: ${t.content}`;
+        }
+        return `${t.modelId ?? 'Assistant'}: ${t.content}`;
+      })
+      .join('\n\n');
+    navigator.clipboard.writeText(text).then(
+      () => toast('All messages copied'),
+      () => toast('Copy failed')
+    );
+  }
+
+  function exportChat() {
+    const lines = [`# ${session?.title ?? 'Chat'}`, ''];
+    for (const t of turns) {
+      if (t.role === 'user') {
+        lines.push('## You', '', t.content, '');
+      } else {
+        lines.push(`> **${t.modelId ?? 'model'}**`, '', t.content, '');
+      }
+    }
+    const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${session?.title?.replace(/[^\w]+/g, '-').slice(0, 40) ?? 'chat'}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('Chat exported');
+  }
+
   return (
     <div className="thread-wrap" role="log" aria-label="Conversation" aria-live="polite">
       {session.memory && (
@@ -71,6 +106,28 @@ export function ThreadView() {
           <span className="chip" title={session.memory.text} aria-label={`Memory compacted ${session.memory.compactions} times`}>
             memory ×{session.memory.compactions}
           </span>
+        </div>
+      )}
+      {turns.length > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
+          <button
+            className="btn"
+            onClick={copyAllMessages}
+            title="Copy all messages"
+            aria-label="Copy all messages"
+            style={{ fontSize: 12 }}
+          >
+            <Copy size={12} aria-hidden /> Copy all
+          </button>
+          <button
+            className="btn"
+            onClick={exportChat}
+            title="Export chat as markdown"
+            aria-label="Export chat"
+            style={{ fontSize: 12 }}
+          >
+            <Download size={12} aria-hidden /> Export
+          </button>
         </div>
       )}
       {turns.map((t) => (

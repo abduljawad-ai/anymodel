@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Star } from 'lucide-react';
 import { cachedModels, isChatCapable, ensureModels } from '../../catalog';
 import { toast } from '../../lib/toast';
 import { onModelsChanged, keyedButUnloaded } from '../providers/autoLoad';
 import type { ModelInfo, ProviderId } from '../../catalog/types';
 import { getProviderMeta, listProviders } from '../../catalog/providers';
 import { useUiStore } from '../../state/uiStore';
+import { loadSettings, saveSettings } from '../../state/settings';
 
 /** Search synonyms so "vision", "voice" etc. find the right models. */
 const CAP_SYNONYMS: Record<string, string[]> = {
@@ -91,6 +93,31 @@ export function Palette() {
     setPaletteOpen(false);
   }
 
+  function toggleFavorite(e: Entry) {
+    const settings = loadSettings();
+    const exists = settings.favoriteModels.some(
+      (f) => f.providerId === e.providerId && f.modelId === e.id
+    );
+    if (exists) {
+      saveSettings({
+        favoriteModels: settings.favoriteModels.filter(
+          (f) => !(f.providerId === e.providerId && f.modelId === e.id)
+        ),
+      });
+      toast('Removed from favorites');
+    } else {
+      saveSettings({
+        favoriteModels: [
+          ...settings.favoriteModels,
+          { providerId: e.providerId as ProviderId, modelId: e.id, label: e.label },
+        ],
+      });
+      toast('Added to favorites');
+    }
+  }
+
+  const favorites = useMemo(() => loadSettings().favoriteModels, [tick]);
+
   // Group filtered entries by provider for display.
   const groups = useMemo(() => {
     const out: Array<{ providerId: ProviderId; models: Entry[] }> = [];
@@ -157,28 +184,69 @@ export function Palette() {
           aria-label="Search models"
         />
         <div className="palette-list" ref={listRef}>
+          {favorites.length > 0 && !q && (
+            <>
+              <div className="palette-group">FAVORITES</div>
+              {favorites.map((fav, fi) => {
+                const entry = entries.find((e) => e.providerId === fav.providerId && e.id === fav.modelId);
+                if (!entry) return null;
+                const i = fi;
+                const isActive = fav.providerId === activeModel.providerId && fav.modelId === activeModel.modelId;
+                return (
+                  <button
+                    key={`fav-${fav.providerId}/${fav.modelId}`}
+                    className={`palette-item ${isActive ? 'active' : ''}`}
+                    data-selected={i === sel}
+                    onMouseEnter={() => setSel(i)}
+                    onClick={() => choose(entry)}
+                  >
+                    <span
+                      className="tint-dot"
+                      style={{ ['--tint' as string]: getProviderMeta(fav.providerId)?.tint }}
+                    />
+                    <span>{fav.label}</span>
+                    {isActive && <span style={{ marginLeft: 'auto', color: 'var(--accent)', fontSize: 12 }}>✓ current</span>}
+                    <button
+                      className="icon-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFavorite(entry);
+                      }}
+                      aria-label="Remove from favorites"
+                      style={{ marginLeft: 'auto' }}
+                    >
+                      <Star size={12} aria-hidden style={{ fill: 'var(--accent)', color: 'var(--accent)' }} />
+                    </button>
+                  </button>
+                );
+              })}
+            </>
+          )}
           {loadables.length > 0 && (
             <>
               <div className="palette-group">LOAD MODELS</div>
-              {loadables.map((p, li) => (
-                <button
-                  key={`load-${p.id}`}
-                  className="palette-item"
-                  data-selected={li === sel}
-                  onMouseEnter={() => setSel(li)}
-                  onClick={() =>
-                    void ensureModels(p.id)
-                      .then((ms) => toast(`${p.name}: ${ms.length} models loaded`))
-                      .catch((e) => toast(e instanceof Error ? e.message : 'load failed'))
-                  }
-                >
-                  <span className="tint-dot" style={{ ['--tint' as string]: p.tint }} />
-                  <span>⇩ Load {p.name} models</span>
-                  <span className="caps">
-                    <span className="cap-chip">has key</span>
-                  </span>
-                </button>
-              ))}
+              {loadables.map((p, li) => {
+                const i = favorites.length + li;
+                return (
+                  <button
+                    key={`load-${p.id}`}
+                    className="palette-item"
+                    data-selected={i === sel}
+                    onMouseEnter={() => setSel(i)}
+                    onClick={() =>
+                      void ensureModels(p.id)
+                        .then((ms) => toast(`${p.name}: ${ms.length} models loaded`))
+                        .catch((e) => toast(e instanceof Error ? e.message : 'load failed'))
+                    }
+                  >
+                    <span className="tint-dot" style={{ ['--tint' as string]: p.tint }} />
+                    <span>⇩ Load {p.name} models</span>
+                    <span className="caps">
+                      <span className="cap-chip">has key</span>
+                    </span>
+                  </button>
+                );
+              })}
             </>
           )}
           {filtered.length === 0 && loadables.length === 0 && (
@@ -190,8 +258,9 @@ export function Palette() {
             <div key={g.providerId}>
               <div className="palette-group">{getProviderMeta(g.providerId)?.name ?? g.providerId}</div>
               {g.models.map((e) => {
-                const i = loadables.length + flat.indexOf(e);
+                const i = favorites.length + loadables.length + flat.indexOf(e);
                 const isActive = e.providerId === activeModel.providerId && e.id === activeModel.modelId;
+                const isFav = favorites.some((f) => f.providerId === e.providerId && f.modelId === e.id);
                 return (
                   <button
                     key={`${e.providerId}/${e.id}`}
@@ -206,6 +275,17 @@ export function Palette() {
                     />
                     <span>{e.label}</span>
                     {isActive && <span style={{ marginLeft: 'auto', color: 'var(--accent)', fontSize: 12 }}>✓ current</span>}
+                    <button
+                      className="icon-btn"
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        toggleFavorite(e);
+                      }}
+                      aria-label={isFav ? 'Remove from favorites' : 'Add to favorites'}
+                      style={{ marginLeft: isActive ? 0 : 'auto' }}
+                    >
+                      <Star size={12} aria-hidden style={{ fill: isFav ? 'var(--accent)' : 'none', color: isFav ? 'var(--accent)' : 'var(--muted)' }} />
+                    </button>
                     <span className="caps">
                       {e.caps.map((c) => (
                         <span key={c} className="cap-chip">

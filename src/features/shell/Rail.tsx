@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MessageCircle, Boxes, Settings, Moon, Sun, Lock, X } from 'lucide-react';
+import { MessageCircle, Boxes, Settings, Moon, Sun, Lock, X, Pin } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import { IconButton } from '../../ui/IconButton';
 import { Input } from '../../ui/Input';
@@ -106,8 +106,22 @@ export function Rail() {
       <nav className="rail-sessions">
         {sessions
           .filter((s) => !search || s.title.toLowerCase().includes(search.toLowerCase()))
+          .sort((a, b) => {
+            // Pinned items first, then by updatedAt
+            if (a.pinned && !b.pinned) return -1;
+            if (!a.pinned && b.pinned) return 1;
+            return b.updatedAt - a.updatedAt;
+          })
           .map((s) => (
           <div key={s.id} className={`session-item ${s.id === activeId ? 'active' : ''}`}>
+            <button
+              className="session-pin"
+              title={s.pinned ? 'Unpin' : 'Pin'}
+              onClick={() => useSessionStore.getState().togglePin(s.id)}
+              aria-label={s.pinned ? 'Unpin conversation' : 'Pin conversation'}
+            >
+              <Pin size={12} aria-hidden style={{ fill: s.pinned ? 'currentColor' : 'none' }} />
+            </button>
             <button
               className="session-title"
               style={{ all: 'unset', cursor: 'pointer', flex: 1 }}

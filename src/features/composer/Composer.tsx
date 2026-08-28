@@ -4,6 +4,7 @@ import { anyActive, onStreamActivity, stopStream } from '../../state/streamRegis
 import { sendTurn } from '../thread/useSend';
 import { fileToDataUrl } from './ImageAttach';
 import { MicRecorder } from './MicRecorder';
+import { PromptLibrary } from './PromptLibrary';
 import { toast } from '../../lib/toast';
 
 /**
@@ -124,6 +125,7 @@ export function Composer() {
             </div>
           )}
           <MicRecorder onTranscript={(t) => setText((cur) => (cur ? `${cur} ${t}` : t))} />
+          <PromptLibrary onSelect={(prompt) => setText((cur) => cur + prompt)} />
 
           {streaming ? (
             <button className="btn btn-danger stop-btn composer-send" onClick={() => stopStream()} aria-label="Stop generating">

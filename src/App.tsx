@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import './styles/tokens.css';
 import './ui/ui.css';
 import './styles/app.css';
@@ -14,6 +14,7 @@ import { Composer } from './features/composer/Composer';
 import { ProvidersPage } from './features/providers/ProvidersPage';
 import { autoLoadKeyedModels, ensureSaneActiveModel } from './features/providers/autoLoad';
 import { loadSettings } from './state/settings';
+import { KeyboardShortcuts } from './features/shell/KeyboardShortcuts';
 
 // Lazy load components that are not immediately needed
 const Palette = lazy(() => import('./features/palette/Palette').then(m => ({ default: m.Palette })));
@@ -33,6 +34,7 @@ export default function App() {
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
   const setRailOpen = useUiStore((s) => s.setRailOpen);
   const inSetup = useUiStore((s) => s.inSetup);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   // Boot stores once.
   useEffect(() => {
@@ -78,6 +80,11 @@ export default function App() {
       if ((e.metaKey || e.ctrlKey) && e.key === ',') {
         e.preventDefault();
         useUiStore.getState().setSettingsOpen(true);
+      }
+      // Cmd+/ / Ctrl+/: open keyboard shortcuts
+      if ((e.metaKey || e.ctrlKey) && e.key === '/') {
+        e.preventDefault();
+        setShortcutsOpen(true);
       }
       useVaultStore.getState().touch();
     };
@@ -147,6 +154,7 @@ export default function App() {
           <SettingsSheet />
         </Suspense>
       )}
+      <KeyboardShortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
   );
 }

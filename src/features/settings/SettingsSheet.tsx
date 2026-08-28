@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Lock } from 'lucide-react';
+import { X, Lock, ChevronDown, ChevronRight, Star } from 'lucide-react';
 import type { ProviderId } from '../../catalog/types';
 import { useUiStore } from '../../state/uiStore';
 import { listProviders, PROVIDERS, PROVIDER_IDS } from '../../catalog/providers';
@@ -25,8 +25,31 @@ export function SettingsSheet() {
   const [flash, setFlash] = useState<Partial<Record<ProviderId, string>>>({});
   const [autoLockMin, setAutoLockMin] = useState(loadSettings().autoLockMin);
   const [budget, setBudget] = useState(loadSettings().contextBudgetTokens);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    keys: true,
+    instructions: true,
+    favorites: true,
+    custody: false,
+    data: true,
+    app: true,
+    advanced: false,
+  });
   // Track initial values so blur handlers only save + toast on real changes.
   const initialRef = useState(() => loadSettings())[0];
+
+  function toggleSection(section: string) {
+    setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
+  }
+
+  function removeFavorite(providerId: ProviderId, modelId: string) {
+    const settings = loadSettings();
+    saveSettings({
+      favoriteModels: settings.favoriteModels.filter(
+        (f) => !(f.providerId === providerId && f.modelId === modelId)
+      ),
+    });
+    toast('Removed from favorites');
+  }
 
   async function saveKey(p: ProviderId) {
     const v = drafts[p]?.trim();
@@ -62,8 +85,15 @@ export function SettingsSheet() {
         </div>
 
         {/* 1 · KEYS ------------------------------------------------------------ */}
-        <h3 className="sec-title">API keys</h3>
-        {listProviders().map((pm) => (
+        <button
+          className="sec-title"
+          onClick={() => toggleSection('keys')}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '8px 0' }}
+        >
+          {expandedSections.keys ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          API keys
+        </button>
+        {expandedSections.keys && listProviders().map((pm) => (
           <div className="field" key={pm.id}>
             <label htmlFor={`set-${pm.id}`}>
               {pm.keyUrl ? (
@@ -104,168 +134,258 @@ export function SettingsSheet() {
 
         <hr className="sec-div" />
 
+        {/* FAVORITES ----------------------------------------------------------- */}
+        <button
+          className="sec-title"
+          onClick={() => toggleSection('favorites')}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '8px 0' }}
+        >
+          {expandedSections.favorites ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          <Star size={14} aria-hidden /> Favorite models
+        </button>
+        {expandedSections.favorites && (
+          <div className="field">
+            {loadSettings().favoriteModels.length === 0 ? (
+              <span style={{ color: 'var(--muted)', fontSize: 12.5 }}>
+                No favorites yet. Star models in the palette (⌘K) to add them here.
+              </span>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {loadSettings().favoriteModels.map((fav) => (
+                  <div
+                    key={`${fav.providerId}/${fav.modelId}`}
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', background: 'var(--paper)', borderRadius: 6 }}
+                  >
+                    <span style={{ fontSize: 13 }}>{fav.label}</span>
+                    <button
+                      className="btn btn-danger"
+                      onClick={() => removeFavorite(fav.providerId, fav.modelId)}
+                      style={{ padding: '2px 8px', fontSize: 11 }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <hr className="sec-div" />
+
         {/* CUSTOM INSTRUCTIONS ------------------------------------------------- */}
-        <h3 className="sec-title">Custom instructions</h3>
-        <div className="field">
-          <label htmlFor="sysprompt">How should the AI respond? (applies to every chat)</label>
-          <textarea
-            id="sysprompt"
-            className="ui-textarea"
-            rows={3}
-            placeholder="e.g. You are a concise assistant. Prefer bullet points. Answer in English."
-            defaultValue={initialRef.systemPrompt}
-            onBlur={(e) => {
-              const v = e.target.value;
-              if (v === initialRef.systemPrompt) return;
-              saveSettings({ systemPrompt: v });
-              toast('Custom instructions saved');
-            }}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="temp">
-            Temperature · <span style={{ fontFamily: 'var(--font-mono)' }}>{loadSettings().temperature}</span>{' '}
-            (lower = focused, higher = creative)
-          </label>
-          <input
-            id="temp"
-            type="range"
-            min={0}
-            max={2}
-            step={0.1}
-            defaultValue={loadSettings().temperature}
-            onChange={(e) => saveSettings({ temperature: Number(e.target.value) })}
-          />
-        </div>
+        <button
+          className="sec-title"
+          onClick={() => toggleSection('instructions')}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '8px 0' }}
+        >
+          {expandedSections.instructions ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          Custom instructions
+        </button>
+        {expandedSections.instructions && (
+          <>
+            <div className="field">
+              <label htmlFor="sysprompt">How should the AI respond? (applies to every chat)</label>
+              <textarea
+                id="sysprompt"
+                className="ui-textarea"
+                rows={3}
+                placeholder="e.g. You are a concise assistant. Prefer bullet points. Answer in English."
+                defaultValue={initialRef.systemPrompt}
+                onBlur={(e) => {
+                  const v = e.target.value;
+                  if (v === initialRef.systemPrompt) return;
+                  saveSettings({ systemPrompt: v });
+                  toast('Custom instructions saved');
+                }}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="temp">
+                Temperature · <span style={{ fontFamily: 'var(--font-mono)' }}>{loadSettings().temperature}</span>{' '}
+                (lower = focused, higher = creative)
+              </label>
+              <input
+                id="temp"
+                type="range"
+                min={0}
+                max={2}
+                step={0.1}
+                defaultValue={loadSettings().temperature}
+                onChange={(e) => saveSettings({ temperature: Number(e.target.value) })}
+              />
+            </div>
+          </>
+        )}
 
         <hr className="sec-div" />
 
         {/* 2 · CUSTODY --------------------------------------------------------- */}
-        <h3 className="sec-title">Split-key custody (relay-gate)</h3>
-        <div className="field">
-          <label htmlFor="gate">Gate URL</label>
-          <input
-            id="gate"
-            placeholder="https://your-gate.example.com"
-            defaultValue={initialRef.gateUrl}
-            onBlur={(e) => {
-              const v = e.target.value.trim();
-              if (v === initialRef.gateUrl) return;
-              saveSettings({ gateUrl: v });
-              toast('Gate URL saved');
-            }}
-          />
-          <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
-            Enrolled providers send only a pairing key through your gate — the real API key never touches this browser again.
-          </span>
-        </div>
-        {PROVIDER_IDS.filter((p) => custodyOf(p) !== 'none').map((p) => {
-          const mode = custodyOf(p);
-          return (
-            <div className="field" key={`c-${p}`}>
-              <label>{PROVIDERS[p].name}</label>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <span className="chip">{mode === 'gate' ? '🔒 gate-held' : 'local'}</span>
-                {mode === 'gate' ? (
-                  <button
-                    className="btn btn-danger"
-                    onClick={() =>
-                      void revokeOnGate(p)
-                        .then(() => toast('Revoked on gate'))
-                        .catch((e) => toast(e.message))
-                    }
-                  >
-                    Revoke
-                  </button>
-                ) : (
-                  <button
-                    className="btn"
-                    onClick={() =>
-                      void enrollToGate(p, PROVIDERS[p].kind)
-                        .then(() => toast(`${PROVIDERS[p].name} enrolled`))
-                        .catch((e) => toast(e.message))
-                    }
-                  >
-                    Enroll
-                  </button>
-                )}
-              </div>
+        <button
+          className="sec-title"
+          onClick={() => toggleSection('custody')}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '8px 0' }}
+        >
+          {expandedSections.custody ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          Split-key custody (relay-gate)
+        </button>
+        {expandedSections.custody && (
+          <>
+            <div className="field">
+              <label htmlFor="gate">Gate URL</label>
+              <input
+                id="gate"
+                placeholder="https://your-gate.example.com"
+                defaultValue={initialRef.gateUrl}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  if (v === initialRef.gateUrl) return;
+                  saveSettings({ gateUrl: v });
+                  toast('Gate URL saved');
+                }}
+              />
+              <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+                Enrolled providers send only a pairing key through your gate — the real API key never touches this browser again.
+              </span>
             </div>
-          );
-        })}
+            {PROVIDER_IDS.filter((p) => custodyOf(p) !== 'none').map((p) => {
+              const mode = custodyOf(p);
+              return (
+                <div className="field" key={`c-${p}`}>
+                  <label>{PROVIDERS[p].name}</label>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <span className="chip">{mode === 'gate' ? '🔒 gate-held' : 'local'}</span>
+                    {mode === 'gate' ? (
+                      <button
+                        className="btn btn-danger"
+                        onClick={() =>
+                          void revokeOnGate(p)
+                            .then(() => toast('Revoked on gate'))
+                            .catch((e) => toast(e.message))
+                        }
+                      >
+                        Revoke
+                      </button>
+                    ) : (
+                      <button
+                        className="btn"
+                        onClick={() =>
+                          void enrollToGate(p, PROVIDERS[p].kind)
+                            .then(() => toast(`${PROVIDERS[p].name} enrolled`))
+                            .catch((e) => toast(e.message))
+                        }
+                      >
+                        Enroll
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        )}
 
         <hr className="sec-div" />
 
         {/* 3 · DATA ------------------------------------------------------------ */}
-        <h3 className="sec-title">Data</h3>
-        <DataPort />
+        <button
+          className="sec-title"
+          onClick={() => toggleSection('data')}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '8px 0' }}
+        >
+          {expandedSections.data ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          Data
+        </button>
+        {expandedSections.data && <DataPort />}
 
         <hr className="sec-div" />
 
         {/* 4 · APP -------------------------------------------------------------- */}
-        <h3 className="sec-title">App</h3>
-        <div className="field">
-          <label htmlFor="autolock">Auto-lock vault after (minutes idle)</label>
-          <input
-            id="autolock"
-            type="number"
-            min={1}
-            max={240}
-            style={{ width: 130 }}
-            value={autoLockMin}
-            onChange={(e) => {
-              const v = Math.max(1, Math.min(240, Number(e.target.value) || 15));
-              setAutoLockMin(v);
-              saveSettings({ autoLockMin: v });
-            }}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="budget">Context budget — compact history beyond (~tokens)</label>
-          <input
-            id="budget"
-            type="number"
-            min={2000}
-            max={200000}
-            step={1000}
-            style={{ width: 130 }}
-            value={budget}
-            onChange={(e) => {
-              const v = Math.max(2000, Math.min(200000, Number(e.target.value) || 12000));
-              setBudget(v);
-              saveSettings({ contextBudgetTokens: v });
-            }}
-          />
-          <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
-            Older turns fold into a rolling AI memory so long threads stay cheap on every model.
-          </span>
-        </div>
+        <button
+          className="sec-title"
+          onClick={() => toggleSection('app')}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '8px 0' }}
+        >
+          {expandedSections.app ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          App
+        </button>
+        {expandedSections.app && (
+          <>
+            <div className="field">
+              <label htmlFor="autolock">Auto-lock vault after (minutes idle)</label>
+              <input
+                id="autolock"
+                type="number"
+                min={1}
+                max={240}
+                style={{ width: 130 }}
+                value={autoLockMin}
+                onChange={(e) => {
+                  const v = Math.max(1, Math.min(240, Number(e.target.value) || 15));
+                  setAutoLockMin(v);
+                  saveSettings({ autoLockMin: v });
+                }}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="budget">Context budget — compact history beyond (~tokens)</label>
+              <input
+                id="budget"
+                type="number"
+                min={2000}
+                max={200000}
+                step={1000}
+                style={{ width: 130 }}
+                value={budget}
+                onChange={(e) => {
+                  const v = Math.max(2000, Math.min(200000, Number(e.target.value) || 12000));
+                  setBudget(v);
+                  saveSettings({ contextBudgetTokens: v });
+                }}
+              />
+              <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+                Older turns fold into a rolling AI memory so long threads stay cheap on every model.
+              </span>
+            </div>
+          </>
+        )}
 
         <hr className="sec-div" />
 
         {/* 5 · ADVANCED ---------------------------------------------------------- */}
-        <h3 className="sec-title">Advanced — base URL overrides</h3>
-        <p style={{ margin: '0 0 8px', color: 'var(--muted)', fontSize: 12.5 }}>
-          Only for compatible/local providers or proxies. https required; localhost exempt.
-        </p>
-        {PROVIDER_IDS.filter((p) => PROVIDERS[p].kind === 'compatible' || loadSettings().bases[p]).map((p) => (
-          <div className="field" key={`b-${p}`}>
-            <label htmlFor={`base-${p}`}>{PROVIDERS[p].name}</label>
-            <input
-              id={`base-${p}`}
-              placeholder={PROVIDERS[p].defaultBase}
-              defaultValue={loadSettings().bases[p] ?? ''}
-              onBlur={(e) => {
-                const clean = e.target.value.trim();
-                if (clean && !isAllowedBase(clean)) {
-                  toast('Base must be https (localhost exempt).');
-                  return;
-                }
-                saveSettings({ bases: { ...loadSettings().bases, [p]: clean } });
-              }}
-            />
-          </div>
-        ))}
+        <button
+          className="sec-title"
+          onClick={() => toggleSection('advanced')}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '8px 0' }}
+        >
+          {expandedSections.advanced ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          Advanced — base URL overrides
+        </button>
+        {expandedSections.advanced && (
+          <>
+            <p style={{ margin: '0 0 8px', color: 'var(--muted)', fontSize: 12.5 }}>
+              Only for compatible/local providers or proxies. https required; localhost exempt.
+            </p>
+            {PROVIDER_IDS.filter((p) => PROVIDERS[p].kind === 'compatible' || loadSettings().bases[p]).map((p) => (
+              <div className="field" key={`b-${p}`}>
+                <label htmlFor={`base-${p}`}>{PROVIDERS[p].name}</label>
+                <input
+                  id={`base-${p}`}
+                  placeholder={PROVIDERS[p].defaultBase}
+                  defaultValue={loadSettings().bases[p] ?? ''}
+                  onBlur={(e) => {
+                    const clean = e.target.value.trim();
+                    if (clean && !isAllowedBase(clean)) {
+                      toast('Base must be https (localhost exempt).');
+                      return;
+                    }
+                    saveSettings({ bases: { ...loadSettings().bases, [p]: clean } });
+                  }}
+                />
+              </div>
+            ))}
+          </>
+        )}
 
         <div className="wizard-actions">
           <button className="btn btn-danger" onClick={() => useVaultStore.getState().lock()}>
