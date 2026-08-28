@@ -43,7 +43,6 @@ export function SettingsSheet() {
   const keys = useVaultStore((s) => s.keys);
   const initial = loadSettings();
 
-  const [autoLockMin, setAutoLockMin] = useState(initial.autoLockMin);
   const [budget, setBudget] = useState(initial.contextBudgetTokens);
   const [sections, setSections] = useState<Record<Section, boolean>>({
     keys: true,
@@ -239,14 +238,6 @@ export function SettingsSheet() {
         <SectionHeader label="App" open={sections.app} onClick={() => toggle('app')} />
         {sections.app && (
           <>
-            <div className="field">
-              <label htmlFor="autolock">Auto-lock vault after (minutes idle)</label>
-              <input id="autolock" type="number" min={1} max={240} style={{ width: 130 }} value={autoLockMin} onChange={(e) => {
-                const v = Math.max(1, Math.min(240, Number(e.target.value) || 15));
-                setAutoLockMin(v);
-                saveSettings({ autoLockMin: v });
-              }} />
-            </div>
             <div className="field">
               <label htmlFor="budget">Context budget — compact history beyond (~tokens)</label>
               <input id="budget" type="number" min={2000} max={200000} step={1000} style={{ width: 130 }} value={budget} onChange={(e) => {

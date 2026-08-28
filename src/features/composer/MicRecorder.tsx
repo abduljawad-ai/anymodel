@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import { Mic, MicOff } from 'lucide-react';
 import { toast } from '../../lib/toast';
 
@@ -55,10 +55,26 @@ interface MicRecorderProps {
   setText: (text: string) => void;
 }
 
-export function MicRecorder({ text, setText }: MicRecorderProps) {
+export interface MicRecorderRef {
+  stop: () => void;
+}
+
+export const MicRecorder = forwardRef<MicRecorderRef, MicRecorderProps>(({ text, setText }, ref) => {
   const [active, setActive] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const startTextRef = useRef('');
+
+  const stopRecording = useCallback(() => {
+    if (active) {
+      recognitionRef.current?.stop();
+      setActive(false);
+      recognitionRef.current = null;
+    }
+  }, [active]);
+
+  useImperativeHandle(ref, () => ({
+    stop: stopRecording,
+  }));
 
   useEffect(() => {
     return () => {
@@ -74,9 +90,7 @@ export function MicRecorder({ text, setText }: MicRecorderProps) {
     }
 
     if (active) {
-      recognitionRef.current?.stop();
-      setActive(false);
-      recognitionRef.current = null;
+      stopRecording();
       return;
     }
 

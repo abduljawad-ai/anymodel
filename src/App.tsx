@@ -83,46 +83,6 @@ export default function App() {
     };
   }, [setPaletteOpen, setRailOpen]);
 
-  useEffect(() => {
-    const iv = setInterval(() => {
-      const v = useVaultStore.getState();
-      if (v.status !== 'unlocked') return;
-      const { autoLockMin } = loadSettings();
-      if (Date.now() - v.lastActivity > autoLockMin * 60_000) v.lock();
-    }, 30_000);
-    return () => clearInterval(iv);
-  }, []);
-
-  // Auto-lock when tab becomes hidden longer than the auto-lock window
-  useEffect(() => {
-    let hiddenSince = 0;
-    
-    const handleVisChange = () => {
-      if (document.hidden) {
-        hiddenSince = Date.now();
-      } else {
-        // We just became visible. Check if we should lock BEFORE resetting hiddenSince.
-        if (hiddenSince > 0) {
-          const v = useVaultStore.getState();
-          if (v.status === 'unlocked') {
-            const { autoLockMin } = loadSettings();
-            if (Date.now() - hiddenSince > autoLockMin * 60_000) {
-              v.lock();
-            }
-          }
-        }
-        hiddenSince = 0;
-        // Update activity timestamp when returning to tab
-        useVaultStore.getState().touch();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisChange);
-    };
-  }, []);
-
 
   if (booting) {
     return (

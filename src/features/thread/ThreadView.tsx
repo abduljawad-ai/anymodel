@@ -32,11 +32,14 @@ export function ThreadView() {
     return () => el.removeEventListener('scroll', onScroll);
   }, []);
 
+  const lastTurnContent = turns[turns.length - 1]?.content;
+  const lastTurnReasoning = turns[turns.length - 1]?.reasoning;
+
   useEffect(() => {
     if (stickToBottom.current) {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      bottomRef.current?.scrollIntoView({ behavior: 'auto' });
     }
-  }, [turns.length]);
+  }, [turns.length, lastTurnContent, lastTurnReasoning]);
 
   function copyAll() {
     const text = turns

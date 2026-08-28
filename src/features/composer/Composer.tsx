@@ -3,6 +3,7 @@ import { Paperclip, X, Square, ArrowUp } from 'lucide-react';
 import { anyActive, onStreamActivity, stopStream } from '../../state/streamRegistry';
 import { sendTurn } from '../thread/useSend';
 import { fileToDataUrl } from './ImageAttach';
+import type { MicRecorderRef } from './MicRecorder';
 import { MicRecorder } from './MicRecorder';
 import { PromptLibrary } from './PromptLibrary';
 import { toast } from '../../lib/toast';
@@ -13,6 +14,7 @@ export function Composer() {
   const [streaming, setStreaming] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const micRef = useRef<MicRecorderRef>(null);
 
   useEffect(() => onStreamActivity(() => setStreaming(anyActive())), []);
 
@@ -46,6 +48,7 @@ export function Composer() {
     if (!payloadText.trim() && !payloadImage) return;
     setText('');
     setImage(null);
+    micRef.current?.stop();
     void sendTurn(payloadText, payloadImage ?? undefined);
     requestAnimationFrame(() => taRef.current?.focus());
   }
@@ -115,7 +118,7 @@ export function Composer() {
               </button>
             </div>
           )}
-          <MicRecorder text={text} setText={setText} />
+          <MicRecorder ref={micRef} text={text} setText={setText} />
           <PromptLibrary onSelect={(prompt) => setText((cur) => cur + prompt)} />
 
           {streaming ? (
