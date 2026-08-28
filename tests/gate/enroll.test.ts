@@ -1,12 +1,17 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useVaultStore } from '../../src/vault/vaultStore';
 import { saveSettings } from '../../src/state/settings';
+import { idbClear } from '../../src/vault/idb';
 
 describe('enrollToGate / revokeOnGate', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     localStorage.clear();
+    await idbClear();
+    // Force clean state
+    useVaultStore.setState({ keys: {}, gateRecords: {}, status: 'empty', booting: false });
     useVaultStore.getState().init();
-    useVaultStore.setState({ keys: {}, gateRecords: {}, status: 'unlocked' });
+    await new Promise((r) => setTimeout(r, 50));
+    await useVaultStore.getState().createVault('testpass');
     saveSettings({ gateUrl: '' });
     vi.restoreAllMocks();
   });

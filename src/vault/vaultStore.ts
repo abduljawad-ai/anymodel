@@ -1,13 +1,15 @@
 import { create } from 'zustand';
 import { decryptJson, encryptJson, type VaultBlob } from './crypto';
+import { getSealedVault, setSealedVault } from './idb';
 import type { ProviderId } from '../catalog/types';
 
-const LS_VAULT = 'relay.vault.v1';
 type Keys = Partial<Record<ProviderId, string>>;
+
 export interface GateRecord {
   recordId: string;
   pairingKey: string;
 }
+
 interface SealedPayload {
   keys: Keys;
   gateRecords?: Record<string, GateRecord>;
@@ -31,16 +33,22 @@ interface VaultState {
   removeGateRecord(p: ProviderId): Promise<void>;
 }
 
-/** Passphrase lives ONLY here in memory — never persisted, never exported. */
+/**
+ * Passphrase lives ONLY here in memory — never persisted, never exported.
+ * It is also sent to the Web Worker for Argon2id derivation but never stored there.
+ */
 let passRef: string | null = null;
 
 async function persist(payload: SealedPayload): Promise<void> {
   if (!passRef) return;
   const blob = await encryptJson(payload, passRef);
-  localStorage.setItem(LS_VAULT, JSON.stringify(blob));
+  await setSealedVault(blob);
 }
 
-const seal = (get: () => VaultState): SealedPayload => ({ keys: get().keys, gateRecords: get().gateRecords });
+const seal = (get: () => VaultState): SealedPayload => ({
+  keys: get().keys,
+  gateRecords: get().gateRecords,
+});
 
 export const useVaultStore = create<VaultState>((set, get) => ({
   status: 'empty',
@@ -48,45 +56,62 @@ export const useVaultStore = create<VaultState>((set, get) => ({
   keys: {},
   gateRecords: {},
   lastActivity: Date.now(),
-  init() {
+
+  async init() {
     if (get().status === 'unlocked') {
       set({ booting: false });
       return; // never downgrade a live session
     }
     passRef = null;
-    const raw = localStorage.getItem(LS_VAULT);
-    set({ status: raw ? 'locked' : 'empty', keys: {}, gateRecords: {}, booting: false });
-    // No auto-unlock: user must enter passphrase each session for security.
+    try {
+      const blob = await getSealedVault();
+      set({ status: blob ? 'locked' : 'empty', keys: {}, gateRecords: {}, booting: false });
+    } catch {
+      set({ status: 'empty', keys: {}, gateRecords: {}, booting: false });
+    }
   },
+
   async createVault(pass) {
     passRef = pass;
     await persist(seal(get));
     set({ status: 'unlocked', lastActivity: Date.now() });
   },
+
   async unlock(pass) {
-    const raw = localStorage.getItem(LS_VAULT);
-    if (!raw) return false;
     try {
-      const blob = JSON.parse(raw) as VaultBlob;
+      const blob: VaultBlob | null = await getSealedVault();
+      if (!blob) return false;
       const payload = await decryptJson<SealedPayload | Keys>(blob, pass);
       // Legacy blobs sealed only the keys map.
       const sealed = 'keys' in payload ? (payload as SealedPayload) : { keys: payload as Keys };
       passRef = pass;
-      set({ keys: sealed.keys ?? {}, gateRecords: sealed.gateRecords ?? {}, status: 'unlocked', lastActivity: Date.now() });
+      set({
+        keys: sealed.keys ?? {},
+        gateRecords: sealed.gateRecords ?? {},
+        status: 'unlocked',
+        lastActivity: Date.now(),
+      });
       return true;
     } catch {
       return false;
     }
   },
+
   lock() {
     passRef = null;
-    set((st) => ({ status: st.status === 'empty' ? 'empty' : 'locked', keys: {}, gateRecords: {} }));
+    set((st) => ({
+      status: st.status === 'empty' ? 'empty' : 'locked',
+      keys: {},
+      gateRecords: {},
+    }));
   },
+
   async setKey(p, key) {
     if (get().status !== 'unlocked' || !key.trim()) return;
     set({ keys: { ...get().keys, [p]: key.trim() } });
     await persist(seal(get));
   },
+
   async removeKey(p) {
     if (get().status !== 'unlocked') return;
     const keys = { ...get().keys };
@@ -94,11 +119,13 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     set({ keys });
     await persist(seal(get));
   },
+
   async setGateRecord(p, rec) {
     if (get().status !== 'unlocked') return;
     set({ gateRecords: { ...get().gateRecords, [p]: rec } });
     await persist(seal(get));
   },
+
   async removeGateRecord(p) {
     if (get().status !== 'unlocked') return;
     const gateRecords = { ...get().gateRecords };
@@ -106,9 +133,11 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     set({ gateRecords });
     await persist(seal(get));
   },
+
   hasAnyKey() {
     return Object.keys(get().keys).length > 0;
   },
+
   touch() {
     set({ lastActivity: Date.now() });
   },

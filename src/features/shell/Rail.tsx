@@ -128,6 +128,8 @@ export function Rail() {
                   useUiStore.getState().setRailOpen(false);
                 }}
                 title={s.title}
+                aria-current={s.id === activeId ? 'page' : undefined}
+                aria-label={s.id === activeId ? `${s.title} (current)` : s.title}
               >
                 {s.title}
                 <span className="session-time">{relTime(s.updatedAt)}</span>

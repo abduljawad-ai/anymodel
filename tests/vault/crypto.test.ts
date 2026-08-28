@@ -1,8 +1,10 @@
-import { decryptJson, encryptJson, PBKDF2_ITERATIONS } from '../../src/vault/crypto';
+import { decryptJson, encryptJson } from '../../src/vault/crypto';
 
 test('roundtrips a secrets object', async () => {
   const blob = await encryptJson({ openai: 'sk-test' }, 'hunter2');
-  expect(blob.iterations).toBe(PBKDF2_ITERATIONS);
+  expect(blob.v).toBe(2);
+  expect(blob.argon2).toBeDefined();
+  expect(blob.argon2.timeCost).toBe(3);
   const out = await decryptJson<{ openai: string }>(blob, 'hunter2');
   expect(out.openai).toBe('sk-test');
 });

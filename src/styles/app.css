@@ -513,6 +513,13 @@
 }
 
 /* Code blocks */
+.code-block-wrap {
+  margin: var(--sp-3) 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
 .msg-content pre {
   position: relative;
   margin: var(--sp-3) 0;
@@ -559,6 +566,45 @@
   color: var(--fg);
   background: var(--bg-active);
 }
+
+/* Dark theme hljs override */
+[data-theme='dark'] .hljs {
+  background: #1e1c18;
+  color: #c9c1b5;
+}
+
+[data-theme='dark'] .hljs-comment,
+[data-theme='dark'] .hljs-quote {
+  color: #6b6560;
+}
+
+[data-theme='dark'] .hljs-keyword,
+[data-theme='dark'] .hljs-selector-tag,
+[data-theme='dark'] .hljs-addition {
+  color: #ff8c6b;
+}
+
+[data-theme='dark'] .hljs-string,
+[data-theme='dark'] .hljs-attribute,
+[data-theme='dark'] .hljs-template-variable {
+  color: #9ece6a;
+}
+
+[data-theme='dark'] .hljs-number,
+[data-theme='dark'] .hljs-literal {
+  color: #e0a830;
+}
+
+[data-theme='dark'] .hljs-function,
+[data-theme='dark'] .hljs-title {
+  color: #7dcfff;
+}
+
+[data-theme='dark'] .hljs-type,
+[data-theme='dark'] .hljs-class {
+  color: #bb9af7;
+}
+
 
 /* Streaming cursor */
 .streaming::after {
@@ -897,6 +943,46 @@
   color: var(--success);
 }
 
+.key-status.ok {
+  color: var(--success);
+}
+
+.key-status.err {
+  color: var(--danger);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Wizard-specific status */
+.wizard-key-status {
+  font-size: var(--text-xs);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.wizard-key-status.ok {
+  color: var(--success);
+}
+
+.wizard-key-status.err {
+  color: var(--danger);
+}
+
+.wizard-err {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  color: var(--danger);
+  background: var(--danger-subtle);
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+  border-radius: var(--radius-md);
+  padding: var(--sp-2) var(--sp-3);
+  margin-top: var(--sp-2);
+}
+
 /* ── Wizard ──────────────────────────────────────────────── */
 .wizard {
   display: flex;
@@ -905,17 +991,24 @@
   min-height: 100dvh;
   padding: var(--sp-4);
   background: var(--bg);
+  /* Subtle dot grid bg */
+  background-image: radial-gradient(var(--border) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 .wizard-card {
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-xl);
   padding: var(--sp-6);
-  text-align: center;
+  animation: slideUp var(--duration-slow) var(--ease);
+}
+
+.wizard-card input.input {
+  width: 100%;
 }
 
 .wizard-card .glyph {

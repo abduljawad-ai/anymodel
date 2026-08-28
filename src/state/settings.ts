@@ -36,11 +36,16 @@ export const DEFAULT_SETTINGS: RelaySettings = {
 };
 
 export function loadSettings(): RelaySettings {
+  let parsed = {};
   try {
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(LS_SETTINGS) ?? '{}') };
-  } catch {
-    return { ...DEFAULT_SETTINGS };
+    parsed = JSON.parse(localStorage.getItem(LS_SETTINGS) ?? '{}');
+  } catch {}
+  
+  const settings = { ...DEFAULT_SETTINGS, ...parsed };
+  if (typeof settings.autoLockMin !== 'number' || settings.autoLockMin < 1) {
+    settings.autoLockMin = 15;
   }
+  return settings;
 }
 
 export function saveSettings(patch: Partial<RelaySettings>): void {

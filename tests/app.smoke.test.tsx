@@ -1,18 +1,28 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import App from '../src/App';
 import { useVaultStore } from '../src/vault/vaultStore';
+import { idbClear } from '../src/vault/idb';
 
-test('fresh visitor sees the setup wizard', () => {
+beforeEach(async () => {
   localStorage.clear();
+  await idbClear();
+});
+
+test('fresh visitor sees the setup wizard', async () => {
   render(<App />);
-  expect(screen.getByText(/One thread\. Every model\./)).toBeInTheDocument();
+  await waitFor(() => {
+    expect(screen.getByText(/One thread\. Every model\./)).toBeInTheDocument();
+  });
 });
 
 test('unlocked vault reveals the app shell', async () => {
-  localStorage.clear();
   useVaultStore.getState().init();
+  // Wait for async IndexedDB init
+  await new Promise((r) => setTimeout(r, 50));
   await useVaultStore.getState().createVault('password1');
   await useVaultStore.getState().setKey('openai', 'sk-x');
   render(<App />);
-  expect(screen.getByTestId('app-root')).toBeInTheDocument();
+  await waitFor(() => {
+    expect(screen.getByTestId('app-root')).toBeInTheDocument();
+  });
 });

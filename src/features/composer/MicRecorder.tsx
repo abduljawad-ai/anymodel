@@ -51,12 +51,14 @@ const SpeechRecognitionAPI: SRConstructor | undefined =
     : undefined;
 
 interface MicRecorderProps {
-  onTranscript: (text: string) => void;
+  text: string;
+  setText: (text: string) => void;
 }
 
-export function MicRecorder({ onTranscript }: MicRecorderProps) {
+export function MicRecorder({ text, setText }: MicRecorderProps) {
   const [active, setActive] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const startTextRef = useRef('');
 
   useEffect(() => {
     return () => {
@@ -78,18 +80,21 @@ export function MicRecorder({ onTranscript }: MicRecorderProps) {
       return;
     }
 
+    startTextRef.current = text;
     const recognition = new SpeechRecognitionAPI();
     recognition.continuous = true;
-    recognition.interimResults = false;
+    recognition.interimResults = true; // Enabled for real-time
     recognition.lang = 'en-US';
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      const transcript = Array.from(event.results)
-        .map((result) => result[0].transcript)
-        .join('')
-        .trim();
-
-      if (transcript) onTranscript(transcript);
+      let currentTranscript = '';
+      for (let i = 0; i < event.results.length; i++) {
+        currentTranscript += event.results[i][0].transcript;
+      }
+      
+      const st = startTextRef.current.trim();
+      const newText = st ? `${st} ${currentTranscript.trim()}` : currentTranscript.trim();
+      setText(newText);
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
@@ -110,7 +115,7 @@ export function MicRecorder({ onTranscript }: MicRecorderProps) {
     recognition.start();
     recognitionRef.current = recognition;
     setActive(true);
-  }, [active, onTranscript]);
+  }, [active, text, setText]);
 
   return (
     <button

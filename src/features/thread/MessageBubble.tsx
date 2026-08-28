@@ -1,19 +1,20 @@
 import { memo, useState } from 'react';
-import { Copy, RefreshCw, Share2, ThumbsUp, ThumbsDown, ChevronDown, ChevronRight } from 'lucide-react';
+import { Copy, RefreshCw, ThumbsUp, ThumbsDown, ChevronDown, ChevronRight } from 'lucide-react';
 import type { Turn } from '../../state/sessionStore';
-import { useUiStore } from '../../state/uiStore';
+import { useSessionStore } from '../../state/sessionStore';
 import { renderMarkdown } from '../../lib/markdown';
 import { toast } from '../../lib/toast';
 import { IconButton } from '../../ui/IconButton';
+import { regenerate } from './useSend';
 
 export const MessageBubble = memo(function MessageBubble({ turn }: { turn: Turn }) {
   const isUser = turn.role === 'user';
   const isAssistant = turn.role === 'assistant';
   const [thinkOpen, setThinkOpen] = useState(false);
+  const sid = useSessionStore((s) => s.activeId);
 
-  const modelMeta = isAssistant
-    ? useUiStore.getState().activeModel
-    : null;
+  // Use stored providerId from the turn itself — shows which model actually responded
+  const displayProvider = turn.providerId ?? turn.modelId ?? 'assistant';
 
   return (
     <div className={`msg msg-${turn.role}`}>
@@ -47,7 +48,7 @@ export const MessageBubble = memo(function MessageBubble({ turn }: { turn: Turn 
         <>
           <div className="msg-model">
             <span className="tint-dot" />
-            {modelMeta?.providerId ?? 'model'}
+            {displayProvider}
           </div>
 
           {turn.streaming && !turn.content && (
@@ -60,7 +61,7 @@ export const MessageBubble = memo(function MessageBubble({ turn }: { turn: Turn 
               <button
                 className="btn btn-sm btn-secondary"
                 style={{ marginTop: 'var(--sp-2)' }}
-                onClick={() => toast('Retry not implemented')}
+                onClick={() => { if (sid) void regenerate(sid); }}
               >
                 Retry
               </button>
@@ -75,7 +76,7 @@ export const MessageBubble = memo(function MessageBubble({ turn }: { turn: Turn 
                 aria-expanded={thinkOpen}
               >
                 {thinkOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                Thinking
+                Thinking{turn.reasoning.length > 0 ? ` · ${Math.round(turn.reasoning.length / 4)} tokens` : ''}
               </button>
               {thinkOpen && <div className="think-content">{turn.reasoning}</div>}
             </div>
@@ -88,11 +89,12 @@ export const MessageBubble = memo(function MessageBubble({ turn }: { turn: Turn 
             />
           )}
 
-          {turn.content && (
+          {/* Only show actions once streaming is complete */}
+          {turn.content && !turn.streaming && (
             <div className="msg-actions">
               <IconButton
                 icon={<Copy size={13} />}
-                aria-label="Copy"
+                aria-label="Copy response"
                 title="Copy"
                 onClick={() => {
                   navigator.clipboard.writeText(turn.content);
@@ -101,27 +103,21 @@ export const MessageBubble = memo(function MessageBubble({ turn }: { turn: Turn 
               />
               <IconButton
                 icon={<RefreshCw size={13} />}
-                aria-label="Regenerate"
+                aria-label="Regenerate response"
                 title="Regenerate"
-                onClick={() => toast('Regenerate')}
-              />
-              <IconButton
-                icon={<Share2 size={13} />}
-                aria-label="Share"
-                title="Share"
-                onClick={() => toast('Share')}
+                onClick={() => { if (sid) void regenerate(sid); }}
               />
               <IconButton
                 icon={<ThumbsUp size={13} />}
                 aria-label="Good response"
                 title="Good response"
-                onClick={() => toast('Thanks for feedback')}
+                onClick={() => toast('Thanks for the feedback!')}
               />
               <IconButton
                 icon={<ThumbsDown size={13} />}
                 aria-label="Bad response"
                 title="Bad response"
-                onClick={() => toast('Thanks for feedback')}
+                onClick={() => toast('Thanks for the feedback!')}
               />
             </div>
           )}

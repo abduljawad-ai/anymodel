@@ -102,10 +102,10 @@ export function SettingsSheet() {
                 {Object.keys(keys).map((pid) => {
                   const p = PROVIDERS[pid] ?? listProviders().find((l) => l.id === pid);
                   return (
-                    <div key={pid} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', background: 'var(--paper)', borderRadius: 6, fontSize: 13 }}>
+              <div key={pid} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', background: 'var(--bg-elevated)', borderRadius: 6, fontSize: 13 }}>
                       <span className="tint-dot" style={{ ['--tint' as string]: p?.tint }} />
                       <span style={{ fontWeight: 500 }}>{p?.name ?? pid}</span>
-                      <span className="key-status" style={{ color: 'var(--ok)', fontSize: 11 }}>stored</span>
+                      <span className="key-status" style={{ color: 'var(--success)', fontSize: 11 }}>stored</span>
                       <span style={{ flex: 1 }} />
                       <button className="btn btn-danger" style={{ padding: '2px 8px', fontSize: 11 }} onClick={() => {
                         void useVaultStore.getState().removeKey(pid as ProviderId);
@@ -116,7 +116,7 @@ export function SettingsSheet() {
                 })}
               </div>
             ) : (
-              <p style={{ margin: 0, color: 'var(--muted)', fontSize: 12.5 }}>
+              <p style={{ margin: 0, color: 'var(--fg-muted)', fontSize: 12.5 }}>
                 No keys stored. Add one below, or manage keys on the Providers page.
               </p>
             )}
@@ -126,8 +126,8 @@ export function SettingsSheet() {
                 <Plus size={13} aria-hidden /> Add key
               </button>
             ) : (
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 6, padding: '8px 10px', background: 'var(--paper)', borderRadius: 6 }}>
-                <select value={addProvider} onChange={(e) => setAddProvider(e.target.value as ProviderId)} style={{ flex: '0 0 130px', padding: '5px 8px', fontSize: 13, borderRadius: 4, border: '1px solid var(--hairline)' }}>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 6, padding: '8px 10px', background: 'var(--bg-elevated)', borderRadius: 6 }}>
+                  <select value={addProvider} onChange={(e) => setAddProvider(e.target.value as ProviderId)} style={{ flex: '0 0 130px', padding: '5px 8px', fontSize: 13, borderRadius: 4, border: '1px solid var(--border)' }}>
                   <option value="">Select provider…</option>
                   {listProviders().map((pm) => (
                     <option key={pm.id} value={pm.id} disabled={!!keys[pm.id]}>
@@ -135,7 +135,7 @@ export function SettingsSheet() {
                     </option>
                   ))}
                 </select>
-                <input type="password" placeholder="paste key…" value={addDraft} style={{ flex: 1, minWidth: 100, padding: '5px 8px', fontSize: 13, borderRadius: 4, border: '1px solid var(--hairline)' }} onChange={(e) => setAddDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void saveNewKey()} />
+                  <input type="password" placeholder="paste key…" value={addDraft} style={{ flex: 1, minWidth: 100, padding: '5px 8px', fontSize: 13, borderRadius: 4, border: '1px solid var(--border)' }} onChange={(e) => setAddDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void saveNewKey()} />
                 <button className="btn btn-primary" disabled={!addProvider || !addDraft.trim()} onClick={() => void saveNewKey()}>Save</button>
                 <button className="btn" onClick={() => { setAddingKey(false); setAddDraft(''); setAddProvider(''); }}>Cancel</button>
               </div>
@@ -150,7 +150,7 @@ export function SettingsSheet() {
         {sections.favorites && (
           <div className="field">
             {initial.favoriteModels.length === 0 ? (
-              <span style={{ color: 'var(--muted)', fontSize: 12.5 }}>
+              <span style={{ color: 'var(--fg-muted)', fontSize: 12.5 }}>
                 No favorites yet. Star models in the palette (⌘K) to add them here.
               </span>
             ) : (
@@ -204,7 +204,7 @@ export function SettingsSheet() {
                 saveSettings({ gateUrl: v });
                 toast('Gate URL saved');
               }} />
-              <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+              <span style={{ fontSize: 11.5, color: 'var(--fg-muted)' }}>
                 Enrolled providers send only a pairing key through your gate — the real API key never touches this browser again.
               </span>
             </div>
@@ -254,7 +254,7 @@ export function SettingsSheet() {
                 setBudget(v);
                 saveSettings({ contextBudgetTokens: v });
               }} />
-              <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+              <span style={{ fontSize: 11.5, color: 'var(--fg-muted)' }}>
                 Older turns fold into a rolling AI memory so long threads stay cheap on every model.
               </span>
             </div>
@@ -267,7 +267,7 @@ export function SettingsSheet() {
         <SectionHeader label="Advanced — base URL overrides" open={sections.advanced} onClick={() => toggle('advanced')} />
         {sections.advanced && (
           <>
-            <p style={{ margin: '0 0 8px', color: 'var(--muted)', fontSize: 12.5 }}>
+            <p style={{ margin: '0 0 8px', color: 'var(--fg-muted)', fontSize: 12.5 }}>
               Only for compatible/local providers or proxies. https required; localhost exempt.
             </p>
             {PROVIDER_IDS.filter((p) => PROVIDERS[p].kind === 'compatible' || initial.bases[p]).map((p) => (

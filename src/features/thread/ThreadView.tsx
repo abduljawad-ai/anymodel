@@ -13,7 +13,9 @@ const SUGGESTIONS = [
 ];
 
 export function ThreadView() {
-  const session = useSessionStore((s) => s.sessions.find((x) => x.id === useSessionStore.getState().activeId));
+  const activeId = useSessionStore((s) => s.activeId);
+  const session = useSessionStore((s) => s.sessions.find((x) => x.id === activeId));
+
   const turns = session?.turns ?? [];
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);

@@ -43,7 +43,16 @@ export default function App() {
   }, [vaultStatus]);
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
+    let lastTouch = Date.now();
+    const touchVault = () => {
+      const now = Date.now();
+      if (now - lastTouch > 2000) {
+        lastTouch = now;
+        useVaultStore.getState().touch();
+      }
+    };
+
+    const keyHandler = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key === 'k') { e.preventDefault(); setPaletteOpen(true); }
       if (mod && e.key === 'l') { e.preventDefault(); window.dispatchEvent(new Event('relay-focus-composer')); }
@@ -60,10 +69,18 @@ export default function App() {
         setRailOpen(false);
         setShortcutsOpen(false);
       }
-      useVaultStore.getState().touch();
+      touchVault();
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+
+    window.addEventListener('keydown', keyHandler);
+    window.addEventListener('pointerdown', touchVault, { passive: true });
+    window.addEventListener('wheel', touchVault, { passive: true });
+    
+    return () => {
+      window.removeEventListener('keydown', keyHandler);
+      window.removeEventListener('pointerdown', touchVault);
+      window.removeEventListener('wheel', touchVault);
+    };
   }, [setPaletteOpen, setRailOpen]);
 
   useEffect(() => {
@@ -75,6 +92,37 @@ export default function App() {
     }, 30_000);
     return () => clearInterval(iv);
   }, []);
+
+  // Auto-lock when tab becomes hidden longer than the auto-lock window
+  useEffect(() => {
+    let hiddenSince = 0;
+    
+    const handleVisChange = () => {
+      if (document.hidden) {
+        hiddenSince = Date.now();
+      } else {
+        // We just became visible. Check if we should lock BEFORE resetting hiddenSince.
+        if (hiddenSince > 0) {
+          const v = useVaultStore.getState();
+          if (v.status === 'unlocked') {
+            const { autoLockMin } = loadSettings();
+            if (Date.now() - hiddenSince > autoLockMin * 60_000) {
+              v.lock();
+            }
+          }
+        }
+        hiddenSince = 0;
+        // Update activity timestamp when returning to tab
+        useVaultStore.getState().touch();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisChange);
+    };
+  }, []);
+
 
   if (booting) {
     return (

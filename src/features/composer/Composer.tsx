@@ -115,7 +115,7 @@ export function Composer() {
               </button>
             </div>
           )}
-          <MicRecorder onTranscript={(t) => setText((cur) => (cur ? `${cur} ${t}` : t))} />
+          <MicRecorder text={text} setText={setText} />
           <PromptLibrary onSelect={(prompt) => setText((cur) => cur + prompt)} />
 
           {streaming ? (

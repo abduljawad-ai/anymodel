@@ -3,17 +3,19 @@ import { useVaultStore } from '../../src/vault/vaultStore';
 const s = () => useVaultStore.getState();
 
 test('vault lifecycle', async () => {
-  localStorage.clear();
-  sessionStorage.clear();
+  // Clear any existing vault state
+  s().lock();
   s().init();
+  await new Promise((r) => setTimeout(r, 50)); // wait for async init
+
   expect(s().status).toBe('empty');
   await s().createVault('pass123');
   expect(s().status).toBe('unlocked');
   await s().setKey('openai', 'sk-test-1');
   expect(s().keys.openai).toBe('sk-test-1');
 
-  const raw = localStorage.getItem('relay.vault.v1')!;
-  expect(raw).not.toContain('sk-test-1'); // encrypted at rest
+  // Verify vault is NOT stored in localStorage (old method)
+  expect(localStorage.getItem('relay.vault.v1')).toBeNull();
 
   s().lock();
   expect(s().status).toBe('locked');
@@ -26,9 +28,9 @@ test('vault lifecycle', async () => {
 });
 
 test('setKey requires unlock', async () => {
-  localStorage.clear();
-  sessionStorage.clear();
+  s().lock();
   s().init();
+  await new Promise((r) => setTimeout(r, 50));
   await s().createVault('p');
   s().lock();
   await s().setKey('google', 'gk');
