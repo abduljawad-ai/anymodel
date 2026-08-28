@@ -1,28 +1,52 @@
-import React from 'react';
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
 
-export function cn(...classes: (string | undefined | null | false)[]): string {
-  return classes.filter(Boolean).join(' ');
-}
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
+type Size = 'sm' | 'md' | 'lg';
 
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: Variant;
+  size?: Size;
   loading?: boolean;
+  children: ReactNode;
 }
 
-export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', loading, children, disabled, ...props }, ref) => {
+const variantClass: Record<Variant, string> = {
+  primary: 'btn-primary',
+  secondary: 'btn-secondary',
+  ghost: 'btn-ghost',
+  danger: 'btn-danger',
+};
+
+const sizeClass: Record<Size, string> = {
+  sm: 'btn-sm',
+  md: 'btn-md',
+  lg: 'btn-lg',
+};
+
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ variant = 'secondary', size = 'md', loading, className = '', children, disabled, ...props }, ref) => {
+    const classes = [
+      'btn',
+      variantClass[variant],
+      sizeClass[size],
+      loading ? 'is-loading' : '',
+      className,
+    ]
+      .filter(Boolean)
+      .join(' ');
+
     return (
       <button
         ref={ref}
-        className={cn('ui-btn', `ui-btn-${variant}`, `ui-btn-${size}`, className)}
-        disabled={loading || disabled}
+        className={classes}
+        disabled={disabled || loading}
         {...props}
       >
-        {loading && <span className="ui-spinner" aria-hidden />}
+        {loading && <span className="spinner" aria-hidden />}
         {children}
       </button>
     );
   }
 );
+
 Button.displayName = 'Button';

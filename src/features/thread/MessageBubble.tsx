@@ -1,289 +1,132 @@
-import { memo, useEffect, useMemo, useState } from 'react';
-import {
-  ThumbsUp,
-  ThumbsDown,
-  RefreshCw,
-  Share,
-  Copy,
-  Pencil,
-  Lightbulb,
-  ChevronDown,
-  ChevronRight,
-} from 'lucide-react';
-import hljs from 'highlight.js/lib/common';
-import { getProviderMeta } from '../../catalog/providers';
+import { memo, useState } from 'react';
+import { Copy, RefreshCw, Share2, ThumbsUp, ThumbsDown, ChevronDown, ChevronRight } from 'lucide-react';
+import type { Turn } from '../../state/sessionStore';
+import { useUiStore } from '../../state/uiStore';
 import { renderMarkdown } from '../../lib/markdown';
 import { toast } from '../../lib/toast';
-import { playBlob, stopAudio } from '../../lib/audioBus';
-import { createAdapter } from '../../adapters/factory';
-import { resolveDeps } from '../../vault/gate';
-import { useVaultStore } from '../../vault/vaultStore';
-import { useSessionStore, type Turn } from '../../state/sessionStore';
-import { regenerate, editAndResend } from './useSend';
-
-/** Post-process rendered markdown: highlight code + language header + copy. */
-function enhance(container: HTMLDivElement): void {
-  container.querySelectorAll('pre').forEach((pre) => {
-    if (pre.parentElement?.classList.contains('code-wrap')) return;
-    const code = pre.querySelector('code');
-    let lang = '';
-    if (code && !code.dataset.hlzed) {
-      code.dataset.hlzed = '1';
-      try {
-        hljs.highlightElement(code as HTMLElement);
-      } catch {
-        /* unknown language — stays plain */
-      }
-      lang = ([...code.classList].find((c) => c.startsWith('language-')) ?? '').slice(9).toUpperCase();
-    }
-    const wrap = document.createElement('div');
-    wrap.className = 'code-wrap';
-    pre.replaceWith(wrap);
-
-    const head = document.createElement('div');
-    head.className = 'code-head';
-    const label = document.createElement('span');
-    label.textContent = lang || 'CODE';
-    const btn = document.createElement('button');
-    btn.className = 'btn code-copy';
-    btn.style.position = 'static';
-    btn.textContent = 'copy';
-    btn.addEventListener('click', () => {
-      navigator.clipboard.writeText(pre.textContent ?? '').then(
-        () => toast('Code copied'),
-        () => toast('Copy failed'),
-      );
-    });
-    head.append(label, btn);
-    wrap.append(head, pre);
-  });
-}
-
-/** Think box — reasoning above the answer; live while streaming, collapsed after. */
-function ThinkBox({ reasoning, live }: { reasoning: string; live: boolean }) {
-  const [open, setOpen] = useState(live);
-  useEffect(() => {
-    if (live) setOpen(true);
-  }, [live]);
-  return (
-    <div className={`think-box ${live ? 'live' : ''}`}>
-      <button className="think-head" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <Lightbulb size={13} aria-hidden /> Think
-        </span>
-        <span className="chev">{open ? <ChevronDown size={13} aria-hidden /> : <ChevronRight size={13} aria-hidden />}</span>
-      </button>
-      {(open || live) && <div className="r-body">{reasoning}</div>}
-    </div>
-  );
-}
-
-function copyText(t: string): void {
-  navigator.clipboard.writeText(t).then(
-    () => toast('Copied'),
-    () => toast('Copy failed'),
-  );
-}
-
-/** Hover toolbar for the USER bubble: Edit · Copy · Share. */
-function UserActions({ turn }: { turn: Turn }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(turn.content);
-  const sid = useSessionStore((s) => s.activeId);
-
-  function share(): void {
-    copyText(`"${turn.content}"\n— via Relay`);
-  }
-
-  if (editing) {
-    return (
-      <div className="user-edit">
-        <textarea
-          autoFocus
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              void editAndResend(sid!, turn.id, draft.trim());
-            }
-            if (e.key === 'Escape') setEditing(false);
-          }}
-        />
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button
-            className="btn btn-primary"
-            onClick={() => void editAndResend(sid!, turn.id, draft.trim())}
-          >
-            Save & resend ↻
-          </button>
-          <button className="btn" onClick={() => setEditing(false)}>
-            Cancel
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="msg-actions user-actions">
-      <button onClick={() => setEditing(true)} title="Edit & resend">
-        <Pencil size={12} aria-hidden /> Edit
-      </button>
-      <button onClick={() => copyText(turn.content)} title="Copy">
-        <Copy size={12} aria-hidden /> Copy
-      </button>
-      <button onClick={share} title="Share">
-        <Share size={12} aria-hidden /> Share
-      </button>
-    </div>
-  );
-}
-
-/** Action row under an ASSISTANT message. */
-function AssistantActions({ turn }: { turn: Turn }) {
-  const sid = useSessionStore((s) => s.activeId);
-  const hasTtsKey = useVaultStore((s) => !!s.keys.openai);
-  const [speaking, setSpeaking] = useState(false);
-
-  useEffect(
-    () => () => {
-      if (speaking) stopAudio();
-    },
-    [speaking],
-  );
-
-  async function speak(): Promise<void> {
-    if (speaking) {
-      stopAudio();
-      setSpeaking(false);
-      return;
-    }
-    try {
-      setSpeaking(true);
-      const blob = await createAdapter('openai', resolveDeps('openai')).speak(turn.content, 'tts-1');
-      await playBlob(blob);
-      setSpeaking(false);
-    } catch (e) {
-      setSpeaking(false);
-      toast(e instanceof Error ? e.message : 'Speech failed — check your OpenAI key');
-    }
-  }
-
-  function feedback(v: 'up' | 'down'): void {
-    if (!sid) return;
-    useSessionStore.getState().patchTurn(sid, turn.id, {
-      feedback: turn.feedback === v ? undefined : v,
-    });
-    toast(v === 'up' ? 'Thanks — feedback saved' : 'Thanks — feedback saved');
-  }
-
-  return (
-    <div className="msg-actions row">
-      <button title="Copy reply" aria-label="Copy reply" onClick={() => copyText(turn.content)}>
-        <Copy size={13} aria-hidden />
-      </button>
-      <button title="Regenerate" aria-label="Regenerate" onClick={() => void regenerate(useSessionStore.getState().activeId ?? undefined)}>
-        <RefreshCw size={13} aria-hidden />
-      </button>
-      <button title="Share (copy quote)" aria-label="Share" onClick={() => copyText(`"${turn.content.slice(0, 280)}"\n— ${turn.modelId} via Relay`)}>
-        <Share size={13} aria-hidden />
-      </button>
-      <button
-        title="Good reply"
-        aria-label="Good reply"
-        className={turn.feedback === 'up' ? 'active' : ''}
-        onClick={() => feedback('up')}
-      >
-        <ThumbsUp size={13} aria-hidden />
-      </button>
-      <button
-        title="Bad reply"
-        aria-label="Bad reply"
-        className={turn.feedback === 'down' ? 'active' : ''}
-        onClick={() => feedback('down')}
-      >
-        <ThumbsDown size={13} aria-hidden />
-      </button>
-
-      {hasTtsKey && (
-        <button className={`tts-chip ${speaking ? 'playing' : ''}`} onClick={() => void speak()} title="Read aloud">
-          {speaking ? '◼ stop' : '▶ listen'}
-        </button>
-      )}
-    </div>
-  );
-}
+import { IconButton } from '../../ui/IconButton';
 
 export const MessageBubble = memo(function MessageBubble({ turn }: { turn: Turn }) {
-  const md = useMemo(() => renderMarkdown(turn.content), [turn.content]);
-  const tint = turn.providerId ? getProviderMeta(turn.providerId)?.tint : undefined;
+  const isUser = turn.role === 'user';
+  const isAssistant = turn.role === 'assistant';
+  const [thinkOpen, setThinkOpen] = useState(false);
 
-  // Kimi-style think box: live while reasoning streams, collapsed once prose starts.
-  const showThinkBox = !!turn.reasoning;
-  const thinkLive = !!turn.streaming && !turn.content;
-
-  if (turn.role === 'user') {
-    return (
-      <div className="turn-user-group">
-        <div className="turn-user">
-          {turn.imageUrl && <img className="msg-img" src={turn.imageUrl} alt="attachment" />}
-          <div className="msg-content" style={{ whiteSpace: 'pre-wrap' }}>
-            {turn.content}
-          </div>
-        </div>
-        <UserActions turn={turn} />
-      </div>
-    );
-  }
+  const modelMeta = isAssistant
+    ? useUiStore.getState().activeModel
+    : null;
 
   return (
-    <div className="turn-assistant" style={tint ? ({ ['--tint' as string]: tint } as React.CSSProperties) : undefined}>
-      <div className="msg-badge-row">
-        {turn.modelId && turn.providerId && (
-          <span className="chip">
-            <span className="tint-dot" style={{ ['--tint' as string]: tint }} />
-            {turn.modelId}
-          </span>
-        )}
-        {turn.streaming && <span className="chip">streaming…</span>}
-      </div>
-
-      {turn.error ? (
-        <div className="error-card" role="alert">
-          <span>
-            ⚠ {turn.error.message}
-            {turn.error.status ? ` (${turn.error.status})` : ''}
-          </span>
-          <button className="btn" onClick={() => void regenerate(useSessionStore.getState().activeId ?? undefined)}>
-            Retry
-          </button>
-        </div>
-      ) : (
+    <div className={`msg msg-${turn.role}`}>
+      {/* User message */}
+      {isUser && (
         <>
-          {showThinkBox && <ThinkBox reasoning={turn.reasoning!} live={thinkLive} />}
-          {turn.streaming && !turn.content && !turn.reasoning && (
-            <span className="shimmer">Connecting…</span>
-          )}
-          {(turn.content || !turn.streaming) && (
-            <div
-              className={`msg-content ${turn.streaming ? 'caret' : ''}`}
-              ref={(el) => {
-                if (el && turn.content) enhance(el);
-              }}
-              dangerouslySetInnerHTML={{ __html: md }}
+          {turn.imageUrl && (
+            <img
+              src={turn.imageUrl}
+              alt="Attached"
+              style={{ maxWidth: 240, maxHeight: 180, borderRadius: 'var(--radius-md)', marginBottom: 'var(--sp-2)' }}
             />
           )}
+          <div className="msg-content">{turn.content}</div>
+          <div className="msg-actions">
+            <IconButton
+              icon={<Copy size={13} />}
+              aria-label="Copy"
+              title="Copy"
+              onClick={() => {
+                navigator.clipboard.writeText(turn.content);
+                toast('Copied');
+              }}
+            />
+          </div>
         </>
       )}
 
-      {!!turn.tokensEst && turn.tokensEst > 50 && !turn.streaming && (
-        <div className="msg-meta">
-          <span>~{turn.tokensEst} tok</span>
-        </div>
-      )}
+      {/* Assistant message */}
+      {isAssistant && (
+        <>
+          <div className="msg-model">
+            <span className="tint-dot" />
+            {modelMeta?.providerId ?? 'model'}
+          </div>
 
-      {!turn.streaming && !turn.error && <AssistantActions turn={turn} />}
+          {turn.streaming && !turn.content && (
+            <div className="shimmer">Connecting…</div>
+          )}
+
+          {turn.error && (
+            <div className="msg-error" role="alert">
+              {turn.error.message}
+              <button
+                className="btn btn-sm btn-secondary"
+                style={{ marginTop: 'var(--sp-2)' }}
+                onClick={() => toast('Retry not implemented')}
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {turn.reasoning && (
+            <div className="think-box">
+              <button
+                className="think-toggle"
+                onClick={() => setThinkOpen(!thinkOpen)}
+                aria-expanded={thinkOpen}
+              >
+                {thinkOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                Thinking
+              </button>
+              {thinkOpen && <div className="think-content">{turn.reasoning}</div>}
+            </div>
+          )}
+
+          {turn.content && (
+            <div
+              className={`msg-content ${turn.streaming ? 'streaming' : ''}`}
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(turn.content) }}
+            />
+          )}
+
+          {turn.content && (
+            <div className="msg-actions">
+              <IconButton
+                icon={<Copy size={13} />}
+                aria-label="Copy"
+                title="Copy"
+                onClick={() => {
+                  navigator.clipboard.writeText(turn.content);
+                  toast('Copied');
+                }}
+              />
+              <IconButton
+                icon={<RefreshCw size={13} />}
+                aria-label="Regenerate"
+                title="Regenerate"
+                onClick={() => toast('Regenerate')}
+              />
+              <IconButton
+                icon={<Share2 size={13} />}
+                aria-label="Share"
+                title="Share"
+                onClick={() => toast('Share')}
+              />
+              <IconButton
+                icon={<ThumbsUp size={13} />}
+                aria-label="Good response"
+                title="Good response"
+                onClick={() => toast('Thanks for feedback')}
+              />
+              <IconButton
+                icon={<ThumbsDown size={13} />}
+                aria-label="Bad response"
+                title="Bad response"
+                onClick={() => toast('Thanks for feedback')}
+              />
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 });

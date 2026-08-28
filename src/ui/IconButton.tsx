@@ -1,26 +1,22 @@
-import React from 'react';
-import { Button, type ButtonProps } from './Button';
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
 
-export interface IconButtonProps extends Omit<ButtonProps, 'children'> {
-  icon: React.ReactNode;
+interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  icon: ReactNode;
   'aria-label': string;
 }
 
-/** Icon-only button. `aria-label` is required for accessibility. */
-export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
-  ({ icon, className, variant = 'ghost', size = 'md', 'aria-label': ariaLabel, ...props }, ref) => {
+export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
+  ({ icon, className = '', ...props }, ref) => {
     return (
-      <Button
+      <button
         ref={ref}
-        variant={variant}
-        size={size}
-        className={className}
-        aria-label={ariaLabel}
+        className={`icon-btn ${className}`}
         {...props}
       >
         {icon}
-      </Button>
+      </button>
     );
   }
 );
+
 IconButton.displayName = 'IconButton';

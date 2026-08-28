@@ -1,47 +1,55 @@
-import React, { useEffect } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { X } from 'lucide-react';
-import { createPortal } from 'react-dom';
+import { IconButton } from './IconButton';
 
 interface DialogProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
-  children: React.ReactNode;
-  title?: string;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+  width?: number;
 }
 
-/** Centered modal dialog. Closes on scrim click or Escape. */
-export const Dialog = ({ open, onOpenChange, children, title }: DialogProps) => {
+export function Dialog({ open, onClose, title, children, width }: DialogProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onOpenChange(false);
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onOpenChange]);
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [open, onClose]);
 
-  if (!open) return null;
+  // Trap focus
+  useEffect(() => {
+    if (!open) return;
+    const el = dialogRef.current;
+    if (!el) return;
+    const focusable = el.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (focusable.length) focusable[0].focus();
+  }, [open]);
 
-  return createPortal(
-    <div className="ui-dialog-scrim" onClick={() => onOpenChange(false)}>
+  return (
+    <>
+      <div className={`dialog-scrim ${open ? 'open' : ''}`} onClick={onClose} aria-hidden />
       <div
-        className="ui-dialog"
+        ref={dialogRef}
+        className={`dialog ${open ? 'open' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        onClick={(e) => e.stopPropagation()}
+        style={width ? { maxWidth: width, width: '100%' } : undefined}
       >
-        {title && (
-          <div className="ui-dialog-head">
-            <h3>{title}</h3>
-            <button className="ui-dialog-close" aria-label="Close" onClick={() => onOpenChange(false)}>
-              <X size={16} aria-hidden />
-            </button>
-          </div>
-        )}
-        <div className="ui-dialog-body">{children}</div>
+        <div className="dialog-head">
+          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 600 }}>{title}</h2>
+          <IconButton icon={<X size={16} />} aria-label="Close" onClick={onClose} />
+        </div>
+        <div className="dialog-body">
+          {children}
+        </div>
       </div>
-    </div>,
-    document.body
+    </>
   );
-};
+}

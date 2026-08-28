@@ -1,101 +1,101 @@
+import { useRef } from 'react';
+import { Download, Upload, Trash2 } from 'lucide-react';
 import { useSessionStore } from '../../state/sessionStore';
-import { confirmDialog, alertDialog } from '../../lib/confirmDialog';
+import { toast } from '../../lib/toast';
 
-function download(filename: string, content: string, type = 'application/json'): void {
-  const blob = new Blob([content], { type });
+function downloadFile(filename: string, content: string, mime: string): void {
+  const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
   URL.revokeObjectURL(url);
 }
 
-/**
- * Backup / restore — sessions and settings only; key material is NEVER
- * included in any export.
- */
 export function DataPort() {
-  const exportJson = () => {
-    const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    download(`relay-backup-${stamp}.json`, useSessionStore.getState().exportJson());
-  };
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const importJson = async (file: File) => {
+  function handleExport() {
+    const json = useSessionStore.getState().exportJson();
+    const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    downloadFile(`relay-backup-${stamp}.json`, json, 'application/json');
+    toast('Backup exported.');
+  }
+
+  async function handleImport() {
+    const file = fileInputRef.current?.files?.[0];
+    if (!file) return;
+
     const text = await file.text();
-    // Parse first to validate and count sessions before confirming
     try {
-      const j = JSON.parse(text) as { sessions?: unknown[] };
-      if (!Array.isArray(j.sessions)) {
-        await alertDialog('That file is not a valid Relay backup.', 'Import failed');
+      const parsed = JSON.parse(text) as { sessions?: unknown[] };
+      if (!Array.isArray(parsed.sessions)) {
+        toast('Invalid backup file.', { error: true });
         return;
       }
-      const existingCount = useSessionStore.getState().sessions.length;
-      const importCount = j.sessions.length;
-      const confirmed = await confirmDialog(
-        `Import ${importCount} session${importCount !== 1 ? 's' : ''}?\n\n` +
-        `This will REPLACE your ${existingCount} existing session${existingCount !== 1 ? 's' : ''}. ` +
-        `This action cannot be undone.`,
-        { title: 'Import backup', confirmLabel: 'Import', destructive: true },
-      );
-      if (!confirmed) return;
-    } catch {
-      await alertDialog('That file is not a valid Relay backup.', 'Import failed');
-      return;
-    }
-    const res = useSessionStore.getState().importJson(text);
-    if (res === 'ok') window.location.reload();
-    else await alertDialog('That file is not a valid Relay backup.', 'Import failed');
-  };
 
-  const exportThreadMd = () => {
-    const s = useSessionStore.getState().active();
-    if (!s || s.turns.length === 0) {
-      void alertDialog('Nothing to export yet.', 'Export');
-      return;
-    }
-    const lines: string[] = [`# ${s.title}`, ''];
-    for (const t of s.turns) {
-      if (t.role === 'user') {
-        lines.push('## You', '', t.content, '');
-        if (t.imageUrl) lines.push('*(image attached)*', '');
+      const existing = useSessionStore.getState().sessions.length;
+      const incoming = parsed.sessions.length;
+      const ok = window.confirm(
+        `Import ${incoming} session${incoming !== 1 ? 's' : ''}?\n\n` +
+          `This will REPLACE your ${existing} existing session${existing !== 1 ? 's' : ''}. ` +
+          `This cannot be undone.`,
+      );
+      if (!ok) return;
+
+      const result = useSessionStore.getState().importJson(text);
+      if (result === 'ok') {
+        toast('Import successful. Reloading…');
+        window.location.reload();
       } else {
-        lines.push(`> **${t.modelId ?? 'model'}**`, '', t.content, '');
+        toast('Invalid backup file.', { error: true });
       }
+    } catch {
+      toast('Invalid backup file.', { error: true });
     }
-    const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    // #43: a title of pure symbols/spaces collapses to a dash — fall back to a name.
-    const base = s.title.replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'relay-thread';
-    download(`${base}-${stamp}.md`, lines.join('\n'), 'text/markdown');
-  };
+
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  function handleClear() {
+    const ok = window.confirm(
+      'Delete ALL sessions?\n\nThis cannot be undone.',
+    );
+    if (!ok) return;
+
+    useSessionStore.setState({ sessions: [], activeId: null });
+    toast('All sessions cleared.');
+  }
 
   return (
-    <div className="field">
-      <label>Data</label>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button className="btn" onClick={exportJson}>
-          ⭳ Export backup
+    <div className="data-port">
+      <div className="data-port-actions">
+        <button className="btn" onClick={handleExport} type="button">
+          <Download size={14} aria-hidden />
+          Export backup
         </button>
-        <button className="btn" onClick={() => document.getElementById('import-json')?.click()}>
-          ⭱ Import backup
+
+        <button className="btn" onClick={() => fileInputRef.current?.click()} type="button">
+          <Upload size={14} aria-hidden />
+          Import backup
         </button>
         <input
-          id="import-json"
+          ref={fileInputRef}
           type="file"
           accept="application/json"
           hidden
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) void importJson(f);
-            e.target.value = '';
-          }}
+          onChange={handleImport}
         />
-        <button className="btn" onClick={exportThreadMd}>
-          ⇩ This thread → Markdown
+
+        <button className="btn btn-danger" onClick={handleClear} type="button">
+          <Trash2 size={14} aria-hidden />
+          Clear all data
         </button>
       </div>
-      <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
-        Backups contain your conversations — API keys are never included.
+
+      <span className="data-port-hint">
+        Backups contain conversations — API keys are never included.
       </span>
     </div>
   );

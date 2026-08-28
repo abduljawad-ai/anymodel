@@ -15,16 +15,10 @@ import { ProvidersPage } from './features/providers/ProvidersPage';
 import { autoLoadKeyedModels, ensureSaneActiveModel } from './features/providers/autoLoad';
 import { loadSettings } from './state/settings';
 import { KeyboardShortcuts } from './features/shell/KeyboardShortcuts';
-import { OnboardingTooltips } from './features/shell/OnboardingTooltips';
 
-// Lazy load components that are not immediately needed
 const Palette = lazy(() => import('./features/palette/Palette').then(m => ({ default: m.Palette })));
 const SettingsSheet = lazy(() => import('./features/settings/SettingsSheet').then(m => ({ default: m.SettingsSheet })));
 
-/**
- * Shell: vault gate → rail + topbar + active view.
- * Owns global keyboard shortcuts and vault auto-lock.
- */
 export default function App() {
   const vaultStatus = useVaultStore((s) => s.status);
   const booting = useVaultStore((s) => s.booting);
@@ -37,63 +31,41 @@ export default function App() {
   const inSetup = useUiStore((s) => s.inSetup);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
-  // Boot stores once.
   useEffect(() => {
     useVaultStore.getState().init();
     useSessionStore.getState().init();
   }, []);
 
-  // The moment the vault is usable, silently load every keyed provider's models.
   useEffect(() => {
     if (vaultStatus === 'unlocked') {
       void autoLoadKeyedModels().then(ensureSaneActiveModel);
     }
   }, [vaultStatus]);
 
-  // Global shortcuts: ⌘K/Ctrl+K palette, Esc closes overlays.
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      // Cmd+K / Ctrl+K: open model palette
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    const handler = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key === 'k') { e.preventDefault(); setPaletteOpen(true); }
+      if (mod && e.key === 'l') { e.preventDefault(); window.dispatchEvent(new Event('relay-focus-composer')); }
+      if (mod && e.shiftKey && e.key === 'O') {
         e.preventDefault();
-        setRailOpen(false);
-        setPaletteOpen(true);
+        useSessionStore.getState().createSession(useUiStore.getState().activeModel);
+        useUiStore.getState().setView('chat');
       }
-      // Escape: close overlays
+      if (mod && e.key === ',') { e.preventDefault(); useUiStore.getState().setSettingsOpen(true); }
+      if (mod && e.key === '/') { e.preventDefault(); setShortcutsOpen(true); }
       if (e.key === 'Escape') {
         setPaletteOpen(false);
-        setRailOpen(false);
         useUiStore.getState().setSettingsOpen(false);
-      }
-      // Cmd+L / Ctrl+L: focus composer
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'l') {
-        e.preventDefault();
-        window.dispatchEvent(new Event('relay-focus-composer'));
-      }
-      // Ctrl/Cmd+Shift+O: new thread (plain Ctrl/Cmd+N is reserved by browsers).
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'o') {
-        e.preventDefault();
-        const { activeModel, setView } = useUiStore.getState();
-        useSessionStore.getState().createSession(activeModel);
-        setView('chat');
-      }
-      // Cmd+, / Ctrl+,: open settings
-      if ((e.metaKey || e.ctrlKey) && e.key === ',') {
-        e.preventDefault();
-        useUiStore.getState().setSettingsOpen(true);
-      }
-      // Cmd+/ / Ctrl+/: open keyboard shortcuts
-      if ((e.metaKey || e.ctrlKey) && e.key === '/') {
-        e.preventDefault();
-        setShortcutsOpen(true);
+        setRailOpen(false);
+        setShortcutsOpen(false);
       }
       useVaultStore.getState().touch();
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [setPaletteOpen, setRailOpen]);
 
-  // Vault auto-lock after configured idle minutes.
   useEffect(() => {
     const iv = setInterval(() => {
       const v = useVaultStore.getState();
@@ -104,21 +76,17 @@ export default function App() {
     return () => clearInterval(iv);
   }, []);
 
-  // Loading state while vault initializes.
   if (booting) {
     return (
-      <div style={{ display: 'grid', placeItems: 'center', height: '100dvh', background: 'var(--paper)' }}>
-        <div style={{ textAlign: 'center', color: 'var(--muted)' }}>
-          <div style={{ fontSize: 28, marginBottom: 8, color: 'var(--accent)' }}>⟐</div>
+      <div style={{ display: 'grid', placeItems: 'center', height: '100dvh', background: 'var(--bg)' }}>
+        <div style={{ textAlign: 'center', color: 'var(--fg-muted)' }}>
+          <div style={{ fontSize: 28, marginBottom: 8, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>⟐</div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>Loading Relay…</div>
         </div>
       </div>
     );
   }
 
-  // Gate: locked/empty vault → wizard. Also keep the wizard mounted while the
-  // user is in guided first-run key setup (vault just created, status already
-  // 'unlocked' — without this the Wizard would unmount and skip key setup).
   if (vaultStatus !== 'unlocked' || inSetup) {
     return (
       <>
@@ -156,7 +124,6 @@ export default function App() {
         </Suspense>
       )}
       <KeyboardShortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
-      <OnboardingTooltips />
     </div>
   );
 }

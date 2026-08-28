@@ -7,10 +7,6 @@ import { MicRecorder } from './MicRecorder';
 import { PromptLibrary } from './PromptLibrary';
 import { toast } from '../../lib/toast';
 
-/**
- * Composer — attach · mic · send/stop. The model lives in the top bar.
- * Clean, standard chat input: nothing decorative, everything works.
- */
 export function Composer() {
   const [text, setText] = useState('');
   const [image, setImage] = useState<string | null>(null);
@@ -18,11 +14,8 @@ export function Composer() {
   const inputRef = useRef<HTMLInputElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
-  // Track global stream activity for the Stop affordance via subscription
-  // (instant Stop, no polling lag, no idle timer).
   useEffect(() => onStreamActivity(() => setStreaming(anyActive())), []);
 
-  // Receive suggestion fills / focus requests from elsewhere without poking the DOM.
   useEffect(() => {
     const onFill = (e: Event) => {
       const detail = (e as CustomEvent<string>).detail;
@@ -40,7 +33,6 @@ export function Composer() {
     };
   }, []);
 
-  // Autosize.
   useEffect(() => {
     const ta = taRef.current;
     if (!ta) return;
@@ -55,12 +47,11 @@ export function Composer() {
     setText('');
     setImage(null);
     void sendTurn(payloadText, payloadImage ?? undefined);
-    // Re-focus the textarea for the next message.
     requestAnimationFrame(() => taRef.current?.focus());
   }
 
   return (
-    <div className="composer">
+    <div className="composer" data-composer>
       <div
         className="composer-inner"
         onPaste={(e) => {
@@ -110,7 +101,7 @@ export function Composer() {
           />
           <button
             className="icon-btn"
-            title="Attach image (vision models)"
+            title="Attach image"
             aria-label="Attach image"
             onClick={() => inputRef.current?.click()}
           >
@@ -128,17 +119,17 @@ export function Composer() {
           <PromptLibrary onSelect={(prompt) => setText((cur) => cur + prompt)} />
 
           {streaming ? (
-            <button className="btn btn-danger stop-btn composer-send" onClick={() => stopStream()} aria-label="Stop generating">
+            <button className="btn btn-danger btn-sm composer-send" onClick={() => stopStream()} aria-label="Stop generating">
               <Square size={13} aria-hidden /> Stop
             </button>
           ) : (
             <button
-              className="btn btn-primary send-btn composer-send"
+              className="btn btn-primary btn-sm composer-send"
               onClick={submit}
               disabled={!text.trim() && !image}
               aria-label="Send message"
             >
-              Send <ArrowUp size={14} aria-hidden />
+              <ArrowUp size={14} aria-hidden /> Send
             </button>
           )}
         </div>

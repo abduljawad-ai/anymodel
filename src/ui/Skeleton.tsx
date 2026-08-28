@@ -1,8 +1,17 @@
-import React from 'react';
-import { cn } from './Button';
+interface SkeletonProps {
+  width?: number | string;
+  height?: number | string;
+  className?: string;
+}
 
-export interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {}
-
-export const Skeleton = ({ className, ...props }: SkeletonProps) => (
-  <div className={cn('ui-skeleton', className)} aria-hidden {...props} />
-);
+export function Skeleton({ width, height, className = '' }: SkeletonProps) {
+  return (
+    <div
+      className={`skeleton ${className}`}
+      style={{
+        width: width || '100%',
+        height: height || 16,
+      }}
+    />
+  );
+}

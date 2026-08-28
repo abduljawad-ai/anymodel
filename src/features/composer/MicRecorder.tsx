@@ -1,125 +1,126 @@
-import { useEffect, useRef, useState } from 'react';
-import { Mic, X, LoaderCircle } from 'lucide-react';
-import { createAdapter } from '../../adapters/factory';
-import { resolveDeps } from '../../vault/gate';
-import type { ProviderId } from '../../catalog/types';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Mic, MicOff } from 'lucide-react';
 import { toast } from '../../lib/toast';
-import { useVaultStore } from '../../vault/vaultStore';
 
-function pickSttProvider(): ProviderId | null {
-  const keys = useVaultStore.getState().keys;
-  if (keys.openai) return 'openai';
-  if (keys.compatible) return 'compatible';
-  return null;
+interface SRConstructor {
+  new (): SpeechRecognition;
+}
+interface SpeechRecognition {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start(): void;
+  stop(): void;
+  abort(): void;
+}
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+}
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+}
+interface SpeechRecognitionResultList {
+  length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+interface SpeechRecognitionResult {
+  length: number;
+  item(index: number): SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+  isFinal: boolean;
+}
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
 }
 
-/**
- * Mic button: click to start/stop recording (webm), then run provider
- * STT and hand the transcript back to the composer.
- */
-export function MicRecorder({ onTranscript }: { onTranscript: (text: string) => void }) {
-  const [recording, setRecording] = useState(false);
-  const [seconds, setSeconds] = useState(0);
-  const [busy, setBusy] = useState(false);
-  const recRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Stop recording + release the mic if the component goes away mid-recording.
-  useEffect(
-    () => () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      if (recRef.current && recRef.current.state !== 'inactive') {
-        try {
-          recRef.current.stop();
-        } catch {
-          /* already stopped */
-        }
-      }
-    },
-    [],
-  );
-
-  async function toggle() {
-    if (recording) {
-      recRef.current?.stop();
-      return;
-    }
-    if (!pickSttProvider()) {
-      toast('Voice input needs an OpenAI (or compatible) key.');
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      const rec = new MediaRecorder(stream);
-      chunksRef.current = [];
-      rec.ondataavailable = (e) => chunksRef.current.push(e.data);
-      rec.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        if (timerRef.current) clearInterval(timerRef.current);
-        setRecording(false);
-        setBusy(true);
-        try {
-          const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-          const p = pickSttProvider()!;
-          const adapter = createAdapter(p, resolveDeps(p));
-          const text = await adapter.transcribe(blob, 'whisper-1');
-          if (text.trim()) onTranscript(text.trim());
-        } catch (e) {
-          toast(e instanceof Error ? e.message : 'Transcription failed');
-        } finally {
-          setBusy(false);
-          setSeconds(0);
-        }
-      };
-      rec.start();
-      recRef.current = rec;
-      setRecording(true);
-      setSeconds(0);
-      timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
-    } catch {
-      toast('Microphone permission denied.');
-    }
+declare global {
+  interface Window {
+    SpeechRecognition?: SRConstructor;
+    webkitSpeechRecognition?: SRConstructor;
   }
+}
 
-  function cancel() {
-    // Stop without transcribing.
-    const rec = recRef.current;
-    if (!rec) return;
-    rec.onstop = () => {
-      rec.stream.getTracks().forEach((t) => t.stop());
-      if (timerRef.current) clearInterval(timerRef.current);
+const SpeechRecognitionAPI: SRConstructor | undefined =
+  typeof window !== 'undefined'
+    ? window.SpeechRecognition ?? window.webkitSpeechRecognition
+    : undefined;
+
+interface MicRecorderProps {
+  onTranscript: (text: string) => void;
+}
+
+export function MicRecorder({ onTranscript }: MicRecorderProps) {
+  const [active, setActive] = useState(false);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.abort();
+      recognitionRef.current = null;
     };
-    chunksRef.current = [];
-    rec.stop();
-    setRecording(false);
-    setSeconds(0);
-  }
+  }, []);
+
+  const toggle = useCallback(() => {
+    if (!SpeechRecognitionAPI) {
+      toast('Speech recognition is not supported in this browser.', { error: true });
+      return;
+    }
+
+    if (active) {
+      recognitionRef.current?.stop();
+      setActive(false);
+      recognitionRef.current = null;
+      return;
+    }
+
+    const recognition = new SpeechRecognitionAPI();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = Array.from(event.results)
+        .map((result) => result[0].transcript)
+        .join('')
+        .trim();
+
+      if (transcript) onTranscript(transcript);
+    };
+
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      if (event.error === 'not-allowed') {
+        toast('Microphone permission denied.', { error: true });
+      } else if (event.error !== 'aborted') {
+        toast(`Speech recognition error: ${event.error}`, { error: true });
+      }
+      setActive(false);
+      recognitionRef.current = null;
+    };
+
+    recognition.onend = () => {
+      setActive(false);
+      recognitionRef.current = null;
+    };
+
+    recognition.start();
+    recognitionRef.current = recognition;
+    setActive(true);
+  }, [active, onTranscript]);
 
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-      {recording ? (
-        <>
-          <span className="rec-dot" aria-hidden />
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{seconds}s</span>
-          <button className="icon-btn" onClick={cancel} title="Cancel recording" aria-label="Cancel recording">
-            <X size={14} aria-hidden />
-          </button>
-        </>
-      ) : null}
-      <button
-        className={`icon-btn ${recording ? '' : ''}`}
-        style={recording || busy ? { color: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
-        onClick={() => void toggle()}
-        disabled={busy}
-        title={busy ? 'Transcribing…' : recording ? 'Stop & transcribe' : 'Record voice message'}
-        aria-label={busy ? 'Transcribing' : recording ? 'Stop recording' : 'Record voice'}
-      >
-        {busy ? <LoaderCircle size={16} className="spin" aria-hidden /> : <Mic size={16} aria-hidden />}
-      </button>
-    </span>
+    <button
+      className={`mic-btn ${active ? 'mic-active' : ''}`}
+      onClick={toggle}
+      title={active ? 'Stop recording' : 'Record voice'}
+      aria-label={active ? 'Stop recording' : 'Record voice'}
+      type="button"
+    >
+      {active ? <MicOff size={16} aria-hidden /> : <Mic size={16} aria-hidden />}
+    </button>
   );
 }

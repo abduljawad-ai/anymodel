@@ -1,150 +1,105 @@
-import { useState, useEffect } from 'react';
-import { X, ArrowRight, Sparkles } from 'lucide-react';
-import { useVaultStore } from '../../vault/vaultStore';
+import { useState, useEffect, useCallback } from 'react';
+import { ChevronRight, X } from 'lucide-react';
 
-const STORAGE_KEY = 'relay-onboarding-complete';
 
-interface Tooltip {
-  id: string;
+const STORAGE_KEY = 'relay.onboarding.done';
+
+interface Step {
   title: string;
   message: string;
-  position: 'top' | 'bottom' | 'left' | 'right';
-  target?: string; // CSS selector for positioning
+  target: string;
 }
 
-const tooltips: Tooltip[] = [
+const STEPS: Step[] = [
   {
-    id: 'welcome',
     title: 'Welcome to Relay',
-    message: 'Your personal AI chatbot. You bring your own API keys — no middleman.',
-    position: 'bottom',
+    message: 'Your personal AI chatbot. You bring your own API keys — no server, no middleman.',
+    target: '',
   },
   {
-    id: 'setup-keys',
-    title: '1. Add API Keys',
-    message: 'Click the gear icon to open Settings, then add your first API key from OpenAI, Anthropic, Google, or others.',
-    position: 'bottom',
-    target: '[data-settings-btn]',
-  },
-  {
-    id: 'pick-model',
-    title: '2. Pick a Model',
-    message: 'Press ⌘K (or Ctrl+K) to open the Model Palette and select which model to chat with.',
-    position: 'bottom',
+    title: 'Pick a model',
+    message: 'Press ⌘K to open the Model Palette and choose which model to chat with.',
     target: '[data-model-chip]',
   },
   {
-    id: 'start-chat',
-    title: '3. Start Chatting',
-    message: 'Type your message below and press Enter. Use ⌘/ for keyboard shortcuts.',
-    position: 'top',
+    title: 'Start chatting',
+    message: 'Type your message below and press Enter to send. Use ⌘/ for keyboard shortcuts.',
     target: '[data-composer]',
+  },
+  {
+    title: 'Add your keys',
+    message: 'Open Settings to add API keys from OpenAI, Anthropic, Google, or others.',
+    target: '[data-settings-btn]',
   },
 ];
 
+function getTargetRect(selector: string): DOMRect | null {
+  if (!selector) return null;
+  const el = document.querySelector(selector);
+  if (!el) return null;
+  return el.getBoundingClientRect();
+}
+
 export function OnboardingTooltips() {
+  const [step, setStep] = useState(0);
   const [visible, setVisible] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
-  const keys = useVaultStore((s) => s.keys);
+  const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
 
   useEffect(() => {
-    // Check if onboarding is complete
-    const completed = localStorage.getItem(STORAGE_KEY);
-    if (!completed) {
-      // Only show if user has no keys set up
-      const hasKeys = Object.keys(keys).length > 0;
-      if (!hasKeys) {
-        setVisible(true);
-      } else {
-        // User has keys, mark as complete
-        localStorage.setItem(STORAGE_KEY, 'true');
-      }
-    }
-  }, [keys]);
+    if (localStorage.getItem(STORAGE_KEY)) return;
+    setVisible(true);
+  }, []);
 
-  function dismiss() {
+  useEffect(() => {
+    if (!visible) return;
+    const rect = getTargetRect(STEPS[step].target);
+    setTargetRect(rect);
+  }, [visible, step]);
+
+  const dismiss = useCallback(() => {
     setVisible(false);
-    localStorage.setItem(STORAGE_KEY, 'true');
-  }
+    localStorage.setItem(STORAGE_KEY, '1');
+  }, []);
 
-  function nextStep() {
-    if (currentStep < tooltips.length - 1) {
-      setCurrentStep(currentStep + 1);
+  const next = useCallback(() => {
+    if (step < STEPS.length - 1) {
+      setStep((s) => s + 1);
     } else {
       dismiss();
     }
-  }
+  }, [step, dismiss]);
 
   if (!visible) return null;
 
-  const tooltip = tooltips[currentStep];
+  const current = STEPS[step];
+  const tooltipStyle: React.CSSProperties = targetRect
+    ? {
+        position: 'fixed',
+        top: targetRect.bottom + 12,
+        left: Math.min(targetRect.left, window.innerWidth - 340),
+      }
+    : {
+        position: 'fixed',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+      };
 
   return (
-    <div
-      className="onboarding-overlay"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(25, 23, 20, 0.6)',
-        zIndex: 1000,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-      onClick={dismiss}
-    >
-      <div
-        className="onboarding-card"
-        style={{
-          background: 'var(--surface)',
-          border: '1px solid var(--hairline)',
-          borderRadius: 12,
-          padding: 24,
-          maxWidth: 400,
-          boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Sparkles size={18} style={{ color: 'var(--accent)' }} />
-            <span style={{ fontWeight: 600, fontSize: 14 }}>{tooltip.title}</span>
-          </div>
-          <button
-            onClick={dismiss}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--muted)',
-              padding: 4,
-            }}
-            aria-label="Dismiss onboarding"
-          >
-            <X size={16} />
+    <div className="onboarding-overlay" onClick={dismiss}>
+      <div className="onboarding-tooltip" style={tooltipStyle} onClick={(e) => e.stopPropagation()}>
+        <div className="onboarding-header">
+          <span className="onboarding-title">{current.title}</span>
+          <button className="onboarding-close" onClick={dismiss} aria-label="Dismiss">
+            <X size={14} />
           </button>
         </div>
-
-        <p style={{ margin: 0, color: 'var(--text)', fontSize: 14, lineHeight: 1.5 }}>
-          {tooltip.message}
-        </p>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-            {currentStep + 1} of {tooltips.length}
-          </span>
-          <button
-            className="btn btn-primary"
-            onClick={nextStep}
-            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-          >
-            {currentStep < tooltips.length - 1 ? (
-              <>
-                Next <ArrowRight size={14} />
-              </>
-            ) : (
-              'Get Started'
-            )}
+        <p className="onboarding-message">{current.message}</p>
+        <div className="onboarding-actions">
+          <span className="onboarding-step">{step + 1} / {STEPS.length}</span>
+          <button className="btn btn-primary" onClick={next}>
+            {step < STEPS.length - 1 ? 'Next' : 'Get Started'}
+            <ChevronRight size={14} />
           </button>
         </div>
       </div>

@@ -1,35 +1,59 @@
-import React, { useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { X } from 'lucide-react';
+import { IconButton } from './IconButton';
 
 interface SheetProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
-  children: React.ReactNode;
-  title?: string;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+  width?: number;
 }
 
-/** Bottom sheet — mobile-first overlay. Closes on scrim click or Escape. */
-export const Sheet = ({ open, onOpenChange, children, title }: SheetProps) => {
+export function Sheet({ open, onClose, title, children, width }: SheetProps) {
+  const sheetRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onOpenChange(false);
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onOpenChange]);
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [open, onClose]);
 
-  if (!open) return null;
+  // Trap focus
+  useEffect(() => {
+    if (!open) return;
+    const el = sheetRef.current;
+    if (!el) return;
+    const focusable = el.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (focusable.length) focusable[0].focus();
+  }, [open]);
 
-  return createPortal(
+  return (
     <>
-      <div className="ui-sheet-scrim" onClick={() => onOpenChange(false)} aria-hidden />
-      <div className="ui-sheet" role="dialog" aria-modal="true" aria-label={title}>
-        <div className="ui-sheet-handle" aria-hidden />
-        {title && <h3 className="ui-sheet-title">{title}</h3>}
-        <div className="ui-sheet-body">{children}</div>
+      <div className={`sheet-scrim ${open ? 'open' : ''}`} onClick={onClose} aria-hidden />
+      <div
+        ref={sheetRef}
+        className={`sheet ${open ? 'open' : ''}`}
+        role="dialog"
+        aria-label={title}
+        aria-modal="true"
+        style={width ? { maxWidth: width } : undefined}
+        onMouseDown={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+      >
+        <div className="sheet-handle" />
+        <div className="sheet-head">
+          <h2>{title}</h2>
+          <IconButton icon={<X size={16} />} aria-label="Close" onClick={onClose} />
+        </div>
+        <div className="sheet-body">
+          {children}
+        </div>
       </div>
-    </>,
-    document.body
+    </>
   );
-};
+}

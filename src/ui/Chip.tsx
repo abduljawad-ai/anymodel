@@ -1,14 +1,24 @@
-import React from 'react';
-import { cn } from './Button';
+import type { ReactNode } from 'react';
 
-export interface ChipProps extends React.HTMLAttributes<HTMLSpanElement> {
-  variant?: 'default' | 'accent';
+type ChipVariant = 'default' | 'accent' | 'success' | 'danger';
+
+interface ChipProps {
+  variant?: ChipVariant;
+  children: ReactNode;
+  className?: string;
 }
 
-export const Chip = ({ className, variant = 'default', children, ...props }: ChipProps) => {
+const variantClass: Record<ChipVariant, string> = {
+  default: 'chip-default',
+  accent: 'chip-accent',
+  success: 'chip-success',
+  danger: 'chip-danger',
+};
+
+export function Chip({ variant = 'default', children, className = '' }: ChipProps) {
   return (
-    <span className={cn('ui-chip', variant === 'accent' && 'ui-chip-accent', className)} {...props}>
+    <span className={`chip ${variantClass[variant]} ${className}`}>
       {children}
     </span>
   );
-};
+}

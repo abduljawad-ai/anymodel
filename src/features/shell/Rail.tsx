@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MessageCircle, Boxes, Settings, Moon, Sun, Lock, X, Pin } from 'lucide-react';
+import { MessageCircle, Boxes, Lock, X, Pin } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import { IconButton } from '../../ui/IconButton';
 import { Input } from '../../ui/Input';
@@ -17,26 +17,22 @@ function relTime(ts: number): string {
   return `${Math.round(hrs / 24)}d`;
 }
 
-/** Sessions rail. Provider management lives on the Providers page. */
 export function Rail() {
   const sessions = useSessionStore((s) => s.sessions);
   const activeId = useSessionStore((s) => s.activeId);
   const activeModel = useUiStore((s) => s.activeModel);
   const railOpen = useUiStore((s) => s.railOpen);
-  const theme = useUiStore((s) => s.theme);
   const view = useUiStore((s) => s.view);
   const vaultStatus = useVaultStore((s) => s.status);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
   const [, forceTick] = useState(0);
-  // Keep relative timestamps fresh.
   useEffect(() => {
     const iv = setInterval(() => forceTick((t) => t + 1), 60_000);
     return () => clearInterval(iv);
   }, []);
 
-  // Auto-disarm the delete confirmation so it can't stay armed forever.
   useEffect(() => {
     if (!confirmId) return;
     const t = setTimeout(() => setConfirmId(null), 4000);
@@ -45,13 +41,16 @@ export function Rail() {
 
   return (
     <aside className={`rail ${railOpen ? 'open' : ''}`} aria-label="Navigation">
-      <div className="rail-brand">
-        <span className="glyph">⟐</span> Relay
+      <div className="rail-header">
         <IconButton
           icon={<X size={16} aria-hidden />}
           aria-label="Close menu"
           onClick={() => useUiStore.getState().setRailOpen(false)}
         />
+      </div>
+
+      <div className="rail-brand">
+        <span className="glyph">⟐</span> Relay
       </div>
 
       <Button
@@ -73,12 +72,10 @@ export function Rail() {
             chat: { label: 'Chat', icon: <MessageCircle size={15} aria-hidden /> },
             providers: { label: 'Providers & models', icon: <Boxes size={15} aria-hidden /> },
           };
-          
+
           return (
-            <Button
+            <button
               key={v}
-              variant="ghost"
-              size="md"
               className={`rail-nav-item ${view === v ? 'active' : ''}`}
               onClick={() => {
                 useUiStore.getState().setView(v);
@@ -87,7 +84,7 @@ export function Rail() {
             >
               {items[v].icon}
               {items[v].label}
-            </Button>
+            </button>
           );
         })}
       </nav>
@@ -95,69 +92,68 @@ export function Rail() {
       <div className="rail-section-header">THREADS</div>
 
       {sessions.length > 0 && (
-        <Input
-          placeholder="Search threads…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          aria-label="Search threads"
-        />
+        <div className="rail-search">
+          <Input
+            placeholder="Search threads…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Search threads"
+          />
+        </div>
       )}
 
       <nav className="rail-sessions">
         {sessions
           .filter((s) => !search || s.title.toLowerCase().includes(search.toLowerCase()))
           .sort((a, b) => {
-            // Pinned items first, then by updatedAt
             if (a.pinned && !b.pinned) return -1;
             if (!a.pinned && b.pinned) return 1;
             return b.updatedAt - a.updatedAt;
           })
           .map((s) => (
-          <div key={s.id} className={`session-item ${s.id === activeId ? 'active' : ''}`}>
-            <button
-              className="session-action session-pin"
-              title={s.pinned ? 'Unpin' : 'Pin'}
-              onClick={() => useSessionStore.getState().togglePin(s.id)}
-              aria-label={s.pinned ? 'Unpin conversation' : 'Pin conversation'}
-            >
-              <Pin size={12} aria-hidden style={{ fill: s.pinned ? 'currentColor' : 'none' }} />
-            </button>
-            <button
-              className="session-title"
-              style={{ all: 'unset', cursor: 'pointer', flex: 1 }}
-              onClick={() => {
-                useSessionStore.getState().setActive(s.id);
-                useUiStore.getState().setView('chat');
-                useUiStore.getState().setRailOpen(false);
-              }}
-              title={s.title}
-            >
-              {s.title}
-              <span className="session-time">{relTime(s.updatedAt)}</span>
-            </button>
-            <button
-              className={`session-action session-del ${confirmId === s.id ? 'confirm' : ''}`}
-              title="Delete session"
-              onClick={() => {
-                if (confirmId === s.id) {
-                  useSessionStore.getState().deleteSession(s.id);
-                  setConfirmId(null);
-                } else {
-                  setConfirmId(s.id);
-                }
-              }}
-            >
-              {confirmId === s.id ? 'sure?' : <X size={12} aria-hidden />}
-            </button>
-          </div>
-        ))}
+            <div key={s.id} className={`session-item ${s.id === activeId ? 'active' : ''}`}>
+              <button
+                className="session-action session-pin"
+                title={s.pinned ? 'Unpin' : 'Pin'}
+                onClick={() => useSessionStore.getState().togglePin(s.id)}
+                aria-label={s.pinned ? 'Unpin conversation' : 'Pin conversation'}
+              >
+                <Pin size={12} aria-hidden style={{ fill: s.pinned ? 'currentColor' : 'none' }} />
+              </button>
+              <button
+                className="session-title"
+                onClick={() => {
+                  useSessionStore.getState().setActive(s.id);
+                  useUiStore.getState().setView('chat');
+                  useUiStore.getState().setRailOpen(false);
+                }}
+                title={s.title}
+              >
+                {s.title}
+                <span className="session-time">{relTime(s.updatedAt)}</span>
+              </button>
+              <button
+                className={`session-action session-del ${confirmId === s.id ? 'confirm' : ''}`}
+                title="Delete session"
+                onClick={() => {
+                  if (confirmId === s.id) {
+                    useSessionStore.getState().deleteSession(s.id);
+                    setConfirmId(null);
+                  } else {
+                    setConfirmId(s.id);
+                  }
+                }}
+              >
+                {confirmId === s.id ? 'sure?' : <X size={12} aria-hidden />}
+              </button>
+            </div>
+          ))}
         {sessions.length === 0 && <p className="rail-empty">No threads yet.</p>}
         {sessions.length > 0 && sessions.filter((s) => !search || s.title.toLowerCase().includes(search.toLowerCase())).length === 0 && (
           <p className="rail-empty">No threads match "{search}".</p>
         )}
       </nav>
 
-      {/* Footer: vault status, settings, theme toggle, lock */}
       <div className="rail-footer">
         <div className="rail-footer-left">
           <Chip variant={vaultStatus === 'unlocked' ? 'accent' : 'default'}>
@@ -165,19 +161,6 @@ export function Rail() {
           </Chip>
         </div>
         <div className="rail-footer-right">
-          <IconButton
-            icon={<Settings size={16} aria-hidden />}
-            aria-label="Settings"
-            onClick={() => {
-              useUiStore.getState().setSettingsOpen(true);
-              useUiStore.getState().setRailOpen(false);
-            }}
-          />
-          <IconButton
-            icon={theme === 'light' ? <Moon size={16} aria-hidden /> : <Sun size={16} aria-hidden />}
-            aria-label="Toggle theme"
-            onClick={() => useUiStore.getState().toggleTheme()}
-          />
           <IconButton
             icon={<Lock size={16} aria-hidden />}
             aria-label="Lock vault"

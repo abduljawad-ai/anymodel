@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ChevronRight, ExternalLink, Key, RefreshCw, Loader2 } from 'lucide-react';
 import { cachedModels, ensureModels, invalidate, isChatCapable, isLoaded } from '../../../catalog';
 import type { ModelInfo, ProviderMeta } from '../../../catalog/types';
 import { PROVIDERS } from '../../../catalog/providers';
@@ -10,7 +11,6 @@ import { useVaultStore } from '../../../vault/vaultStore';
 import { toast } from '../../../lib/toast';
 import { onModelsChanged, ensureSaneActiveModel } from '../autoLoad';
 
-/** Compact single-line provider row — expands on click into full controls. */
 export function ProviderRow({ meta }: { meta: ProviderMeta }) {
   const [open, setOpen] = useState(false);
   const [, force] = useState(0);
@@ -21,31 +21,29 @@ export function ProviderRow({ meta }: { meta: ProviderMeta }) {
   const hasKey = !!useVaultStore((s) => s.keys[meta.id]);
   const mode = custodyOf(meta.id);
 
+  useEffect(() => onModelsChanged(() => setModels(cachedModels(meta.id))), [meta.id]);
+
   async function saveKey() {
     if (!draft.trim()) return;
     await useVaultStore.getState().setKey(meta.id, draft);
     setDraft('');
     setEditingKey(false);
-    toast(`${meta.name} key saved — loading models…`);
+    toast(`${meta.name} key saved \u2014 loading models\u2026`);
     force((n) => n + 1);
-    // Auto-discover models immediately; no manual "Load models" needed.
     try {
       setModels(await ensureModels(meta.id));
       setOpen(true);
       ensureSaneActiveModel();
       toast(`${meta.name}: ${cachedModels(meta.id).length} models ready`);
     } catch {
-      toast(`${meta.name}: could not fetch models — check key, use Refresh later`);
+      toast(`${meta.name}: could not fetch models \u2014 check key, use Refresh later`);
     }
   }
 
-  // Keep row data fresh when models load from anywhere else.
-  useEffect(() => onModelsChanged(() => setModels(cachedModels(meta.id))), [meta.id]);
-
   async function test() {
-    toast(`Testing ${meta.name}…`);
+    toast(`Testing ${meta.name}\u2026`);
     const r = await createAdapter(meta.id, resolveDeps(meta.id)).testConnection();
-    toast(r.ok ? `✓ ${meta.name}: ${r.detail}` : `✗ ${meta.name}: ${r.detail}`);
+    toast(r.ok ? `\u2713 ${meta.name}: ${r.detail}` : `\u2717 ${meta.name}: ${r.detail}`);
   }
 
   async function load() {
@@ -66,16 +64,16 @@ export function ProviderRow({ meta }: { meta: ProviderMeta }) {
   }
 
   return (
-    <div>
+    <div className={`prov-row${open ? ' expanded' : ''}`}>
       <button className="prov-row-line" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
         <span className="tint-dot" style={{ ['--tint' as string]: meta.tint }} />
         <strong>{meta.name}</strong>
         <span className="chip">{meta.kind === 'compatible' ? 'compat' : meta.kind}</span>
-        {mode === 'gate' && <span className="chip">🔒 gate</span>}
-        {mode === 'local' && <span className="chip">🔑</span>}
+        {mode === 'gate' && <span className="chip">\uD83D\uDD12 gate</span>}
+        {mode === 'local' && <span className="chip">\uD83D\uDD11</span>}
         {!hasKey && !meta.local && <span className="chip" style={{ opacity: 0.55 }}>no key</span>}
-        <span className="grow" />
-        <span className="chev">{open ? '▾' : '▸'}</span>
+        <span style={{ flex: 1 }} />
+        <ChevronRight size={14} style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 150ms' }} />
       </button>
 
       {open && (
@@ -85,8 +83,8 @@ export function ProviderRow({ meta }: { meta: ProviderMeta }) {
               {meta.defaultBase}
             </span>
             {meta.keyUrl && (
-              <a href={meta.keyUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>
-                get key ↗
+              <a href={meta.keyUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                get key <ExternalLink size={11} />
               </a>
             )}
             {meta.local && <span className="chip">local</span>}
@@ -109,7 +107,7 @@ export function ProviderRow({ meta }: { meta: ProviderMeta }) {
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
             {editingKey ? (
               <>
                 <input
@@ -142,7 +140,7 @@ export function ProviderRow({ meta }: { meta: ProviderMeta }) {
               </>
             ) : (
               <button className="btn btn-primary" onClick={() => setEditingKey(true)}>
-                Set API key
+                <Key size={12} /> Set API key
               </button>
             )}
 
@@ -151,22 +149,32 @@ export function ProviderRow({ meta }: { meta: ProviderMeta }) {
               disabled={!hasKey && !meta.local}
               onClick={() => void load()}
             >
-              {isLoaded(meta.id) ? 'Refresh models' : 'Load models'}
+              {status === 'loading' ? (
+                <Loader2 size={12} className="spin" />
+              ) : (
+                <RefreshCw size={12} />
+              )}
+              {isLoaded(meta.id) ? ' Refresh' : ' Load'} models
             </button>
           </div>
 
           {(isLoaded(meta.id) || status !== 'idle') && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+            <div className="prov-models">
               {status === 'loading' && (
                 <span className="dots" aria-label="loading">
-                  <i />
-                  <i />
-                  <i />
+                  <i /><i /><i />
                 </span>
               )}
-              {status === 'error' && <span style={{ color: 'var(--err)', fontSize: 12.5 }}>fetch failed — check key / base URL</span>}
+              {status === 'error' && (
+                <span style={{ color: 'var(--err)', fontSize: 12.5 }}>fetch failed \u2014 check key / base URL</span>
+              )}
               {models.map((m) => (
-                <button key={m.id} className={`chip model-chip ${isChatCapable(m) ? '' : 'aux'}`} title={[m.id, ...m.caps].join(' · ')} onClick={() => pick(m)}>
+                <button
+                  key={m.id}
+                  className={`chip model-chip${isChatCapable(m) ? '' : ' aux'}`}
+                  title={[m.id, ...m.caps].join(' \u00b7 ')}
+                  onClick={() => pick(m)}
+                >
                   {m.label}
                 </button>
               ))}
@@ -174,25 +182,24 @@ export function ProviderRow({ meta }: { meta: ProviderMeta }) {
           )}
 
           {!isLoaded(meta.id) && status === 'idle' && (meta.popular?.length ?? 0) > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center' }}>
+            <div className="prov-models">
               <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--muted)' }}>SUGGESTED</span>
               {meta.popular!.map((id) => (
-                  <button
-                    key={id}
-                    className="chip model-chip"
-                    onClick={() =>
-                      pick({
-                        id,
-                        providerId: meta.id,
-                        label: id.replace(/[-_/.]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-                        caps: [],
-                      })
-                    }
-                  >
-                    {id}
-                  </button>
-                ),
-              )}
+                <button
+                  key={id}
+                  className="chip model-chip"
+                  onClick={() =>
+                    pick({
+                      id,
+                      providerId: meta.id,
+                      label: id.replace(/[-_/.]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+                      caps: [],
+                    })
+                  }
+                >
+                  {id}
+                </button>
+              ))}
             </div>
           )}
         </div>
